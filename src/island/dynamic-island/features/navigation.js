@@ -209,6 +209,7 @@ export const navigationMethods = {
             SoundService.play('notification');
             // Utilise la classe notifying plus compacte et temporaire
             this.el.classList.remove(...this.getIslandSizeClasses(), 'island-active-music');
+            this.el.style.width = ''; // largeur du titre de la pilule : la notification a la sienne
             this.el.classList.add('island-notifying');
             this.renderNotification();
         });

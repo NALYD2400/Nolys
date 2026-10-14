@@ -6,6 +6,8 @@ import { APP_LOGO_ART, getDisplayMediaArt, getFallbackIcon, getServiceArtStyle, 
 export const idleView = {
     renderIdle() {
         if (this.isExpanded) return;
+        // Largeur adaptée au titre : recalculée plus bas pour la musique, sinon taille du CSS.
+        this.el.style.width = '';
 
         // Apply a gorgeous blurred cover art background to the small pill if playing music!
         const bgLayer = this.el.querySelector('.island-bg-layer');
@@ -110,8 +112,10 @@ export const idleView = {
                 }
             }
 
+            // Pochette, titre du morceau (qui défile s'il est trop long), puis l'onde.
             let idleInnerHtml = `
           ${coverHtml}
+          <div class="idle-title"><span class="idle-title-text">${escapeHtml(this.musicData.title || 'Lecture')}</span></div>
           ${showIdleVisualizer ? '<canvas class="live-viz-canvas" data-bars="5" data-bar-width="3"></canvas>' : ''}
             `;
 
@@ -156,6 +160,7 @@ export const idleView = {
             // Wire canvas to visualizer
             this._vizCanvas = this.content.querySelector('.live-viz-canvas');
             this.syncVisualizerActivity();
+            if (compactMode === 'cover') this.fitIdleToTitle();
         } else {
             this.el.classList.remove('island-active-music');
             this.el.classList.remove('island-active-network');
@@ -166,6 +171,30 @@ export const idleView = {
             this.syncVisualizerActivity();
             // Restore default settings glow
             ThemeService.applyIslandSettings();
+        }
+    },
+
+    /**
+     * La pilule prend la largeur de son contenu (150 à 300 px) : pas de grand vide au
+     * milieu, et le ressort anime le changement à chaque morceau. Au-delà de 300 px,
+     * le titre défile.
+     */
+    fitIdleToTitle() {
+        const title = this.content.querySelector('.idle-title');
+        const text = title && title.querySelector('.idle-title-text');
+        if (!text || this.el.classList.contains('island-game-compact')) return;
+        const MIN = 150;
+        const MAX = 300;
+        const others = this.el.offsetWidth - title.clientWidth; // pochette, onde, marges
+        const wanted = Math.ceil(text.scrollWidth + others);
+        const width = Math.max(MIN, Math.min(MAX, wanted));
+        this.el.style.width = `${width}px`;
+
+        const overflow = wanted - MAX;
+        title.classList.toggle('is-marquee', overflow > 2);
+        if (overflow > 2) {
+            title.style.setProperty('--marquee-shift', `-${overflow + 14}px`);
+            title.style.setProperty('--marquee-duration', `${Math.max(6, (overflow + 14) / 30 * 2 + 4)}s`);
         }
     },
 };

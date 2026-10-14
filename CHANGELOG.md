@@ -2,6 +2,7 @@
 
 ## Prochaine version — en préparation
 
+- Pilule repliée : le titre du morceau s'affiche entre la pochette et l'onde, et la pilule prend la largeur de son contenu (150 à 300 px, avec le ressort à chaque morceau). Au-delà, le titre défile.
 - Visualiseur refait façon Apple : 5 barres en gélule centrées, chacune à son rythme, aux couleurs de la pochette avec un léger halo, qui retombent en points à la pause. Dessin net sur les écrans haute densité.
 - Pilule repliée : l'onde est posée dans le bout droit, symétrique de la pochette ronde ; le contenu ne déborde plus du bord.
 - Lecteur ouvert : la bande de barres coupée en bas est remplacée par la même onde, à droite du titre.
