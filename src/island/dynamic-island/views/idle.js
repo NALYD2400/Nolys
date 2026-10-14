@@ -1,6 +1,7 @@
 /** Vue compacte (pilule au repos). */
 import { ThemeService } from '../../../services/ThemeService.js';
 import { escapeHtml, formatTime } from '../helpers/format.js';
+import { applyLoopMarquee } from '../helpers/marquee.js';
 import { APP_LOGO_ART, getDisplayMediaArt, getFallbackIcon, getServiceArtStyle, shouldPreferServiceIcon } from '../helpers/media-art.js';
 
 export const idleView = {
@@ -175,8 +176,8 @@ export const idleView = {
     },
 
     /**
-     * La pilule prend la largeur de son contenu (150 à 300 px) : pas de grand vide au
-     * milieu, et le ressort anime le changement à chaque morceau. Au-delà de 300 px,
+     * La pilule prend la largeur de son contenu (150 à 240 px) : pas de grand vide au
+     * milieu, et le ressort anime le changement à chaque morceau. Au-delà de 240 px,
      * le titre défile.
      */
     fitIdleToTitle() {
@@ -184,17 +185,12 @@ export const idleView = {
         const text = title && title.querySelector('.idle-title-text');
         if (!text || this.el.classList.contains('island-game-compact')) return;
         const MIN = 150;
-        const MAX = 300;
+        const MAX = 240;
         const others = this.el.offsetWidth - title.clientWidth; // pochette, onde, marges
         const wanted = Math.ceil(text.scrollWidth + others);
         const width = Math.max(MIN, Math.min(MAX, wanted));
         this.el.style.width = `${width}px`;
 
-        const overflow = wanted - MAX;
-        title.classList.toggle('is-marquee', overflow > 2);
-        if (overflow > 2) {
-            title.style.setProperty('--marquee-shift', `-${overflow + 14}px`);
-            title.style.setProperty('--marquee-duration', `${Math.max(6, (overflow + 14) / 30 * 2 + 4)}s`);
-        }
+        applyLoopMarquee(title, text, wanted - MAX);
     },
 };

@@ -1,4 +1,5 @@
 /** Lecteur musical déplié. */
+import { applyLoopMarquee } from '../helpers/marquee.js';
 import { escapeHtml, formatTime } from '../helpers/format.js';
 import { APP_LOGO_ART, getDisplayMediaArt, getFallbackIcon, getRawDisplayMediaArt, getServiceArtStyle, shouldPreferServiceIcon } from '../helpers/media-art.js';
 import { getMusicHistoryKey } from '../helpers/music-search.js';
@@ -151,20 +152,13 @@ export const musicView = {
     },
 
     /**
-     * Titre trop long : il défile doucement d'un bout à l'autre, avec une pause à chaque
-     * extrémité (comme Apple Music), au lieu d'être coupé par des points de suspension.
+     * Titre trop long : il défile en boucle vers la gauche (helpers/marquee.js) au lieu
+     * d'être coupé par des points de suspension.
      */
     setupTitleMarquee() {
         const title = this.content.querySelector('.track-title');
         const text = title && title.querySelector('.track-title-text');
         if (!text) return;
-        requestAnimationFrame(() => {
-            const overflow = text.scrollWidth - title.clientWidth;
-            if (overflow <= 4) return;
-            title.classList.add('is-marquee');
-            title.style.setProperty('--marquee-shift', `-${overflow + 12}px`);
-            // ~30 px par seconde, plus les pauses : la vitesse reste la même quelle que soit la longueur.
-            title.style.setProperty('--marquee-duration', `${Math.max(6, (overflow + 12) / 30 * 2 + 4)}s`);
-        });
+        requestAnimationFrame(() => applyLoopMarquee(title, text));
     },
 };
