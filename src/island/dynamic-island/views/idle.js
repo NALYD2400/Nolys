@@ -112,7 +112,7 @@ export const idleView = {
 
             let idleInnerHtml = `
           ${coverHtml}
-          ${showIdleVisualizer ? '<canvas class="live-viz-canvas" width="50" height="20" style="display:block; image-rendering: pixelated;"></canvas>' : ''}
+          ${showIdleVisualizer ? '<canvas class="live-viz-canvas" data-bars="5" data-bar-width="3"></canvas>' : ''}
             `;
 
             if (compactMode === 'title') {
@@ -149,7 +149,7 @@ export const idleView = {
             }
 
             this.content.innerHTML = `
-        <div class="island-idle-content" style="display: flex; align-items: center; justify-content: space-between; width: 100%; height: 100%; padding: 0 18px 0 1px;">
+        <div class="island-idle-content" style="display: flex; align-items: center; justify-content: space-between; width: 100%; height: 100%; box-sizing: border-box; padding: 0 ${compactMode === 'cover' && showIdleVisualizer ? 8 : 18}px 0 1px;">
           ${idleInnerHtml}
         </div>
             `;

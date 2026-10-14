@@ -486,7 +486,7 @@ body.motion-vivid .inner-action-btn:hover {
 /* Mode-specific expanded sizes. These override the broad legacy size classes. */
 .island-mode-music {
     width: 380px;
-    height: 215px;
+    height: 196px;
     border-radius: 45px;
 }
 

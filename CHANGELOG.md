@@ -1,5 +1,13 @@
 # Historique
 
+## Prochaine version — en préparation
+
+- Visualiseur refait façon Apple : 5 barres en gélule centrées, chacune à son rythme, aux couleurs de la pochette avec un léger halo, qui retombent en points à la pause. Dessin net sur les écrans haute densité.
+- Pilule repliée : l'onde est posée dans le bout droit, symétrique de la pochette ronde ; le contenu ne déborde plus du bord.
+- Lecteur ouvert : la bande de barres coupée en bas est remplacée par la même onde, à droite du titre.
+- Lecteur ouvert plus compact : les temps sont collés sous la barre de progression, en Inter avec des chiffres de largeur fixe, et le vide du bas a disparu.
+- Titre trop long : il défile doucement d'un bout à l'autre avec une pause à chaque extrémité, au lieu d'être coupé.
+
 ## 2.1.0 — 14 octobre 2026
 
 ### Retour micro (nouveau)

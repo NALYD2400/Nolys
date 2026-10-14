@@ -2,7 +2,7 @@
 
 /* Music Player Mode */
 .music-player {
-    padding: 12px 20px 28px 20px; /* adjusted to prevent overflow and restore duration visibility */
+    padding: 12px 20px 16px 20px;
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -242,6 +242,32 @@
     margin-bottom: 2px;
 }
 
+.track-title-text {
+    display: inline-block;
+}
+
+/* Titre trop long : défilement aller-retour avec pauses, bords fondus (features : setupTitleMarquee). */
+.track-title.is-marquee {
+    text-overflow: clip;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 6px, #000 calc(100% - 14px), transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, #000 6px, #000 calc(100% - 14px), transparent 100%);
+}
+
+.track-title.is-marquee .track-title-text {
+    padding-left: 4px;
+    animation: trackTitleMarquee var(--marquee-duration, 10s) ease-in-out 1.2s infinite;
+}
+
+@keyframes trackTitleMarquee {
+    0%, 18% { transform: translateX(0); }
+    50%, 68% { transform: translateX(var(--marquee-shift, 0)); }
+    100% { transform: translateX(0); }
+}
+
+body.motion-sober .track-title.is-marquee .track-title-text {
+    animation: none;
+}
+
 .track-artist {
     font-size: 13px;
     opacity: 0.7;
@@ -475,13 +501,23 @@
     transform: translate(-50%, 0) scale(1);
 }
 
+/* Barre et temps forment un seul bloc : les temps restent collés sous la barre. */
+.music-progress-group {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Chiffres de même largeur dans la police de l'interface : rien ne bouge quand le temps défile. */
 .music-time-row {
     display: flex;
     justify-content: space-between;
-    font-size: 10px;
-    margin-top: 5px;
-    opacity: 0.7;
-    font-family: var(--font-mono);
+    margin-top: 7px;
+    font-family: 'Inter', sans-serif;
+    font-size: 10.5px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    opacity: 0.55;
 }
 
 .media-debug-row {
@@ -509,13 +545,13 @@
 }
 
 /* Live Visualizer - Canvas-based, real audio reactive */
+/* Onde façon Apple : 5 gélules centrées, posées dans le bout droit de la pilule
+ * (symétrique de la pochette ronde à gauche). Taille du dessin : features/visualizer.js. */
 .live-viz-canvas {
     display: block;
-    height: 20px;
-    width: 60px;
-    image-rendering: pixelated;
-    border-radius: 4px;
-    margin-right: 20px;
+    flex: 0 0 auto;
+    width: 25px;
+    height: 18px;
 }
 
 .idle-track-chip {
@@ -591,18 +627,14 @@
     font-size: 12px;
 }
 
-/* Expanded music mode spectrum - absolute bottom stretched all along the pill */
+/* Lecteur ouvert : la même onde, à droite du titre (comme l'Island de l'iPhone). */
 .music-viz-canvas {
     display: block;
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
+    flex: 0 0 auto;
+    width: 30px;
     height: 24px;
-    margin: 0;
-    opacity: 0.85;
+    margin: 0 4px 0 6px;
     pointer-events: none;
-    z-index: 1;
 }
 
 body.eco-mode *,

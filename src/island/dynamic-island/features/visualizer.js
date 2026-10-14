@@ -52,6 +52,32 @@ export const visualizerMethods = {
         }
     },
 
+    /** Couleur de chaque barre selon le réglage (pochette, couleur unie ou dégradé). */
+    _getVizColors(count) {
+        const mode = this._islandConfig.vizColorMode || 'cover';
+        let from = { r: 212, g: 148, b: 96 };
+        let to = { r: 237, g: 188, b: 137 };
+        if (mode === 'cover' && this._coverColors) {
+            from = this._coverColors.primary;
+            to = this._coverColors.secondary || from;
+        } else if (mode === 'solid') {
+            from = to = hexToRgb(this._islandConfig.vizColorSolid || '#D49460') || from;
+        } else if (mode === 'gradient') {
+            from = hexToRgb(this._islandConfig.vizColorGradA || '#D49460') || from;
+            to = hexToRgb(this._islandConfig.vizColorGradB || '#EDBC89') || to;
+        }
+        // Éclaircies vers le blanc : sur la pilule sombre, une pochette sombre resterait invisible.
+        const lift = (c) => Math.round(c + (255 - c) * 0.35);
+        return Array.from({ length: count }, (_, i) => {
+            const t = count > 1 ? i / (count - 1) : 0;
+            return [
+                lift(from.r * (1 - t) + to.r * t),
+                lift(from.g * (1 - t) + to.g * t),
+                lift(from.b * (1 - t) + to.b * t),
+            ];
+        });
+    },
+
     _updateVizCanvas() {
         const canvas = this._vizCanvas;
         if (localStorage.getItem('liquid_eco_mode') === 'true') {
@@ -67,113 +93,60 @@ export const visualizerMethods = {
             return;
         }
 
-        const ctx = canvas.getContext('2d');
+        // Canvas à la taille réelle de l'écran (sinon les barres sont floues ou pixelisées).
         const dpr = window.devicePixelRatio || 1;
-        const w = canvas.width;
-        const h = canvas.height;
-        const bands = this._vizBands;
-        const numBars = bands.length;
+        const cssW = canvas.clientWidth || 26;
+        const cssH = canvas.clientHeight || 18;
+        if (canvas.width !== Math.round(cssW * dpr) || canvas.height !== Math.round(cssH * dpr)) {
+            canvas.width = Math.round(cssW * dpr);
+            canvas.height = Math.round(cssH * dpr);
+        }
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, cssW, cssH);
 
-        ctx.clearRect(0, 0, w, h);
-
-        // Use more bars by interpolating between our 5 band values
-        const totalBars = Math.max(numBars, Math.floor(w / 6));
-        const barW = Math.max(2, Math.floor((w - (totalBars - 1) * 1) / totalBars));
-        const gap = 1;
-
-        const vizColorMode = this._islandConfig.vizColorMode || 'cover';
-
-        // Optimize: pre-parse colors outside the loop to avoid regex parsing 60 times per frame!
-        let solidRgb = null;
-        let gradARgb = null;
-        let gradBRgb = null;
-        
-        if (vizColorMode === 'solid') {
-            const hex = this._islandConfig.vizColorSolid || '#D49460';
-            solidRgb = hexToRgb(hex);
-        } else if (vizColorMode === 'gradient') {
-            const hexA = this._islandConfig.vizColorGradA || '#D49460';
-            const hexB = this._islandConfig.vizColorGradB || '#EDBC89';
-            gradARgb = hexToRgb(hexA);
-            gradBRgb = hexToRgb(hexB);
+        // Onde façon Apple : quelques gélules centrées, chacune à son rythme.
+        const count = Number(canvas.dataset.bars) || 5;
+        const barW = Number(canvas.dataset.barWidth) || 3;
+        const gap = (cssW - count * barW) / Math.max(1, count - 1);
+        const energy = this.musicData && this.musicData.isPlaying
+            ? Math.max(...this._vizBands.slice(0, 2), 0)
+            : 0;
+        const now = performance.now();
+        if (!this._vizBars || this._vizBars.length !== count) {
+            this._vizBars = Array.from({ length: count }, () => ({ value: 0, target: 0 }));
+            this._vizNextShuffle = 0;
+        }
+        // Nouvelles cibles ~9 fois par seconde : le mouvement reste organique, pas mécanique.
+        if (now >= (this._vizNextShuffle || 0)) {
+            this._vizNextShuffle = now + 110;
+            const center = (count - 1) / 2;
+            this._vizBars.forEach((bar, i) => {
+                const shape = 1 - Math.abs(i - center) / (center + 1) * 0.45; // plus haut au centre
+                bar.target = energy * shape * (0.45 + Math.random() * 0.55);
+            });
         }
 
-        for (let i = 0; i < totalBars; i++) {
-            // Interpolate band value
-            const t = i / (totalBars - 1);
-            const bandIdx = t * (numBars - 1);
-            const b0 = Math.floor(bandIdx);
-            const b1 = Math.min(numBars - 1, b0 + 1);
-            const frac = bandIdx - b0;
-            const bandVal = bands[b0] * (1 - frac) + bands[b1] * frac;
-
-            const barH = Math.max(2, bandVal * h);
+        const colors = this._getVizColors(count);
+        for (let i = 0; i < count; i++) {
+            const bar = this._vizBars[i];
+            // Monte vite, redescend en douceur.
+            bar.value += (bar.target - bar.value) * (bar.target > bar.value ? 0.45 : 0.18);
+            const barH = Math.max(barW, Math.min(1, bar.value) * cssH);
             const x = i * (barW + gap);
-            const y = h - barH;
-
-            let r, g, b;
-            if (vizColorMode === 'cover') {
-                if (this._coverColors) {
-                    const c1 = this._coverColors.primary;
-                    const c2 = this._coverColors.secondary;
-                    r = Math.round(c1.r * (1 - t) + c2.r * t);
-                    g = Math.round(c1.g * (1 - t) + c2.g * t);
-                    b = Math.round(c1.b * (1 - t) + c2.b * t);
-                } else {
-                    r = Math.round(212 + (237 - 212) * t);
-                    g = Math.round(148 + (188 - 148) * t);
-                    b = Math.round(96 + (137 - 96) * t);
-                }
-            } else if (vizColorMode === 'solid') {
-                if (solidRgb) {
-                    r = solidRgb.r;
-                    g = solidRgb.g;
-                    b = solidRgb.b;
-                } else {
-                    r = 0; g = 243; b = 255;
-                }
-            } else if (vizColorMode === 'gradient') {
-                if (gradARgb && gradBRgb) {
-                    r = Math.round(gradARgb.r * (1 - t) + gradBRgb.r * t);
-                    g = Math.round(gradARgb.g * (1 - t) + gradBRgb.g * t);
-                    b = Math.round(gradARgb.b * (1 - t) + gradBRgb.b * t);
-                } else {
-                    r = 0; g = 243; b = 255;
-                }
-            } else {
-                // Default: cyberpunk
-                r = Math.round(t < 0.5 ? (t * 2 * 255) : 255);
-                g = Math.round(t < 0.5 ? 243 : (1 - (t - 0.5) * 2) * 200);
-                b = 255;
-            }
-
-            const alpha = 0.65 + bandVal * 0.35;
-
-            const grad = ctx.createLinearGradient(0, y, 0, h);
-            grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${alpha})`);
-            grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, ${alpha * 0.2})`);
-
-            ctx.fillStyle = grad;
-
-            // Draw rounded bar (compatible with all Chromium versions)
-            const radius = Math.min(barW / 2, 2);
+            const y = (cssH - barH) / 2;
+            const [r, g, b] = colors[i];
+            ctx.shadowColor = `rgba(${r}, ${g}, ${b}, 0.55)`;
+            ctx.shadowBlur = 4 + bar.value * 6;
+            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${0.75 + bar.value * 0.25})`;
             ctx.beginPath();
-            if (barH <= radius * 2) {
-                ctx.arc(x + barW / 2, y + barH / 2, Math.max(1, barH / 2), 0, Math.PI * 2);
-            } else {
-                ctx.moveTo(x + radius, y);
-                ctx.lineTo(x + barW - radius, y);
-                ctx.quadraticCurveTo(x + barW, y, x + barW, y + radius);
-                ctx.lineTo(x + barW, y + barH);
-                ctx.lineTo(x, y + barH);
-                ctx.lineTo(x, y + radius);
-                ctx.quadraticCurveTo(x, y, x + radius, y);
-            }
-            ctx.closePath();
+            ctx.roundRect(x, y, barW, barH, barW / 2);
             ctx.fill();
         }
+        ctx.shadowBlur = 0;
 
         // Dynamic glow sync with cover color if vizColorMode is 'cover'
+        const vizColorMode = this._islandConfig.vizColorMode || 'cover';
         if (vizColorMode === 'cover' && this._coverColors && this._islandConfig.glowEnabled !== false) {
             const primaryHex = rgbToHex(this._coverColors.primary.r, this._coverColors.primary.g, this._coverColors.primary.b);
             const primaryRgbStr = `${this._coverColors.primary.r}, ${this._coverColors.primary.g}, ${this._coverColors.primary.b}`;

@@ -79,9 +79,10 @@ export const musicView = {
         <div class="music-info">
           ${coverHtml}
           <div class="track-details">
-            <div class="track-title">${escapeHtml(data.title)}</div>
+            <div class="track-title"><span class="track-title-text">${escapeHtml(data.title)}</span></div>
             <div class="track-artist">${escapeHtml(data.artist)}</div>
           </div>
+          ${showVisualizer ? '<canvas class="music-viz-canvas" data-bars="5" data-bar-width="3.5" aria-hidden="true"></canvas>' : ''}
           ${showActions ? `
             <div class="music-action-cluster">
               ${historyBtn}
@@ -97,6 +98,7 @@ export const musicView = {
           </button>
           <button class="control-btn-music" title="Suivant" aria-label="Suivant" onclick="event.stopPropagation(); window.spotifyControl('next')"><i class="ph-fill ph-skip-forward"></i></button>
         </div>
+        <div class="music-progress-group">
         <div class="progress-bar" style="--progress-pct: ${pct}%">
           <div class="progress-fill" id="music-progress-fill" style="width: ${pct}%"></div>
           <div class="progress-tooltip" id="music-progress-tooltip">${currentTime}</div>
@@ -105,10 +107,12 @@ export const musicView = {
             <span id="music-current-time">${currentTime}</span>
             <span>${totalTime}</span>
         </div>` : ''}
+        </div>
         ${mediaDebugHtml}
-        ${showVisualizer ? '<canvas class="music-viz-canvas" width="380" height="24" style="display:block; width:100%;"></canvas>' : ''}
       </div>
     `;
+
+        this.setupTitleMarquee();
 
         // Wire expanded canvas visualizer
         this._vizCanvas = showVisualizer ? this.content.querySelector('.music-viz-canvas') : null;
@@ -144,5 +148,23 @@ export const musicView = {
             this.musicData.previousDisplayCover = "";
         }
         this._isNewTrackSignal = false;
+    },
+
+    /**
+     * Titre trop long : il défile doucement d'un bout à l'autre, avec une pause à chaque
+     * extrémité (comme Apple Music), au lieu d'être coupé par des points de suspension.
+     */
+    setupTitleMarquee() {
+        const title = this.content.querySelector('.track-title');
+        const text = title && title.querySelector('.track-title-text');
+        if (!text) return;
+        requestAnimationFrame(() => {
+            const overflow = text.scrollWidth - title.clientWidth;
+            if (overflow <= 4) return;
+            title.classList.add('is-marquee');
+            title.style.setProperty('--marquee-shift', `-${overflow + 12}px`);
+            // ~30 px par seconde, plus les pauses : la vitesse reste la même quelle que soit la longueur.
+            title.style.setProperty('--marquee-duration', `${Math.max(6, (overflow + 12) / 30 * 2 + 4)}s`);
+        });
     },
 };
