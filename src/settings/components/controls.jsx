@@ -1,7 +1,7 @@
 /**
  * Briques d'interface des réglages, construites sur les composants Liquid Glass.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     GlassButton,
     GlassMenu,
@@ -21,7 +21,7 @@ import {
 import { playClick } from '../state/sound.js';
 
 /** Vert « activé » façon iOS : l'état reste lisible quelle que soit la pochette. */
-const SWITCH_TINT = '#30d158';
+export const SWITCH_TINT = '#30d158';
 /** Remplissage neutre des curseurs (comme le centre de contrôle macOS). */
 const SLIDER_TINT = '#e5e5ea';
 
@@ -209,13 +209,33 @@ export function Button({ children, icon, tone, ...props }) {
     );
 }
 
-const MODIFIERS = new Set(['Control', 'Shift', 'Alt', 'Meta']);
-const KEY_NAMES = { ' ': 'Space', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right' };
+const MODIFIERS = new Set(['Control', 'Shift', 'Alt', 'AltGraph', 'Meta']);
+/** Noms attendus par le cœur natif pour les touches autres que lettres, chiffres et F-touches. */
+const CODE_NAMES = {
+    Space: 'Space', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', Enter: 'Enter', Tab: 'Tab',
+    Backspace: 'Backspace', Delete: 'Delete', Home: 'Home', End: 'End', PageUp: 'PageUp', PageDown: 'PageDown', Insert: 'Insert',
+    Comma: 'Comma', Period: 'Period', Minus: 'Minus', Equal: 'Equal', Slash: 'Slash', Semicolon: 'Semicolon', Quote: 'Quote',
+    Backquote: 'Backquote', Backslash: 'Backslash', BracketLeft: 'BracketLeft', BracketRight: 'BracketRight',
+};
+const FUNCTION_KEY = /^F([1-9]|1\d|2[0-4])$/;
 
-/** Enregistre une combinaison de touches au clavier. */
-export function ShortcutRecorder({ value, onChange }) {
+/** Nom de la touche physique (`event.code`), indépendant de la disposition du clavier (AZERTY, QWERTY…). */
+function keyName(code) {
+    const letter = /^Key([A-Z])$/.exec(code);
+    if (letter) return letter[1];
+    const digit = /^Digit(\d)$/.exec(code);
+    if (digit) return digit[1];
+    if (FUNCTION_KEY.test(code) || /^Numpad\d$/.test(code)) return code;
+    return CODE_NAMES[code] ?? null;
+}
+
+/**
+ * Combinaison de touches : un clic, puis la combinaison au clavier. Échap annule, un clic
+ * ailleurs aussi. Une touche seule est refusée (sauf F1 à F24) : elle ferait taper partout.
+ */
+export function ShortcutRecorder({ value, onChange, label, off = false }) {
     const [recording, setRecording] = useState(false);
-    const ref = useRef(null);
+    const [hint, setHint] = useState('');
 
     useEffect(() => {
         if (!recording) return undefined;
@@ -224,19 +244,27 @@ export function ShortcutRecorder({ value, onChange }) {
             event.stopPropagation();
             if (event.key === 'Escape') {
                 setRecording(false);
+                setHint('');
                 return;
             }
             if (MODIFIERS.has(event.key)) return;
-            const keys = [];
-            if (event.ctrlKey) keys.push('Ctrl');
-            if (event.shiftKey) keys.push('Shift');
-            if (event.altKey) keys.push('Alt');
-            if (event.metaKey) keys.push('Super');
-            let key = KEY_NAMES[event.key] ?? event.key;
-            key = key.length === 1 ? key.toUpperCase() : key.charAt(0).toUpperCase() + key.slice(1);
-            keys.push(key);
+            const key = keyName(event.code);
+            if (!key) {
+                setHint('Touche non prise en charge');
+                return;
+            }
+            const modifiers = [];
+            if (event.ctrlKey) modifiers.push('Ctrl');
+            if (event.shiftKey) modifiers.push('Shift');
+            if (event.altKey) modifiers.push('Alt');
+            if (event.metaKey) modifiers.push('Super');
+            if (modifiers.length === 0 && !FUNCTION_KEY.test(key)) {
+                setHint('Ajoute Ctrl, Alt ou Maj');
+                return;
+            }
             setRecording(false);
-            onChange(keys.join('+'));
+            setHint('');
+            onChange([...modifiers, key].join('+'));
         };
         window.addEventListener('keydown', onKey, true);
         return () => window.removeEventListener('keydown', onKey, true);
@@ -244,14 +272,20 @@ export function ShortcutRecorder({ value, onChange }) {
 
     return (
         <GlassButton
-            ref={ref}
-            className={`shortcut${recording ? ' is-recording' : ''}`}
+            className={`shortcut${recording ? ' is-recording' : ''}${off ? ' is-off' : ''}`}
+            aria-label={label ? `Raccourci : ${label}` : undefined}
             onClick={() => {
                 playClick();
+                setHint('');
                 setRecording((current) => !current);
             }}
+            onBlur={() => {
+                setRecording(false);
+                setHint('');
+            }}
         >
-            {recording ? 'Appuie sur les touches…' : value.split('+').map((part) => <kbd key={part}>{part}</kbd>)}
+            {recording && (hint || 'Appuie sur les touches…')}
+            {!recording && (value ? value.split('+').map((part) => <kbd key={part}>{part}</kbd>) : 'Aucune')}
         </GlassButton>
     );
 }

@@ -24,7 +24,6 @@ const SEND_CHANNELS = {
     'close-settings': () => ['close_settings'],
     'trigger-notif': (data) => ['trigger_notification', { data: data ?? {} }],
     'cover-color-changed': (colors) => ['cover_color_changed', { colors: colors ?? {} }],
-    'register-shortcut': (shortcut) => ['register_shortcut', { shortcut: String(shortcut ?? '') }],
     'exit-app': () => ['exit_app'],
     'open-settings': () => ['open_settings'],
     'set-persistent-island': (enabled) => ['set_persistent_island', { enabled: enabled ?? false }],
@@ -64,13 +63,14 @@ const INVOKE_CHANNELS = {
     'get-mic-monitor': () => ['get_mic_monitor'],
     'set-mic-monitor': (config) => ['set_mic_monitor', { config: config ?? {} }],
     'launch-shortcut': (command) => ['launch_shortcut', { command: String(command ?? '') }],
+    'register-shortcuts': (bindings) => ['register_shortcuts', { bindings: Array.isArray(bindings) ? bindings : [] }],
 };
 
 /** Événements émis par le cœur natif que l'interface peut écouter. */
 const EVENT_CHANNELS = new Set([
     'config-changed', 'trigger-notif', 'layout-config-changed',
     'layout-edit-mode-changed', 'update-status-changed', 'cover-color-changed',
-    'mic-monitor-changed',
+    'mic-monitor-changed', 'shortcut-open-mode',
     // Canaux historiques sans émetteur natif, conservés pour compatibilité.
     'app-go-background', 'app-go-foreground', 'open-search',
 ]);

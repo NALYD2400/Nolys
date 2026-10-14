@@ -6,6 +6,7 @@
  * au prototype : le comportement est identique à une classe d'un seul bloc.
  */
 import { ipcRenderer } from '../../shared/ipc.js';
+import { activeHotkeys, hotkeyLabel, readHotkeys } from '../../shared/hotkeys.js';
 
 import { visualizerMethods } from './features/visualizer.js';
 import { preferenceMethods } from './features/preferences.js';
@@ -101,14 +102,15 @@ export class DynamicIsland {
         this.syncEcoMode();
         this.initMicMonitor();
 
-        // Register global keyboard shortcut listener on Electron main process at boot
-        const startupShortcut = localStorage.getItem('liquid_island_shortcut') || 'Alt+I';
-        if (ipcRenderer) {
-            try {
-                
-                ipcRenderer.send('register-shortcut', startupShortcut);
-            } catch (err) {}
-        }
+        // Raccourcis globaux (afficher / masquer, lecture, placement…) enregistrés au démarrage.
+        // Une combinaison refusée (prise par Windows ou une autre appli) est signalée dans l'Island.
+        ipcRenderer.invoke('register-shortcuts', activeHotkeys(readHotkeys()))
+            .then((conflicts) => {
+                if (!conflicts?.length) return;
+                const names = conflicts.map((conflict) => `${hotkeyLabel(conflict.action)} (${conflict.accelerator})`).join(', ');
+                setTimeout(() => this.showNotification('Raccourci indisponible', `À changer dans les Réglages : ${names}`, 'ph-keyboard'), 4000);
+            })
+            .catch(() => {});
 
         // Apply persistent modes on load
         if (localStorage.getItem('liquid_focus_mode') === 'true') {

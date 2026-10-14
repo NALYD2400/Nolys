@@ -87,7 +87,7 @@ src-tauri/src/               Cœur natif (Rust)
 ├─ platform/                 Accès Windows : WASAPI, SMTC, radios, registre, icônes, réseau…
 ├─ migration.rs              Reprise des réglages de la version Electron
 ├─ settings_window.rs        Fenêtre des réglages (créée à la demande)
-├─ tray.rs / shortcut.rs     Icône de notification, raccourci global (Alt+I)
+├─ tray.rs / shortcut.rs     Icône de notification, raccourcis globaux (Alt+I par défaut, configurables)
 └─ updater.rs                Mises à jour via les releases GitHub
 ```
 

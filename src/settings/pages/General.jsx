@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Card, Icon, Row, ShortcutRecorder, Toggle } from '../components/controls.jsx';
+import { Button, Card, Icon, Row, Toggle } from '../components/controls.jsx';
 import { QUICK_PROFILES } from '../state/presets.js';
 import { useAutoStart } from '../state/useSettings.js';
 import { playClick } from '../state/sound.js';
@@ -81,7 +81,7 @@ function Profiles({ store }) {
 }
 
 export default function General({ store }) {
-    const { settings, update, setShortcut } = store;
+    const { settings, update } = store;
     const [autoStart, setAutoStart] = useAutoStart();
 
     return (
@@ -121,12 +121,6 @@ export default function General({ store }) {
                     checked={settings.ecoMode}
                     onChange={(ecoMode) => update({ ecoMode })}
                 />
-            </Card>
-
-            <Card title="Raccourci clavier">
-                <Row label="Afficher ou masquer l’Island">
-                    <ShortcutRecorder value={settings.shortcut} onChange={setShortcut} />
-                </Row>
             </Card>
         </>
     );

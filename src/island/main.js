@@ -194,8 +194,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (config.visualizerSensitivity !== undefined) {
             localStorage.setItem('liquid_visualizer_sensitivity', config.visualizerSensitivity);
         }
-        if (config.shortcut !== undefined) {
-            localStorage.setItem('liquid_island_shortcut', config.shortcut);
+        if (config.hotkeys !== undefined) {
+            localStorage.setItem('liquid_hotkeys', JSON.stringify(config.hotkeys));
         }
         if (config.widgetType !== undefined) {
             localStorage.setItem('liquid_control_widget_type', config.widgetType);
@@ -267,5 +267,12 @@ document.addEventListener('DOMContentLoaded', () => {
     ipcRenderer.on('layout-edit-mode-changed', (event, enabled) => {
         if (!window.island) return;
         window.island.setLayoutEditMode(Boolean(enabled));
+    });
+
+    // Raccourcis « ouvrir le lecteur / centre de contrôle / retour micro » : même ouverture que le clic droit.
+    ipcRenderer.on('shortcut-open-mode', (event, mode) => {
+        if (window.island && ['music', 'control', 'mic', 'mixer'].includes(mode)) {
+            window.island.openExpandedMode(mode);
+        }
     });
 });

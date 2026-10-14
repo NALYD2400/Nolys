@@ -80,7 +80,7 @@ pub fn run() {
             commands::app::open_settings,
             commands::app::close_settings,
             commands::app::exit_app,
-            commands::app::register_shortcut,
+            commands::app::register_shortcuts,
             commands::app::config_changed,
             commands::app::wallpaper_sync_status,
             commands::app::trigger_notification,

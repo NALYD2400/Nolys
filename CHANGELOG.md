@@ -1,6 +1,15 @@
 # Historique
 
-## Prochaine version — en préparation
+## 2.2.0 — 15 octobre 2026
+
+### Raccourcis clavier (nouvelle section « Raccourcis » des Réglages)
+
+- Chaque action a sa propre combinaison, réglable en cliquant puis en appuyant sur les touches (Échap annule).
+- Une touche seule est refusée (sauf F1 à F24), et une combinaison déjà utilisée par une autre action est signalée.
+- Une combinaison prise par Windows ou une autre application est signalée dans les Réglages et au démarrage de l’Island.
+- Interrupteur par action : désactiver sans effacer la combinaison.
+- Actions : afficher ou masquer l’Island, mode placement, ouvrir le lecteur / le mixer / le centre de contrôle / le retour micro, lecture-pause, titre précédent et suivant, capture d’écran rapide, ouvrir les Réglages.
+- Les raccourcis suivent les profils et les exports de réglages.
 
 ### Personnalisation (nouvelle page « Island » des Réglages)
 

@@ -583,6 +583,29 @@ button {
     font-size: 12px;
 }
 
+/* Raccourcis : combinaison et interrupteur côte à côte, action désactivée estompée. */
+.hotkey-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.shortcut.is-off {
+    opacity: 0.45;
+}
+
+.hotkey-error {
+    color: #ff8a80;
+}
+
+.hotkeys-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 8px;
+}
+
 /* ---------------------------------------------------------------- Vignettes */
 
 .choice-grid {

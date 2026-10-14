@@ -15,6 +15,7 @@ import Music from './pages/Music.jsx';
 import Island from './pages/Island.jsx';
 import Wallpaper from './pages/Wallpaper.jsx';
 import ControlCenter from './pages/ControlCenter.jsx';
+import Shortcuts from './pages/Shortcuts.jsx';
 import MicMonitor from './pages/MicMonitor.jsx';
 import Position from './pages/Position.jsx';
 import About from './pages/About.jsx';
@@ -26,6 +27,7 @@ const PAGES = [
     { id: 'music', label: 'Musique', icon: 'ph-music-notes', color: '#ff2d55', Page: Music },
     { id: 'wallpaper', label: 'Fond d’écran', icon: 'ph-image', color: '#0a84ff', Page: Wallpaper },
     { id: 'control', label: 'Centre de contrôle', icon: 'ph-squares-four', color: '#ff9f0a', Page: ControlCenter },
+    { id: 'shortcuts', label: 'Raccourcis', icon: 'ph-keyboard', color: '#bf5af2', Page: Shortcuts },
     { id: 'mic', label: 'Retour micro', icon: 'ph-microphone', color: '#e08a5a', Page: MicMonitor },
     { id: 'position', label: 'Position', icon: 'ph-arrows-out-cardinal', color: '#30d158', Page: Position },
     { id: 'about', label: 'À propos', icon: 'ph-info', color: '#64d2ff', Page: About },

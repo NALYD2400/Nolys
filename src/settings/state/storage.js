@@ -6,6 +6,7 @@
  * `config-changed`, au format qu'elle sait déjà interpréter (island/main.js).
  */
 import { DEFAULT_SHORTCUTS } from './presets.js';
+import { readHotkeys, sanitizeHotkeys } from '../../shared/hotkeys.js';
 
 const read = (key, fallback = null) => {
     const value = localStorage.getItem(key);
@@ -39,7 +40,7 @@ export function loadSettings() {
         notifications: flag('liquid_notifications_enabled'),
         soundEffects: flag('liquid_sound_effects_enabled'),
         ecoMode: optIn('liquid_eco_mode'),
-        shortcut: read('liquid_island_shortcut', 'Alt+I'),
+        hotkeys: readHotkeys(),
         activeProfile: read('liquid_active_profile', 'custom'),
 
         // Apparence
@@ -117,7 +118,7 @@ export function buildConfig(s) {
         wallpaperDelay: s.wallpaperDelay,
         visualizerMode: s.visualizerMode,
         visualizerSensitivity: s.visualizerSensitivity,
-        shortcut: s.shortcut,
+        hotkeys: s.hotkeys,
         widgetType: s.widgetType,
         activeProfile: s.activeProfile,
         shortcuts: s.shortcuts,
@@ -187,7 +188,7 @@ export function saveSettings(s) {
         liquid_wallpaper_delay: s.wallpaperDelay,
         liquid_visualizer_mode: s.visualizerMode,
         liquid_visualizer_sensitivity: s.visualizerSensitivity,
-        liquid_island_shortcut: s.shortcut,
+        liquid_hotkeys: JSON.stringify(s.hotkeys),
         liquid_control_widget_type: s.widgetType,
         liquid_weather_city: (s.weatherCity || '').trim(),
         liquid_control_shortcuts: JSON.stringify(s.shortcuts),
@@ -226,13 +227,26 @@ export function toSnapshot(s, layout) {
         visualizerSensitivity: s.visualizerSensitivity,
         modules: config.modules,
         glow: config.glow,
-        shortcut: s.shortcut,
+        shortcut: s.hotkeys.toggleVisibility.accelerator,
+        hotkeys: s.hotkeys,
         shortcuts: s.shortcuts,
         player: config.player,
         ecoMode: s.ecoMode,
         idleCompactMode: s.idleCompactMode,
         ...(layout ? { layout } : {}),
     };
+}
+
+/**
+ * Raccourcis d'un instantané. Sans champ (profil rapide, ancien profil), les raccourcis actuels
+ * restent : un profil rapide ne doit pas effacer ceux que l'utilisateur a réglés.
+ */
+function hotkeysFrom(snapshot, current) {
+    if (snapshot.hotkeys && typeof snapshot.hotkeys === 'object') return sanitizeHotkeys(snapshot.hotkeys);
+    if (typeof snapshot.shortcut === 'string' && snapshot.shortcut.trim()) {
+        return sanitizeHotkeys({ ...current, toggleVisibility: { ...current.toggleVisibility, accelerator: snapshot.shortcut } });
+    }
+    return current;
 }
 
 /** Applique un instantané (profil, profil rapide ou fichier importé) sur l'état courant. */
@@ -285,7 +299,7 @@ export function fromSnapshot(current, snapshot = {}) {
         titleScroll: pick(glow.titleScroll, current.titleScroll),
         playerCoverBg: pick(glow.playerCoverBg, current.playerCoverBg),
         glowBreath: pick(glow.glowBreath, current.glowBreath),
-        shortcut: pick(snapshot.shortcut, current.shortcut),
+        hotkeys: hotkeysFrom(snapshot, current.hotkeys),
         shortcuts: Array.isArray(snapshot.shortcuts) ? snapshot.shortcuts : current.shortcuts,
         showTimes: player.showTimes ?? current.showTimes,
         showVisualizer: player.showVisualizer ?? current.showVisualizer,

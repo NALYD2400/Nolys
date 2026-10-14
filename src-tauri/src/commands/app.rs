@@ -46,12 +46,12 @@ pub fn exit_app(app: AppHandle) {
     crate::quit(&app);
 }
 
+/// Enregistre les raccourcis globaux (action -> combinaison) et renvoie ceux que Windows refuse.
 #[tauri::command]
-pub fn register_shortcut(app: AppHandle, shortcut: String) {
-    if !super::is_safe_text(&shortcut) {
-        return;
-    }
-    shortcut::register(&app, &shortcut);
+pub fn register_shortcuts(app: AppHandle, bindings: Vec<shortcut::Binding>) -> Vec<shortcut::Conflict> {
+    // Borne large : une liste normale compte moins de dix actions.
+    let bindings: Vec<shortcut::Binding> = bindings.into_iter().take(32).collect();
+    shortcut::register_all(&app, &bindings)
 }
 
 fn truthy(value: &Value) -> bool {

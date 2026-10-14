@@ -19,7 +19,6 @@ pub struct AppState {
     pub layout: Mutex<Layout>,
     pub hit_region: Mutex<HitRegion>,
     pub update: Mutex<UpdateStatus>,
-    pub shortcut: Mutex<Option<String>>,
 
     /// L'Island reste au premier plan (option « persistante »).
     pub persistent: AtomicBool,
@@ -46,7 +45,6 @@ impl AppState {
             layout: Mutex::new(layout),
             hit_region: Mutex::new(HitRegion::default()),
             update: Mutex::new(UpdateStatus::default()),
-            shortcut: Mutex::new(None),
             persistent: AtomicBool::new(true),
             hidden_by_user: AtomicBool::new(false),
             hide_in_fullscreen: AtomicBool::new(true),

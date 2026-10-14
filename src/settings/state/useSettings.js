@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ipcRenderer } from '../../shared/ipc.js';
 import { QUICK_PROFILES } from './presets.js';
+import { activeHotkeys, sanitizeHotkeys } from '../../shared/hotkeys.js';
 import {
     fromSnapshot,
     loadCustomProfiles,
@@ -23,6 +24,9 @@ export function useSettings() {
     const [customProfiles, setCustomProfiles] = useState(loadCustomProfiles);
     const pending = useRef(null);
     const timer = useRef(null);
+    // Combinaisons refusées par Windows ou une autre application (renvoyées par le cœur natif).
+    const [hotkeyConflicts, setHotkeyConflicts] = useState([]);
+    const hotkeysKey = JSON.stringify(activeHotkeys(settings.hotkeys));
 
     const flush = useCallback(() => {
         timer.current = null;
@@ -128,9 +132,21 @@ export function useSettings() {
         }
     }, [commit]);
 
-    const setShortcut = useCallback((shortcut) => {
-        update({ shortcut });
-        ipcRenderer.send('register-shortcut', shortcut);
+    // Enregistre les raccourcis à chaque changement (réglage, profil, import). Une réponse périmée
+    // (changement entre-temps) est ignorée.
+    useEffect(() => {
+        let active = true;
+        ipcRenderer.invoke('register-shortcuts', JSON.parse(hotkeysKey))
+            .then((conflicts) => active && setHotkeyConflicts(conflicts || []))
+            .catch(() => {});
+        return () => {
+            active = false;
+        };
+    }, [hotkeysKey]);
+
+    /** Remplace les raccourcis (une action modifiée ou désactivée, ou les valeurs par défaut). */
+    const setHotkeys = useCallback((hotkeys) => {
+        update({ hotkeys: sanitizeHotkeys(hotkeys) });
     }, [update]);
 
     return useMemo(() => ({
@@ -143,8 +159,9 @@ export function useSettings() {
         deleteProfile,
         exportSettings,
         importSettings,
-        setShortcut,
-    }), [settings, update, customProfiles, applyQuickProfile, applyCustomProfile, saveCurrentAsProfile, deleteProfile, exportSettings, importSettings, setShortcut]);
+        hotkeyConflicts,
+        setHotkeys,
+    }), [settings, update, customProfiles, applyQuickProfile, applyCustomProfile, saveCurrentAsProfile, deleteProfile, exportSettings, importSettings, hotkeyConflicts, setHotkeys]);
 }
 
 /** Démarrage automatique (géré par Windows, pas par le localStorage). */
