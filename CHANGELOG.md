@@ -1,6 +1,6 @@
 # Historique
 
-## 2.1.0 — en préparation
+## 2.1.0 — 14 octobre 2026
 
 ### Retour micro (nouveau)
 
@@ -24,7 +24,7 @@
 - Menu des modules sur 4 colonnes.
 - Pochette ronde dans la pilule repliée, centrée dans son bout arrondi.
 
-### Identité Nolys
+## 2.0.2 — 8 octobre 2026
 
 - Nouvelle identité Nolys, anciennement Liquid Dynamic Island.
 - N Liquid Glass cuivre/champagne et icônes Windows multirésolution.
