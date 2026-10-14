@@ -167,7 +167,9 @@ export function Select({ value, options, groups, onChange, placeholder = 'Choisi
                 <span>{current?.label ?? placeholder}</span>
                 <Icon name="ph-caret-up-down" />
             </GlassSurface>
-            <GlassMenuContent className="select-menu" align="end">
+            {/* « detach » : le menu se détache du bouton comme une goutte, le bouton reste visible
+                (par défaut, le bouton devenait le menu et disparaissait pendant l'ouverture). */}
+            <GlassMenuContent className="select-menu" align="end" morph="detach">
                 {groups
                     ? groups.map((group) => (
                           <GlassMenuGroup key={group.label}>

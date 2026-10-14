@@ -83,7 +83,7 @@ export const musicView = {
             <div class="track-title"><span class="track-title-text">${escapeHtml(data.title)}</span></div>
             <div class="track-artist">${escapeHtml(data.artist)}</div>
           </div>
-          ${showVisualizer ? '<canvas class="music-viz-canvas" data-bars="5" data-bar-width="3.5" aria-hidden="true"></canvas>' : ''}
+          ${showVisualizer ? `<canvas class="music-viz-canvas" data-bars="${this.getVizBarCount()}" data-bar-width="3.5" style="width: ${this.getVizWidth(3.5)}px" aria-hidden="true"></canvas>` : ''}
           ${showActions ? `
             <div class="music-action-cluster">
               ${historyBtn}
@@ -127,7 +127,7 @@ export const musicView = {
             const effectiveBgArt = getDisplayMediaArt(data);
             if (effectiveBgArt && effectiveBgArt.length > 0) {
                 bgLayer.style.backgroundImage = `url(${effectiveBgArt.replace(/\\/g, '/')})`;
-                bgLayer.style.opacity = '0.5';
+                bgLayer.style.opacity = String(this.getPlayerCoverOpacity());
                 bgLayer.style.filter = 'blur(24px) saturate(180%)';
             } else {
                 const islandConfig = JSON.parse(localStorage.getItem('liquid_island_config') || '{}');
@@ -159,6 +159,8 @@ export const musicView = {
         const title = this.content.querySelector('.track-title');
         const text = title && title.querySelector('.track-title-text');
         if (!text) return;
+        // Coupé par « … » (CSS) : défilement désactivé, ou mouvements sobres.
+        if (this._islandConfig?.titleScroll === false || document.body.classList.contains('motion-sober')) return;
         requestAnimationFrame(() => applyLoopMarquee(title, text));
     },
 };

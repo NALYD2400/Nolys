@@ -4,6 +4,7 @@ import { visualizerService } from '../../../services/AudioVisualizerService.js';
 import { MOTION_LEVELS } from '../helpers/constants.js';
 
 export const preferenceMethods = {
+    /** Configuration appliquée par le cœur natif (taille = zoom réel de la fenêtre). */
     applyLayoutConfig(layout) {
         this._layoutConfig = {
             ...this._layoutConfig,
@@ -15,18 +16,75 @@ export const preferenceMethods = {
 
         const scale = Number(this._layoutConfig.scale);
         const safeScale = Number.isFinite(scale) ? Math.min(1.5, Math.max(0.65, scale)) : 1;
+        // Taille demandée atteinte : les clics suivants repartent de la valeur réelle.
+        if (this._pendingLayoutScale === safeScale) this._pendingLayoutScale = null;
+        // Zoom réel de la fenêtre : la barre de placement s'en sert pour garder sa taille à l'écran.
         container.style.setProperty('--island-layout-scale', safeScale.toString());
-        const scaleLabel = document.querySelector('#layout-edit-toolbar .layout-edit-scale');
-        if (scaleLabel) scaleLabel.textContent = `${Math.round(safeScale * 100)} %`;
+        this.updateLayoutScaleLabel();
+        this.anchorLayoutToolbar();
     },
 
-    /** Change la taille par pas de 5 %, dans les limites du cœur natif (65 à 150 %). */
+    updateLayoutScaleLabel() {
+        const scaleLabel = document.querySelector('#layout-edit-toolbar .layout-edit-scale');
+        const scale = this._pendingLayoutScale ?? (Number(this._layoutConfig.scale) || 1);
+        if (scaleLabel) scaleLabel.textContent = `${Math.round(scale * 100)} %`;
+    },
+
+    /**
+     * Change la taille par pas de 5 %, dans les limites du cœur natif (65 à 150 %).
+     * La valeur demandée est gardée à part : des clics rapides, plus rapides que la réponse
+     * du cœur natif, repartaient sinon d'une ancienne taille (clics perdus).
+     */
     stepLayoutScale(direction) {
-        const current = Number(this._layoutConfig.scale) || 1;
+        const current = this._pendingLayoutScale ?? (Number(this._layoutConfig.scale) || 1);
         const next = Math.min(1.5, Math.max(0.65, Math.round((current + direction * 0.05) * 100) / 100));
         if (next === current) return;
-        this.applyLayoutConfig({ scale: next }); // pourcentage à jour sans attendre le cœur natif
+        this._pendingLayoutScale = next;
+        this.updateLayoutScaleLabel(); // pourcentage à jour sans attendre le cœur natif
         ipcRenderer.send('layout-config-changed', { scale: next });
+    },
+
+    /**
+     * Barre de placement immobile pendant qu'on clique sur − / + : la pilule grandit et
+     * poussait la barre vers le bas, le bouton fuyait sous la souris. On la fige à l'écran
+     * au premier clic, puis elle rejoint sa place sous la pilule une fois les clics finis.
+     */
+    freezeLayoutToolbar() {
+        const toolbar = document.getElementById('layout-edit-toolbar');
+        if (!toolbar) return;
+        const scale = Number(this._layoutConfig.scale) || 1;
+        if (!this._toolbarAnchor) {
+            // Haut de la barre sans son décalage, en pixels CSS (indépendant du zoom de la fenêtre).
+            const top = toolbar.getBoundingClientRect().top - (this._toolbarShift || 0) / scale;
+            const screenTop = top * scale + (this._toolbarShift || 0);
+            this._toolbarAnchor = { top, screenTop };
+            toolbar.classList.remove('is-settling');
+        }
+        clearTimeout(this._toolbarReleaseTimer);
+        this._toolbarReleaseTimer = setTimeout(() => this.releaseLayoutToolbar(), 900);
+    },
+
+    releaseLayoutToolbar() {
+        const toolbar = document.getElementById('layout-edit-toolbar');
+        if (!toolbar || !this._toolbarAnchor) return;
+        // Souris encore sur la barre : on attend qu'elle en sorte.
+        if (toolbar.matches(':hover')) {
+            toolbar.addEventListener('pointerleave', () => this.releaseLayoutToolbar(), { once: true });
+            return;
+        }
+        this._toolbarAnchor = null;
+        toolbar.classList.add('is-settling');
+        this.anchorLayoutToolbar();
+    },
+
+    anchorLayoutToolbar() {
+        const toolbar = document.getElementById('layout-edit-toolbar');
+        if (!toolbar) return;
+        const anchor = this._toolbarAnchor;
+        const scale = Number(this._layoutConfig.scale) || 1;
+        // Pixels d'écran : la barre a un zoom inverse de celui de la fenêtre (styles/base.css).
+        this._toolbarShift = anchor ? Math.round(anchor.screenTop - anchor.top * scale) : 0;
+        toolbar.style.transform = this._toolbarShift ? `translateY(${this._toolbarShift}px)` : '';
     },
 
     /**
@@ -76,9 +134,12 @@ export const preferenceMethods = {
             const action = e.target.closest('[data-layout]')?.dataset.layout;
             if (!action) return;
             e.stopPropagation();
-            if (action === 'smaller') this.stepLayoutScale(-1);
-            else if (action === 'bigger') this.stepLayoutScale(1);
+            if (action === 'smaller' || action === 'bigger') {
+                this.freezeLayoutToolbar();
+                this.stepLayoutScale(action === 'bigger' ? 1 : -1);
+            }
             else if (action === 'center') ipcRenderer.send('layout-reset');
+            else if (action === 'preview') this.toggleLayoutPreview();
             else if (action === 'done') ipcRenderer.send('set-layout-edit-mode', false);
         });
 
@@ -131,13 +192,27 @@ export const preferenceMethods = {
 
     setLayoutEditMode(enabled) {
         this.initLayoutEditToolbar();
+        // Le cœur natif renvoie l'état du mode à chaque changement de taille ou de position :
+        // seul un vrai changement compte (sinon − / + repliait l'aperçu de l'Island ouverte).
+        if (this._layoutEditMode === Boolean(enabled)) return;
         this._layoutEditMode = Boolean(enabled);
         document.body.classList.toggle('layout-edit-mode', this._layoutEditMode);
 
         if (this._layoutEditMode) {
             this.closeContextMenu();
+            // Toujours la pilule repliée pour le placement. Une ouverture en cours est annulée
+            // (elle finissait sinon après coup), et renderContent retire les classes de taille
+            // de la vue ouverte : avec renderIdle seul, la pilule gardait la hauteur du lecteur
+            // ou du centre de contrôle (grand carré avec le titre au milieu).
+            this._transitionToken = (this._transitionToken || 0) + 1;
+            this._queuedTransition = null;
+            this._transitionInProgress = false;
+            this._isTransitioning = false;
+            this.el.classList.remove('animating');
+            this.mode = 'music';
             this.isExpanded = false;
-            this.renderIdle();
+            this.setLayoutPreviewButton(false);
+            this.renderContent();
             if (ipcRenderer) {
                 try {
                     ipcRenderer.send('set-ignore-mouse', false);
@@ -154,12 +229,42 @@ export const preferenceMethods = {
             document.body.classList.remove('layout-edit-dragging');
             document.body.classList.remove('layout-edit-armed');
             clearTimeout(this._layoutEditArmTimeout);
+            // Fin du placement : l'aperçu ouvert se referme.
+            if (this._layoutPreview) {
+                this.setLayoutPreviewButton(false);
+                this.isExpanded = false;
+                this.renderContent();
+            }
         }
+    },
+
+    /**
+     * Aperçu pendant le placement : l'Island s'affiche ouverte (lecteur), sans animation,
+     * pour vérifier qu'à cet endroit elle ne cache rien d'important. Rien n'y est cliquable
+     * (le placement coupe les clics du contenu) et elle se replie en quittant le mode.
+     */
+    toggleLayoutPreview(force) {
+        if (!this._layoutEditMode) return;
+        const on = typeof force === 'boolean' ? force : !this._layoutPreview;
+        this.setLayoutPreviewButton(on);
+        this.mode = 'music';
+        this.isExpanded = on;
+        this.renderContent();
+    },
+
+    setLayoutPreviewButton(on) {
+        this._layoutPreview = on;
+        const button = document.querySelector('#layout-edit-toolbar [data-layout="preview"]');
+        if (!button) return;
+        button.classList.toggle('is-on', on);
+        button.setAttribute('aria-pressed', String(on));
+        button.innerHTML = on ? '<i class="ph ph-arrows-in-simple"></i>Replier' : '<i class="ph ph-arrows-out-simple"></i>Aperçu';
     },
 
     syncPersistentSetting() {
         if (ipcRenderer) {
-            const enabled = localStorage.getItem('liquid_island_persistent') === 'true';
+            // Activé par défaut (même règle que les Réglages, state/storage.js).
+            const enabled = localStorage.getItem('liquid_island_persistent') !== 'false';
             ipcRenderer.send('set-persistent-island', enabled);
         }
     },

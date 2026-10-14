@@ -258,7 +258,7 @@ body.layout-edit-mode #layout-edit-toolbar {
     align-items: center;
     justify-content: center;
     gap: 6px;
-    max-width: 320px;
+    max-width: 390px;
     padding: 6px;
     position: relative;
     z-index: 30;
@@ -274,6 +274,14 @@ body.layout-edit-mode #layout-edit-toolbar {
     color: #fff;
     font-size: 12px;
     animation: layoutToolbarIn 0.3s cubic-bezier(0.2, 0.9, 0.25, 1.1);
+    /* Zoom inverse de celui de la fenêtre : la barre garde la même taille à l'écran quelle que
+     * soit la taille de l'Island (ses boutons ne grossissent plus sous la souris). */
+    zoom: calc(1 / var(--island-layout-scale, 1));
+}
+
+/* Retour en douceur sous la pilule après une série de clics sur − / +. */
+body.layout-edit-mode #layout-edit-toolbar.is-settling {
+    transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.25, 1);
 }
 
 .layout-edit-group {
@@ -311,6 +319,12 @@ body.layout-edit-mode #layout-edit-toolbar {
 
 #layout-edit-toolbar .layout-edit-text-btn {
     background: rgba(255, 255, 255, 0.07);
+}
+
+/* Aperçu de l'Island ouverte activé. */
+#layout-edit-toolbar .layout-edit-text-btn.is-on {
+    background: rgba(10, 132, 255, 0.22);
+    color: #6cb4ff;
 }
 
 #layout-edit-toolbar .layout-edit-text-btn.is-primary {

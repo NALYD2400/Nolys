@@ -2,8 +2,14 @@
 
 /* Menu clic droit, style Liquid Glass.
  * Il déborde de la pilule au-dessus du bureau : rien à réfracter dessous, donc
- * le verre est imité en CSS (fond sombre translucide, liseré lumineux, reflet). */
+ * le verre est imité en CSS (fond sombre translucide, liseré lumineux, reflet).
+ * Il suit le thème de la pilule : matière (classe context-menu-glass / metal / holo)
+ * et couleur d'accent (--menu-accent), posées à l'ouverture par showContextMenu. */
 .context-menu {
+    --menu-accent: #D49460;
+    --menu-accent-rgb: 212, 148, 96;
+    --menu-accent-text: color-mix(in srgb, var(--menu-accent) 70%, #fff);
+    --menu-hover: linear-gradient(rgba(var(--menu-accent-rgb), 0.14), rgba(var(--menu-accent-rgb), 0.14)), rgba(255, 255, 255, 0.08);
     position: absolute;
     z-index: 999999 !important;
     isolation: isolate;
@@ -19,18 +25,46 @@
         rgba(22, 22, 28, 0.86);
     backdrop-filter: blur(30px) saturate(180%);
     -webkit-backdrop-filter: blur(30px) saturate(180%);
-    border: 0.5px solid rgba(255, 255, 255, 0.16);
+    border: 0.5px solid color-mix(in srgb, var(--menu-accent) 30%, rgba(255, 255, 255, 0.16));
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.18),
         inset 0 -1px 0 rgba(255, 255, 255, 0.04),
         0 16px 40px rgba(0, 0, 0, 0.45),
-        0 2px 8px rgba(0, 0, 0, 0.3);
+        0 2px 8px rgba(0, 0, 0, 0.3),
+        0 0 22px rgba(var(--menu-accent-rgb), 0.16);
     color: rgba(255, 255, 255, 0.92);
     font-family: inherit;
     outline: none;
     animation: menuOpen 0.22s cubic-bezier(0.2, 0.9, 0.25, 1.15);
     pointer-events: auto !important; /* Ensure context menu is always clickable */
     overflow: hidden;
+}
+
+/* Métal brossé sombre, comme la pilule en matière « métal ». */
+.context-menu.context-menu-metal {
+    background:
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.014) 0px, rgba(255, 255, 255, 0.014) 1px, transparent 1px, transparent 4px),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 42%),
+        linear-gradient(135deg, rgba(16, 16, 18, 0.96) 0%, rgba(26, 26, 29, 0.96) 50%, rgba(18, 18, 20, 0.96) 100%);
+}
+
+/* Reflets holographiques : fond violet nuit et voile irisé qui glisse lentement. */
+.context-menu.context-menu-holo {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 42%),
+        linear-gradient(135deg, rgba(12, 10, 24, 0.9) 0%, rgba(18, 12, 36, 0.9) 100%);
+}
+
+.context-menu.context-menu-holo::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: linear-gradient(45deg, rgba(0, 243, 255, 0.1), rgba(188, 19, 254, 0.1), rgba(255, 45, 85, 0.1), rgba(0, 243, 255, 0.1));
+    background-size: 300% 300%;
+    animation: holoGradientShift 6s ease infinite;
+    pointer-events: none;
 }
 
 @keyframes menuOpen {
@@ -58,6 +92,82 @@
     pointer-events: none;
 }
 
+/* Fermeture : fondu court, le menu ne réagit plus pendant ce temps. */
+.context-menu.is-closing {
+    pointer-events: none !important;
+    animation: menuClose 0.14s ease-in forwards;
+}
+
+@keyframes menuClose {
+    to {
+        opacity: 0;
+        transform: scale(0.96);
+    }
+}
+
+/* Morceau en cours, au-dessus des boutons de lecture qu'il explique. */
+.context-menu-now {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 4px 6px 6px;
+    min-width: 0;
+}
+
+.context-menu-now-art {
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+    object-fit: cover;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.context-menu-now-art.is-empty {
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--menu-accent) 75%, #1c1c22), color-mix(in srgb, var(--menu-accent) 40%, #1c1c22));
+    font-size: 14px;
+    color: #fff;
+}
+
+.context-menu-now-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    max-width: 150px;
+    line-height: 1.25;
+}
+
+.context-menu-now-title,
+.context-menu-now-artist {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.context-menu-now-title {
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.context-menu-now-artist {
+    font-size: 11px;
+    opacity: 0.6;
+}
+
+/* État à droite d'une ligne (« Activé » pour le retour micro). Sélecteur appuyé :
+ * sinon « .context-menu-item > span » l'étire sur toute la ligne. */
+.context-menu-item > .context-menu-badge {
+    flex: 0 0 auto;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 999px;
+    color: var(--menu-accent-text);
+    background: rgba(var(--menu-accent-rgb), 0.18);
+}
+
 /* Rangée lecture : précédent / lecture / suivant */
 .context-menu-media {
     display: flex;
@@ -82,13 +192,13 @@
 }
 
 .context-menu-media-btn.is-primary {
-    background: rgba(255, 255, 255, 0.14);
+    background: rgba(var(--menu-accent-rgb), 0.28);
     color: #fff;
 }
 
 .context-menu-media-btn:hover,
 .context-menu-media-btn:focus {
-    background: rgba(255, 255, 255, 0.2);
+    background: linear-gradient(rgba(var(--menu-accent-rgb), 0.2), rgba(var(--menu-accent-rgb), 0.2)), rgba(255, 255, 255, 0.12);
 }
 
 .context-menu-media-btn:active {
@@ -120,6 +230,7 @@
 
 .context-menu-item > span {
     flex: 1;
+    white-space: nowrap;
 }
 
 .context-menu-item > i:first-child {
@@ -131,17 +242,17 @@
 
 .context-menu-check {
     font-size: 12px;
-    color: var(--neon-primary, #D49460);
+    color: var(--menu-accent-text);
 }
 
-/* Survol et clavier : capsule claire, comme les menus Liquid Glass */
+/* Survol et clavier : capsule claire teintée par l'accent, comme les menus Liquid Glass */
 .context-menu-item:hover,
 .context-menu-item:focus {
-    background: rgba(255, 255, 255, 0.13);
+    background: var(--menu-hover);
 }
 
 .context-menu-item:active {
-    background: rgba(255, 255, 255, 0.2);
+    background: linear-gradient(rgba(var(--menu-accent-rgb), 0.22), rgba(var(--menu-accent-rgb), 0.22)), rgba(255, 255, 255, 0.12);
 }
 
 .context-menu-item.danger {

@@ -80,11 +80,6 @@ export default function Appearance({ store }) {
                     checked={settings.coverSync}
                     onChange={(coverSync) => update({ coverSync })}
                 />
-                <Toggle
-                    label="Pochette en fond de la pilule réduite"
-                    checked={settings.idleCoverBg}
-                    onChange={(idleCoverBg) => update({ idleCoverBg })}
-                />
             </Card>
         </>
     );

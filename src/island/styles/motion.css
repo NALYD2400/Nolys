@@ -39,6 +39,13 @@ body:not(.motion-sober) #dynamic-island.island-idle:active {
     transform: scale(0.96, 0.92);
 }
 
+/* Réglage « Halo qui respire » désactivé : halo fixe pendant la lecture. */
+body.no-glow-breath .island-active-music,
+body.no-glow-breath #dynamic-island.playing-music-glow,
+body.no-glow-breath #island-satellite.is-glowing {
+    animation: none;
+}
+
 /* ---------------------------------------------------------------- Entrée du contenu */
 
 /* Fondu et mise au point seulement : les vues en verre (lecteur, centre de

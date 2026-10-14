@@ -246,6 +246,11 @@
     display: inline-block;
 }
 
+/* Sans défilement, le titre est coupé par « … » (l'ellipse ne marche que sur du texte en ligne). */
+.track-title:not(.is-marquee) .track-title-text {
+    display: inline;
+}
+
 /* Titre trop long : défilement aller-retour avec pauses, bords fondus (features : setupTitleMarquee). */
 .track-title.is-marquee {
     text-overflow: clip;
@@ -570,6 +575,15 @@ body.motion-sober .marquee-track {
 
 .idle-title-text {
     display: inline-block;
+}
+
+/* Défilement désactivé : titre coupé par « … ». */
+.idle-title.no-scroll {
+    text-overflow: ellipsis;
+}
+
+.idle-title.no-scroll .idle-title-text {
+    display: inline;
 }
 
 .idle-title.is-marquee {

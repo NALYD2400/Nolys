@@ -63,6 +63,67 @@ export const VIZ_COLOR_OPTIONS = [
     { value: 'gradient', label: 'Dégradé' },
 ];
 
+export const VIZ_STYLE_OPTIONS = [
+    { value: 'capsules', label: 'Gélules', icon: 'ph-waveform' },
+    { value: 'bars', label: 'Égaliseur', icon: 'ph-chart-bar' },
+    { value: 'wave', label: 'Onde', icon: 'ph-wave-sine' },
+    { value: 'dots', label: 'Points', icon: 'ph-dots-three' },
+];
+
+export const COVER_SHAPE_OPTIONS = [
+    { value: 'round', label: 'Ronde' },
+    { value: 'rounded', label: 'Arrondie' },
+    { value: 'square', label: 'Carrée' },
+];
+
+/**
+ * Thèmes en un clic : chaque thème remplace seulement les réglages listés,
+ * le reste (modules, raccourcis…) ne bouge pas.
+ */
+export const THEME_PRESETS = [
+    {
+        value: 'copper', label: 'Cuivre', icon: 'ph-sun-horizon',
+        patch: {
+            materialStyle: 'glass', opacity: 92, blur: 30, grainEffect: 'none', glowEnabled: true, glowColorMode: 'mix',
+            glowBlend: 65, glowColor: '#D49460', glowDensity: 20, glowBreath: true, vizStyle: 'capsules', vizColorMode: 'cover',
+            vizGlow: true, pillCoverShape: 'round', coverSync: true, idleCoverBg: true, playerCoverBg: 50,
+        },
+    },
+    {
+        value: 'neon', label: 'Néon', icon: 'ph-lightning',
+        patch: {
+            materialStyle: 'holo', opacity: 90, blur: 30, grainEffect: 'none', glowEnabled: true, glowColorMode: 'fixed',
+            glowColor: '#00E5FF', glowDensity: 38, glowBreath: true, vizStyle: 'bars', vizColorMode: 'gradient',
+            vizColorGradA: '#00E5FF', vizColorGradB: '#FF2BD6', vizGlow: true, pillCoverShape: 'rounded', coverSync: false,
+            idleCoverBg: false, playerCoverBg: 25,
+        },
+    },
+    {
+        value: 'minimal', label: 'Minimal', icon: 'ph-circle',
+        patch: {
+            materialStyle: 'glass', opacity: 100, blur: 20, grainEffect: 'none', glowEnabled: false, glowBreath: false,
+            vizStyle: 'capsules', vizColorMode: 'solid', vizColorSolid: '#FFFFFF', vizGlow: false, pillCoverShape: 'round',
+            coverSync: false, idleCoverBg: false, playerCoverBg: 0,
+        },
+    },
+    {
+        value: 'cover', label: 'Pochette', icon: 'ph-vinyl-record',
+        patch: {
+            materialStyle: 'glass', opacity: 85, blur: 40, grainEffect: 'light', glowEnabled: true, glowColorMode: 'cover',
+            glowDensity: 30, glowBreath: true, vizStyle: 'wave', vizColorMode: 'cover', vizGlow: true, pillCoverShape: 'round',
+            coverSync: true, idleCoverBg: true, playerCoverBg: 75,
+        },
+    },
+    {
+        value: 'night', label: 'Nuit', icon: 'ph-moon-stars',
+        patch: {
+            materialStyle: 'metal', opacity: 100, blur: 10, grainEffect: 'medium', glowEnabled: true, glowColorMode: 'fixed',
+            glowColor: '#5E5CE6', glowDensity: 12, glowBreath: false, vizStyle: 'dots', vizColorMode: 'solid',
+            vizColorSolid: '#A5A3FF', vizGlow: false, pillCoverShape: 'square', coverSync: false, idleCoverBg: false, playerCoverBg: 20,
+        },
+    },
+];
+
 export const COMPACT_MODE_OPTIONS = [
     { value: 'cover', label: 'Pochette et visualiseur' },
     { value: 'title', label: 'Titre du morceau' },

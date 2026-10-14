@@ -1,7 +1,9 @@
 /** Écouteurs d’événements, menu contextuel et barre de progression. */
 import { ipcRenderer } from '../../../shared/ipc.js';
-import { formatTime } from '../helpers/format.js';
+import { escapeHtml, formatTime } from '../helpers/format.js';
 import { getDisplayMediaArt } from '../helpers/media-art.js';
+import { isHistoryTrack } from '../helpers/music-search.js';
+import { themeLook } from '../../../shared/theme-look.js';
 
 export const eventMethods = {
     initEvents() {
@@ -311,50 +313,73 @@ export const eventMethods = {
     showContextMenu(x, y) {
         this.isContextMenuOpen = true;
 
-        // Remove existing context menu if any
-        const existing = document.getElementById('island-context-menu');
-        if (existing) existing.remove();
+        // Remove existing context menu if any (y compris un menu encore en train de se fermer)
+        document.querySelectorAll('#island-context-menu, .context-menu.is-closing').forEach((menu) => menu.remove());
         if (this._contextMenuCloseHandler) {
             document.removeEventListener('click', this._contextMenuCloseHandler, true);
             this._contextMenuCloseHandler = null;
         }
 
         const isPlaying = Boolean(this.musicData?.isPlaying ?? this.isPlaying);
+        // Les commandes de lecture n'ont de sens que s'il y a un morceau à piloter.
+        const hasMedia = isHistoryTrack(this.musicData || {});
+        const micOn = Boolean(this.micConfig?.enabled);
         const isCurrent = (mode) => this.isExpanded && this.mode === mode;
-        const item = (action, icon, label, extraClass = '') => `
+        const item = (action, icon, label, { extraClass = '', badge = '' } = {}) => `
             <button type="button" class="context-menu-item ${extraClass}" role="menuitem" data-action="${action}">
                 <i class="ph ${icon}"></i>
                 <span>${label}</span>
-                ${isCurrent(action) ? '<i class="ph-bold ph-check context-menu-check" aria-label="Affiché"></i>' : ''}
+                ${isCurrent(action) ? '<i class="ph-bold ph-check context-menu-check" aria-label="Affiché"></i>' : badge}
             </button>`;
+        const art = hasMedia ? getDisplayMediaArt(this.musicData) : '';
+        // Pochette, titre et artiste : on voit ce que pilotent les boutons juste en dessous.
+        const mediaSection = hasMedia ? `
+            <div class="context-menu-now" aria-hidden="true">
+                ${art ? `<img class="context-menu-now-art" src="${escapeHtml(art)}" alt="">` : '<span class="context-menu-now-art is-empty"><i class="ph-fill ph-music-note"></i></span>'}
+                <span class="context-menu-now-text">
+                    <span class="context-menu-now-title">${escapeHtml(this.musicData.title || '')}</span>
+                    <span class="context-menu-now-artist">${escapeHtml(this.musicData.artist || '')}</span>
+                </span>
+            </div>
+            <div class="context-menu-media" role="group" aria-label="Lecture">
+                <button type="button" class="context-menu-media-btn" role="menuitem" data-action="prev" title="Précédent" aria-label="Précédent"><i class="ph-fill ph-skip-back"></i></button>
+                <button type="button" class="context-menu-media-btn is-primary" role="menuitem" data-action="play" title="${isPlaying ? 'Pause' : 'Lecture'}" aria-label="${isPlaying ? 'Pause' : 'Lecture'}"><i class="ph-fill ${isPlaying ? 'ph-pause' : 'ph-play'}"></i></button>
+                <button type="button" class="context-menu-media-btn" role="menuitem" data-action="next" title="Suivant" aria-label="Suivant"><i class="ph-fill ph-skip-forward"></i></button>
+            </div>
+            <div class="context-menu-separator"></div>` : '';
+
+        // Thème choisi dans les Réglages (matière et couleur d'accent), relu à chaque ouverture.
+        const readJson = (key) => {
+            try { return JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch { return {}; }
+        };
+        const coverColors = readJson('liquid_cover_colors');
+        const coverHex = hasMedia && coverColors.cover && localStorage.getItem('liquid_cover_color_sync') !== 'false' ? coverColors.primary : '';
+        const look = themeLook(readJson('liquid_island_config'), coverHex);
 
         const menu = document.createElement('div');
         menu.id = 'island-context-menu';
-        menu.className = 'context-menu';
+        menu.className = `context-menu context-menu-${look.material}`;
+        menu.style.setProperty('--menu-accent', look.accent);
+        menu.style.setProperty('--menu-accent-rgb', look.accentRgb);
         menu.setAttribute('role', 'menu');
         menu.tabIndex = -1;
         menu.innerHTML = `
             <div class="context-menu-bg"></div>
-            <div class="context-menu-media" role="group" aria-label="Lecture">
-                <button type="button" class="context-menu-media-btn" role="menuitem" data-action="prev" title="Précédent"><i class="ph-fill ph-skip-back"></i></button>
-                <button type="button" class="context-menu-media-btn is-primary" role="menuitem" data-action="play" title="${isPlaying ? 'Pause' : 'Lecture'}"><i class="ph-fill ${isPlaying ? 'ph-pause' : 'ph-play'}"></i></button>
-                <button type="button" class="context-menu-media-btn" role="menuitem" data-action="next" title="Suivant"><i class="ph-fill ph-skip-forward"></i></button>
-            </div>
-            <div class="context-menu-separator"></div>
+            ${mediaSection}
             ${item('music', 'ph-music-notes', 'Lecteur')}
-            ${item('control', 'ph-sliders', 'Centre de contrôle')}
+            ${item('control', 'ph-squares-four', 'Centre de contrôle')}
             ${item('mixer', 'ph-sliders-horizontal', 'Mélangeur')}
+            ${item('mic', 'ph-microphone', 'Retour micro', { badge: micOn ? '<span class="context-menu-badge">Activé</span>' : '' })}
             <div class="context-menu-separator"></div>
             ${item('layout', 'ph-arrows-out-cardinal', 'Déplacer et redimensionner')}
             ${item('settings', 'ph-gear-six', 'Réglages…')}
             <div class="context-menu-separator"></div>
-            ${item('exit', 'ph-power', 'Quitter l’Island', 'danger')}
+            ${item('exit', 'ph-power', 'Quitter Nolys', { extraClass: 'danger' })}
         `;
 
-        const effectiveMenuArt = getDisplayMediaArt(this.musicData);
-        if (effectiveMenuArt && effectiveMenuArt.length > 0) {
+        if (art) {
             const bgLayer = menu.querySelector('.context-menu-bg');
-            bgLayer.style.backgroundImage = `url(${effectiveMenuArt})`;
+            bgLayer.style.backgroundImage = `url("${art.replace(/\\/g, '/').replace(/"/g, '%22')}")`;
             bgLayer.style.opacity = '0.3';
         }
 
@@ -372,7 +397,7 @@ export const eventMethods = {
 
         const runAction = (action) => {
             this.closeContextMenu();
-            if (action === 'music' || action === 'control' || action === 'mixer') {
+            if (action === 'music' || action === 'control' || action === 'mixer' || action === 'mic') {
                 this.openExpandedMode(action);
             } else if (action === 'settings') {
                 this.setMode('settings');
@@ -403,6 +428,9 @@ export const eventMethods = {
                 const index = entries.indexOf(document.activeElement);
                 const next = index === -1 ? (step > 0 ? 0 : entries.length - 1) : (index + step + entries.length) % entries.length;
                 entries[next].focus();
+            } else if (e.key === 'Home' || e.key === 'End') {
+                e.preventDefault();
+                entries[e.key === 'Home' ? 0 : entries.length - 1].focus();
             } else if (e.key === 'Escape') {
                 e.preventDefault();
                 this.closeContextMenu();
@@ -439,9 +467,13 @@ export const eventMethods = {
             document.removeEventListener('click', this._contextMenuCloseHandler, true);
             this._contextMenuCloseHandler = null;
         }
+        // Petit fondu de sortie : le menu ne disparaît plus d'un coup. Il perd son id tout de
+        // suite (plus compté comme ouvert ni comme zone cliquable) et ne réagit plus à la souris.
         const menu = document.getElementById('island-context-menu');
         if (menu) {
-            menu.remove();
+            menu.removeAttribute('id');
+            menu.classList.add('is-closing');
+            setTimeout(() => menu.remove(), 140);
         }
         if (!this.isExpanded && !this._layoutEditMode && ipcRenderer) {
             try {

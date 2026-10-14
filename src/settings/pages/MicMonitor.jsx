@@ -13,10 +13,14 @@ const toPct = (linear) => {
     return Math.max(0, Math.min(100, ((db + 80) / 80) * 100));
 };
 
-const deviceOptions = (devices, defaultLabel) => [
+/** Le périphérique choisi reste dans la liste même débranché (Windows ne liste que les actifs). */
+const deviceOptions = (devices, defaultLabel, current) => [
     { value: '', label: defaultLabel },
     ...devices.map((device) => ({ value: device.id, label: device.name })),
+    ...(current && !devices.some((device) => device.id === current) ? [{ value: current, label: 'Choix précédent (débranché)' }] : []),
 ];
+
+const FALLBACK_NOTE = 'Débranché : celui de Windows prend le relais, retour automatique dès qu’il revient.';
 
 /** Vumètre : entrée du micro en transparence, ce qui part dans le casque par-dessus, seuil de la porte. */
 function LevelMeter({ status }) {
@@ -83,7 +87,7 @@ export default function MicMonitor() {
             <Card title="Traitement" footer="L’anti-bruit utilise RNNoise (réseau de neurones open source de Xiph), directement dans l’app : rien ne part sur Internet.">
                 <Toggle
                     label="Anti-bruit IA"
-                    description={status.denoiseAvailable === false ? 'Indisponible : ton micro doit tourner à 48 kHz (Panneau de configuration → Son).' : 'Retire clavier, ventilateur et souffle. Ajoute 10 ms de latence.'}
+                    description={status.denoiseAvailable === false ? 'Indisponible avec ce micro : Windows refuse de le convertir en 48 kHz.' : 'Retire clavier, ventilateur et souffle. Ajoute 10 ms de latence.'}
                     checked={Boolean(config.denoise)}
                     onChange={(denoise) => update({ denoise })}
                 />
@@ -121,18 +125,26 @@ export default function MicMonitor() {
             </Card>
 
             <Card title="Périphériques">
-                <Row label="Micro">
-                    <Select value={config.inputId || ''} options={deviceOptions(inputs, 'Par défaut de Windows')} onChange={(inputId) => update({ inputId })} />
+                <Row label="Micro" description={running && status.inputFallback ? FALLBACK_NOTE : undefined}>
+                    <Select
+                        value={config.inputId || ''}
+                        options={deviceOptions(inputs, 'Par défaut de Windows', config.inputId)}
+                        onChange={(inputId) => update({ inputId })}
+                    />
                 </Row>
-                <Row label="Sortie du retour" description="Le casque dans lequel tu veux t’entendre.">
-                    <Select value={config.outputId || ''} options={deviceOptions(outputs, 'Par défaut de Windows')} onChange={(outputId) => update({ outputId })} />
+                <Row label="Sortie du retour" description={running && status.outputFallback ? FALLBACK_NOTE : 'Le casque dans lequel tu veux t’entendre.'}>
+                    <Select
+                        value={config.outputId || ''}
+                        options={deviceOptions(outputs, 'Par défaut de Windows', config.outputId)}
+                        onChange={(outputId) => update({ outputId })}
+                    />
                 </Row>
             </Card>
 
             <Card title="Island">
                 <Toggle
                     label="Bulle d’activité"
-                    description="Une petite bulle à côté de la pilule montre que le retour est actif et bouge avec ta voix. Clic : régler, clic droit : couper."
+                    description="Une petite bulle à côté de la pilule montre que le retour est actif et bouge avec ta voix. Clic : régler. Deux clics droits : couper."
                     checked={satellite}
                     onChange={(value) => {
                         setSatellite(value);

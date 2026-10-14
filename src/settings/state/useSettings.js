@@ -244,14 +244,22 @@ export function useMicMonitor() {
     const [status, setStatus] = useState(null);
     const [inputs, setInputs] = useState([]);
     const [outputs, setOutputs] = useState([]);
+    const pending = useRef(null);
+    const sending = useRef(false);
 
     useEffect(() => {
         let alive = true;
-        const refresh = () => ipcRenderer.invoke('get-mic-monitor').then((next) => alive && next && setStatus(next)).catch(() => {});
+        // Envoi en cours : niveaux à jour, mais on garde les réglages affichés (sinon le curseur
+        // qu'on glisse revient en arrière à chaque rafraîchissement).
+        const receive = (next) => {
+            if (!alive || !next) return;
+            setStatus((current) => (sending.current && current ? { ...next, config: current.config } : next));
+        };
+        const refresh = () => ipcRenderer.invoke('get-mic-monitor').then(receive).catch(() => {});
         refresh();
         ipcRenderer.invoke('get-audio-input-devices').then((list) => alive && setInputs(list || [])).catch(() => {});
         ipcRenderer.invoke('get-audio-devices').then((list) => alive && setOutputs(list || [])).catch(() => {});
-        const off = ipcRenderer.on('mic-monitor-changed', (_event, next) => next && setStatus(next));
+        const off = ipcRenderer.on('mic-monitor-changed', (_event, next) => receive(next));
         // Vumètre : ~15 rafraîchissements par seconde tant que la page est ouverte.
         const timer = setInterval(refresh, 66);
         return () => {
@@ -261,11 +269,28 @@ export function useMicMonitor() {
         };
     }, []);
 
+    /**
+     * Un seul envoi à la fois, les modifications suivantes regroupées : un curseur glissé
+     * envoyait sinon des dizaines de réglages par seconde (chacun écrit sur le disque), qui
+     * pouvaient arriver dans le désordre et laisser une ancienne valeur active.
+     */
     const update = useCallback(async (patch) => {
         setStatus((current) => (current ? { ...current, config: { ...current.config, ...patch } } : current));
-        const current = await ipcRenderer.invoke('get-mic-monitor').catch(() => null);
-        const next = await ipcRenderer.invoke('set-mic-monitor', { ...(current?.config || {}), ...patch }).catch(() => null);
-        if (next) setStatus(next);
+        pending.current = { ...pending.current, ...patch };
+        if (sending.current) return;
+        sending.current = true;
+        try {
+            while (pending.current) {
+                // Réglages actuels relus à chaque fois : l'Island a pu en changer entre-temps.
+                const current = await ipcRenderer.invoke('get-mic-monitor').catch(() => null);
+                const batch = pending.current;
+                pending.current = null;
+                const next = await ipcRenderer.invoke('set-mic-monitor', { ...(current?.config || {}), ...batch }).catch(() => null);
+                if (next && !pending.current) setStatus(next);
+            }
+        } finally {
+            sending.current = false;
+        }
     }, []);
 
     return { status, inputs, outputs, update };

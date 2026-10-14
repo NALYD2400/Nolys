@@ -5,15 +5,18 @@
  * `box` coupe le texte (overflow: hidden), `text` est l'élément en ligne qui défile.
  * Renvoie true si le titre défile.
  */
-const GAP = 36; // espace entre la fin du titre et sa copie (px)
+const GAP = 18; // espace entre la fin du titre et sa copie (px)
 const SPEED = 28; // px par seconde
 
-export function applyLoopMarquee(box, text, overflow = text.scrollWidth - box.clientWidth) {
+/** Largeur réelle du texte, qu'il soit en ligne (scrollWidth vaut alors 0) ou en bloc. */
+const textWidth = (text) => Math.max(text.scrollWidth, text.getBoundingClientRect().width);
+
+export function applyLoopMarquee(box, text, overflow = textWidth(text) - box.clientWidth) {
     if (overflow <= 2) {
         box.classList.remove('is-marquee');
         return false;
     }
-    const width = text.scrollWidth;
+    const width = textWidth(text);
     const copy = text.cloneNode(true);
     copy.setAttribute('aria-hidden', 'true');
     copy.classList.add('marquee-copy');

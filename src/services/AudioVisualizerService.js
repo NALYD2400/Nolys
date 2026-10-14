@@ -181,11 +181,12 @@ class AudioVisualizerService {
         // Gain automatique : le niveau est rapporté au maximum des dernières secondes, pour
         // que les barres bougent autant à faible volume (Windows, lecteur ou morceau calme)
         // qu'à fort volume. En dessous de -54 dB, c'est du silence : rien n'est amplifié.
-        this._agcRef = Math.max(this._meterPeak, (this._agcRef || 0.25) * 0.996, 0.02);
+        // Gain plafonné à ×16 (référence ≥ 0,06) : après un long silence, une intro très
+        // calme ou un fondu ne remplit plus les barres comme un refrain.
+        this._agcRef = Math.max(this._meterPeak, (this._agcRef || 0.25) * 0.996, 0.06);
         const normalized = this._meterTargetPeak < 0.002 ? 0 : this._meterPeak / this._agcRef;
-        const sensitivity = parseFloat(localStorage.getItem('liquid_visualizer_sensitivity') || '2.5');
-        // La sensibilité garde son rôle (2,5 = réglage par défaut = niveau normalisé tel quel).
-        const peak = this._clamp01(normalized * 0.85 * Math.sqrt(sensitivity / 2.5));
+        // Intensité choisie dans les Réglages (1 = 100 %, par défaut).
+        const peak = this._clamp01(normalized * 0.85 * this._intensity());
         const stereoWidth = Math.abs(this._meterLeft - this._meterRight);
         const t = now / 1000;
 
@@ -276,7 +277,7 @@ class AudioVisualizerService {
             Math.min(1, Math.abs(Math.sin(t * bps * Math.PI * 2 + 1.2)) * 0.5 + Math.abs(Math.sin(t * 5.1)) * 0.2 + Math.random() * 0.05),
             // Treble: sparkle
             Math.min(1, Math.abs(Math.sin(t * bps * Math.PI * 3 + 1.8)) * 0.35 + Math.random() * 0.15)
-        ].map(v => v * this._simAmplitude);
+        ].map(v => this._clamp01(v * this._simAmplitude * this._intensity()));
 
         this._notify({ bands, raw: null, isSimulation: true });
     }
@@ -311,6 +312,16 @@ class AudioVisualizerService {
         if (timestamp - this._lastFrame < frameInterval) return false;
         this._lastFrame = timestamp - ((timestamp - this._lastFrame) % frameInterval);
         return true;
+    }
+
+    /**
+     * Intensité réglée dans les Réglages, 0,2 à 2 (1 = 100 %). Stockée sous l'ancienne
+     * « sensibilité » (2,5 par défaut) : intensité = √(sensibilité / 2,5).
+     */
+    _intensity() {
+        const sensitivity = parseFloat(localStorage.getItem('liquid_visualizer_sensitivity') || '2.5');
+        const intensity = Math.sqrt((Number.isFinite(sensitivity) && sensitivity > 0 ? sensitivity : 2.5) / 2.5);
+        return Math.max(0.2, Math.min(2, intensity));
     }
 
     _average(arr, start, end) {

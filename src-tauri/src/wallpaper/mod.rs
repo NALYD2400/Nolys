@@ -129,18 +129,35 @@ impl WallpaperSync {
         }
     }
 
+    /// Annule toute pochette encore en attente et renvoie la génération à passer à
+    /// `restore_if_current`. À appeler tout de suite, avant de lancer la restauration en tâche de fond.
+    pub fn cancel_pending(&self) -> u64 {
+        let mut state = self.state.lock();
+        state.pending_cover = None;
+        self.generation.fetch_add(1, Ordering::SeqCst) + 1
+    }
+
     pub fn restore_original(&self) {
+        let generation = self.cancel_pending();
+        self.restore_if_current(generation);
+    }
+
+    /// Remet le fond d'origine, sauf si une pochette a été redemandée depuis `generation`
+    /// (synchro coupée puis réactivée aussitôt) : la restauration, arrivée en retard,
+    /// effaçait sinon la pochette tout juste réappliquée.
+    pub fn restore_if_current(&self, generation: u64) {
         let original = self.state.lock().original.clone();
+        let _guard = self.apply_lock.lock();
+        if self.generation.load(Ordering::SeqCst) != generation {
+            return;
+        }
         if !original.is_empty() && Path::new(&original).exists() {
-            let _guard = self.apply_lock.lock();
             system::set_wallpaper(&original);
             log("[Wallpaper Sync] Restored original wallpaper");
         } else {
             log("[Wallpaper Sync] Original wallpaper path missing or invalid, skipping restore command");
         }
-        let mut state = self.state.lock();
-        state.last_cover.clear();
-        state.pending_cover = None;
+        self.state.lock().last_cover.clear();
     }
 
     /// Met à jour les réglages. Renvoie (activé avant, activé après, style modifié).
@@ -187,10 +204,10 @@ impl WallpaperSync {
                     return;
                 }
                 state.pending_cover = None;
-                self.generation.fetch_add(1, Ordering::SeqCst);
+                let generation = self.generation.fetch_add(1, Ordering::SeqCst) + 1;
                 drop(state);
                 let this = Arc::clone(self);
-                tauri::async_runtime::spawn_blocking(move || this.restore_original());
+                tauri::async_runtime::spawn_blocking(move || this.restore_if_current(generation));
                 return;
             }
             if cover == state.last_cover || state.pending_cover.as_deref() == Some(cover.as_str()) {
@@ -209,12 +226,18 @@ impl WallpaperSync {
             if this.generation.load(Ordering::SeqCst) != generation {
                 return; // une pochette plus récente a pris le relais
             }
-            let _ = tauri::async_runtime::spawn_blocking(move || this.execute(&cover)).await;
+            let _ = tauri::async_runtime::spawn_blocking(move || this.execute(&cover, generation)).await;
         });
     }
 
-    fn execute(&self, cover: &str) {
+    fn execute(&self, cover: &str, generation: u64) {
         let _guard = self.apply_lock.lock();
+        // Option coupée ou pochette remplacée pendant l'attente : on n'applique rien.
+        let still_wanted = || self.state.lock().settings.enabled && self.generation.load(Ordering::SeqCst) == generation;
+        if !still_wanted() {
+            self.state.lock().pending_cover = None;
+            return;
+        }
         let (path, settings) = {
             let mut state = self.state.lock();
             state.file_index = if state.file_index == 1 { 2 } else { 1 };
@@ -239,6 +262,11 @@ impl WallpaperSync {
             return;
         }
 
+        // Le rendu flou prend du temps : on revérifie juste avant de toucher au bureau.
+        if !still_wanted() {
+            self.state.lock().pending_cover = None;
+            return;
+        }
         if settings.style == "sharp" {
             system::set_wallpaper(&path.to_string_lossy());
             log(&format!("[Wallpaper Sync] Applied sharp wallpaper: {}", path.display()));

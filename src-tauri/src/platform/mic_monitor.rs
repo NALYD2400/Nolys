@@ -23,7 +23,7 @@ use windows::Win32::Devices::FunctionDiscovery::PKEY_Device_FriendlyName;
 use windows::Win32::Foundation::{CloseHandle, HANDLE, WAIT_OBJECT_0};
 use windows::Win32::Media::Audio::{
     eCapture, eConsole, eRender, EDataFlow, IAudioCaptureClient, IAudioClient, IAudioRenderClient, IMMDevice,
-    IMMDeviceEnumerator, MMDeviceEnumerator, PKEY_AudioEndpoint_FormFactor, AUDCLNT_BUFFERFLAGS_SILENT,
+    IMMDeviceEnumerator, MMDeviceEnumerator, PKEY_AudioEndpoint_FormFactor, AUDCLNT_BUFFERFLAGS_SILENT, DEVICE_STATE_ACTIVE,
     AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
     AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY, WAVEFORMATEX,
 };
@@ -163,6 +163,9 @@ pub struct MonitorStatus {
     pub latency_ms: u32,
     /// RNNoise n'est utilisable qu'avec un micro à 48 kHz.
     pub denoise_available: bool,
+    /// Micro / sortie choisis absents : le retour passe en attendant par ceux de Windows.
+    pub input_fallback: bool,
+    pub output_fallback: bool,
 }
 
 #[derive(Default)]
@@ -197,6 +200,8 @@ struct SessionInfo {
     output_kind: String,
     sample_rate: u32,
     latency_ms: u32,
+    input_fallback: bool,
+    output_fallback: bool,
 }
 
 struct Worker {
@@ -265,6 +270,8 @@ pub fn status() -> MonitorStatus {
         sample_rate: session.sample_rate,
         latency_ms: session.latency_ms,
         denoise_available: !running || session.sample_rate == DENOISE_RATE,
+        input_fallback: running && session.input_fallback,
+        output_fallback: running && session.output_fallback,
     }
 }
 
@@ -276,10 +283,17 @@ pub fn set_config(config: MonitorConfig) -> MonitorStatus {
 
 /// Arrêt propre à la fermeture de l'application (sans changer le réglage enregistré).
 pub fn shutdown() {
+    let _guard = APPLY.lock();
     stop_worker();
 }
 
+/// Les commandes tournent sur plusieurs threads (Island et Réglages en même temps) :
+/// sans ce verrou, deux activations simultanées lançaient deux threads audio, dont un
+/// orphelin que plus rien n'arrêtait, et un vieux réglage pouvait passer en dernier.
+static APPLY: Mutex<()> = Mutex::new(());
+
 fn apply(config: MonitorConfig, persist: bool) {
+    let _guard = APPLY.lock();
     let monitor = monitor();
     let previous = std::mem::replace(&mut *monitor.config.lock(), config.clone());
     *monitor.params.lock() = DspParams::from(&config);
@@ -327,8 +341,8 @@ fn start_worker(config: MonitorConfig) {
 
 enum Exit {
     Stopped,
-    /// Le périphérique par défaut a changé : on rouvre sans signaler d'erreur.
-    DefaultChanged,
+    /// Le périphérique par défaut a changé, ou celui choisi est revenu : on rouvre sans signaler d'erreur.
+    Reopen,
 }
 
 fn worker_loop(
@@ -339,12 +353,17 @@ fn worker_loop(
     stop: Arc<AtomicBool>,
 ) {
     com::ensure_mta();
+    let mut last_error = String::new();
     while !stop.load(Ordering::Relaxed) {
         match run_session(&config, &params, &meters, &session, &stop) {
             Ok(Exit::Stopped) => break,
-            Ok(Exit::DefaultChanged) => continue,
+            Ok(Exit::Reopen) => continue,
             Err(message) => {
-                crate::logger::log(&format!("[MicMonitor] {message}"));
+                // Une seule ligne par panne : micro débranché pendant des heures = pas de journal plein.
+                if session.lock().running || message != last_error {
+                    crate::logger::log(&format!("[MicMonitor] {message}"));
+                    last_error.clone_from(&message);
+                }
                 meters.reset();
                 {
                     let mut info = session.lock();
@@ -402,28 +421,39 @@ fn run_session(
 ) -> Result<Exit, String> {
     let enumerator: IMMDeviceEnumerator =
         unsafe { CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL) }.map_err(|e| format!("Audio indisponible ({e})"))?;
-    let input = open_device(&enumerator, &config.input_id, eCapture).ok_or("Micro introuvable")?;
-    let output = open_device(&enumerator, &config.output_id, eRender).ok_or("Sortie audio introuvable")?;
-    let input_default_id = config.input_id.is_empty().then(|| device_id(&input)).flatten();
-    let output_default_id = config.output_id.is_empty().then(|| device_id(&output)).flatten();
+    let (input, input_fallback) = open_device(&enumerator, &config.input_id, eCapture).ok_or("Micro introuvable")?;
+    let (output, output_fallback) = open_device(&enumerator, &config.output_id, eRender).ok_or("Sortie audio introuvable")?;
+    // Périphérique de Windows suivi s'il n'y a pas de choix, ou si le choix est absent pour l'instant.
+    let input_default_id = (config.input_id.is_empty() || input_fallback).then(|| device_id(&input)).flatten();
+    let output_default_id = (config.output_id.is_empty() || output_fallback).then(|| device_id(&output)).flatten();
 
     unsafe {
-        // --- Micro : format de mixage, en flottant 32 bits.
+        // --- Micro : en flottant 32 bits à 48 kHz, la fréquence de RNNoise. Windows convertit
+        // un micro à 44,1 kHz (AUTOCONVERTPCM) : l'anti-bruit marche alors aussi.
         let capture_client: IAudioClient = input.Activate(CLSCTX_ALL, None).map_err(|e| format!("Micro occupé ({e})"))?;
         let mix = MixFormat(capture_client.GetMixFormat().map_err(|e| format!("Format du micro illisible ({e})"))?);
         let in_channels = (*mix.0).nChannels.max(1);
-        let rate = (*mix.0).nSamplesPerSec;
-        let capture_format = float_format(in_channels, rate);
-        capture_client
-            .Initialize(
+        let native_rate = (*mix.0).nSamplesPerSec;
+        let init_capture = |client: &IAudioClient, rate: u32| {
+            client.Initialize(
                 AUDCLNT_SHAREMODE_SHARED,
                 AUDCLNT_STREAMFLAGS_EVENTCALLBACK | AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY,
                 200_000, // 20 ms
                 0,
-                &capture_format,
+                &float_format(in_channels, rate),
                 None,
             )
-            .map_err(|e| format!("Impossible d'ouvrir le micro ({e})"))?;
+        };
+        let (capture_client, rate) = match init_capture(&capture_client, DENOISE_RATE) {
+            Ok(()) => (capture_client, DENOISE_RATE),
+            // Conversion refusée par le pilote : on reprend un client neuf à la fréquence du micro.
+            Err(_) if native_rate != DENOISE_RATE => {
+                let client: IAudioClient = input.Activate(CLSCTX_ALL, None).map_err(|e| format!("Micro occupé ({e})"))?;
+                init_capture(&client, native_rate).map_err(|e| format!("Impossible d'ouvrir le micro ({e})"))?;
+                (client, native_rate)
+            }
+            Err(e) => return Err(format!("Impossible d'ouvrir le micro ({e})")),
+        };
         let event = Event(CreateEventW(None, false, false, None).map_err(|e| e.to_string())?);
         capture_client.SetEventHandle(event.0).map_err(|e| e.to_string())?;
         let capture: IAudioCaptureClient = capture_client.GetService().map_err(|e| e.to_string())?;
@@ -459,9 +489,14 @@ fn run_session(
                 output_kind: form_factor(&output).into(),
                 sample_rate: rate,
                 latency_ms: config.latency_ms() + 10 + if config.denoise && rate == DENOISE_RATE { 10 } else { 0 },
+                input_fallback,
+                output_fallback,
             };
         }
-        crate::logger::log(&format!("[MicMonitor] started at {rate} Hz, {in_channels} ch, buffer {target} frames"));
+        crate::logger::log(&format!(
+            "[MicMonitor] started at {rate} Hz (micro {native_rate} Hz), {in_channels} ch, buffer {target} frames{}",
+            if input_fallback || output_fallback { ", périphérique choisi absent" } else { "" }
+        ));
 
         capture_client.Start().map_err(|e| e.to_string())?;
         render_client.Start().map_err(|e| e.to_string())?;
@@ -482,7 +517,8 @@ fn run_session(
                 }
             }
 
-            // Suivre le périphérique par défaut quand l'utilisateur n'en a pas choisi.
+            // Suivre le périphérique par défaut quand l'utilisateur n'en a pas choisi, et revenir
+            // sur celui qu'il a choisi dès qu'il est rebranché.
             if last_default_check.elapsed() > Duration::from_secs(2) {
                 last_default_check = Instant::now();
                 let changed = |wanted: &Option<String>, flow| {
@@ -490,8 +526,13 @@ fn run_session(
                         enumerator.GetDefaultAudioEndpoint(flow, eConsole).ok().and_then(|d| device_id(&d)).as_ref() != Some(id)
                     })
                 };
-                if changed(&input_default_id, eCapture) || changed(&output_default_id, eRender) {
-                    break Ok(Exit::DefaultChanged);
+                let back = |fallback: bool, id: &str| fallback && chosen_device(&enumerator, id).is_some();
+                if changed(&input_default_id, eCapture)
+                    || changed(&output_default_id, eRender)
+                    || back(input_fallback, &config.input_id)
+                    || back(output_fallback, &config.output_id)
+                {
+                    break Ok(Exit::Reopen);
                 }
             }
 
@@ -633,6 +674,10 @@ impl Dsp {
             for sample in &mut signal {
                 *sample = self.hp.run(*sample);
             }
+        } else {
+            // Mémoire du filtre vidée : le réactiver ne rejoue pas un vieux reste (clic).
+            self.hp.z1 = 0.0;
+            self.hp.z2 = 0.0;
         }
 
         let denoise = params.denoise && self.rate as u32 == DENOISE_RATE;
@@ -762,15 +807,25 @@ impl Biquad {
 
 // ---------------------------------------------------------------- Périphériques
 
-fn open_device(enumerator: &IMMDeviceEnumerator, id: &str, flow: EDataFlow) -> Option<IMMDevice> {
-    unsafe {
-        if !id.is_empty() {
-            if let Ok(device) = enumerator.GetDevice(&HSTRING::from(id)) {
-                return Some(device);
-            }
-        }
-        enumerator.GetDefaultAudioEndpoint(flow, eConsole).ok()
+/// Périphérique choisi, seulement s'il est branché et actif (`GetDevice` réussit aussi pour
+/// un casque débranché, dont l'ouverture échouerait ensuite en boucle).
+fn chosen_device(enumerator: &IMMDeviceEnumerator, id: &str) -> Option<IMMDevice> {
+    if id.is_empty() {
+        return None;
     }
+    unsafe {
+        let device = enumerator.GetDevice(&HSTRING::from(id)).ok()?;
+        (device.GetState().ok()? == DEVICE_STATE_ACTIVE).then_some(device)
+    }
+}
+
+/// Le périphérique choisi, sinon celui de Windows. Le booléen indique ce repli.
+fn open_device(enumerator: &IMMDeviceEnumerator, id: &str, flow: EDataFlow) -> Option<(IMMDevice, bool)> {
+    if let Some(device) = chosen_device(enumerator, id) {
+        return Some((device, false));
+    }
+    let device = unsafe { enumerator.GetDefaultAudioEndpoint(flow, eConsole) }.ok()?;
+    Some((device, !id.is_empty()))
 }
 
 fn device_id(device: &IMMDevice) -> Option<String> {
@@ -820,10 +875,14 @@ fn form_factor(device: &IMMDevice) -> &'static str {
 mod tests {
     use super::*;
 
+    /// Les tests partagent le même retour micro global : un à la fois.
+    static HARDWARE: Mutex<()> = Mutex::new(());
+
     /// Ouvre le vrai micro et la vraie sortie, volume à zéro (rien d'audible).
     #[test]
     #[ignore = "nécessite un micro et une sortie audio"]
     fn opens_real_devices() {
+        let _guard = HARDWARE.lock();
         let config = MonitorConfig { enabled: true, volume: 0, denoise: true, gate_enabled: true, ..Default::default() };
         set_config(config);
         let mut max_level = 0f32;
@@ -838,5 +897,19 @@ mod tests {
         println!("{status:#?}");
         assert!(status.running, "erreur : {:?}", status.error);
         assert!(status.sample_rate > 0);
+    }
+
+    /// Micro choisi absent : le retour démarre quand même sur celui de Windows et le signale.
+    #[test]
+    #[ignore = "nécessite un micro et une sortie audio"]
+    fn falls_back_when_chosen_device_is_missing() {
+        let _guard = HARDWARE.lock();
+        let config = MonitorConfig { enabled: true, volume: 0, input_id: "{absent}".into(), ..Default::default() };
+        set_config(config);
+        std::thread::sleep(Duration::from_millis(1500));
+        let status = status();
+        shutdown();
+        assert!(status.running, "erreur : {:?}", status.error);
+        assert!(status.input_fallback && !status.output_fallback);
     }
 }

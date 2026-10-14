@@ -68,17 +68,36 @@ button {
 }
 
 .backdrop-default {
+    /* Sans pochette : nappes de la couleur d'accent du thème (cuivre par défaut). */
     background:
-        radial-gradient(40% 50% at 15% 20%, #67412d 0%, transparent 70%),
-        radial-gradient(45% 55% at 85% 80%, #382c28 0%, transparent 70%),
-        radial-gradient(30% 40% at 70% 15%, #80634a 0%, transparent 70%);
+        radial-gradient(40% 50% at 15% 20%, color-mix(in srgb, var(--accent) 45%, #161618) 0%, transparent 70%),
+        radial-gradient(45% 55% at 85% 80%, color-mix(in srgb, var(--accent) 18%, #2a2a2e) 0%, transparent 70%),
+        radial-gradient(30% 40% at 70% 15%, color-mix(in srgb, var(--accent) 60%, #161618) 0%, transparent 70%);
     opacity: 0.9;
 }
 
+/* Voile sombre, légèrement teinté par l'accent en haut de la fenêtre. */
 .backdrop-shade {
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, rgba(14, 14, 16, 0.35) 0%, rgba(14, 14, 16, 0.7) 100%);
+    background:
+        radial-gradient(70% 55% at 50% 0%, color-mix(in srgb, var(--accent) 12%, transparent) 0%, transparent 70%),
+        linear-gradient(180deg, rgba(14, 14, 16, 0.35) 0%, rgba(14, 14, 16, 0.7) 100%);
+}
+
+/* Matière du thème, reprise par le fond (et donc par le verre des cartes qui le réfracte). */
+:root[data-material='metal'] .backdrop-shade {
+    background:
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.018) 0px, rgba(255, 255, 255, 0.018) 1px, transparent 1px, transparent 4px),
+        radial-gradient(70% 55% at 50% 0%, color-mix(in srgb, var(--accent) 10%, transparent) 0%, transparent 70%),
+        linear-gradient(180deg, rgba(16, 16, 18, 0.5) 0%, rgba(14, 14, 16, 0.82) 100%);
+}
+
+:root[data-material='holo'] .backdrop-shade {
+    background:
+        linear-gradient(135deg, rgba(0, 243, 255, 0.07) 0%, rgba(188, 19, 254, 0.07) 50%, rgba(255, 45, 85, 0.06) 100%),
+        radial-gradient(70% 55% at 50% 0%, color-mix(in srgb, var(--accent) 12%, transparent) 0%, transparent 70%),
+        linear-gradient(180deg, rgba(12, 10, 24, 0.4) 0%, rgba(12, 10, 24, 0.74) 100%);
 }
 
 /* ---------------------------------------------------------------- Barre latérale */
@@ -172,12 +191,50 @@ button {
     position: relative;
 }
 
+/* En-tête transparent au repos : pas de bandeau sombre, et le bouton de fermeture garde
+ * son verre. Dès que la page défile, un voile en verre dépoli apparaît : le verre des
+ * cartes est peint dans le fond de la fenêtre, pas dans la zone qui défile, et une carte
+ * remontée réapparaissait sinon derrière le titre. */
 .content-header {
+    position: relative;
+    z-index: 2;
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 20px 20px 10px 28px;
     -webkit-app-region: drag;
+}
+
+/* Fond de la fenêtre recopié sous le titre, aligné pixel pour pixel sur l'original (la
+ * colonne du contenu commence à 228 px). Il dépasse un peu sous l'en-tête en s'estompant :
+ * les cartes qui remontent disparaissent en fondu, sans bandeau ni trait. */
+.header-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 76px; /* en-tête (58 px) + fondu de 18 px */
+    z-index: 1;
+    overflow: hidden;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent 100%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.header-backdrop-inner {
+    position: absolute;
+    top: 0;
+    left: -228px;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: #161618;
+}
+
+.content.is-scrolled .header-backdrop {
+    opacity: 1;
 }
 
 .content-header h1 {
@@ -187,24 +244,73 @@ button {
     letter-spacing: -0.02em;
 }
 
+/* Bouton de fermeture : petit rond discret qui s'éclaire au survol. */
 .close {
     -webkit-app-region: no-drag;
+    width: 28px;
+    height: 28px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0.5px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.close:hover {
+    background: rgba(255, 255, 255, 0.14);
+    color: var(--text);
+}
+
+.close:active {
+    transform: scale(0.92);
+}
+
+.close:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 .page {
     flex: 1;
     overflow-y: auto;
-    padding: 6px 24px 28px 28px;
+    padding: 12px 24px 28px 28px;
     animation: page-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* Barre de défilement discrète : fine, sans rail, visible seulement au survol de la page. */
 .page::-webkit-scrollbar {
-    width: 8px;
+    width: 6px;
+}
+
+.page::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 10px 0 14px;
 }
 
 .page::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.14);
-    border-radius: 4px;
+    background: transparent;
+    border-radius: 3px;
+}
+
+.page:hover::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.page::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.28);
+}
+
+/* Le contenu s'efface en douceur sous l'en-tête, seulement une fois défilé : au repos, le
+ * haut de la première carte restait à moitié effacé. */
+.content.is-scrolled .page {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 14px);
 }
 
 @keyframes page-in {

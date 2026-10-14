@@ -251,7 +251,7 @@ export const coverThemeMethods = {
             const coverUrl = effectiveArt ? effectiveArt.replace(/\\/g, '/') : "";
             if (coverUrl && coverUrl.length > 0) {
                 bgLayer.style.backgroundImage = `url("${coverUrl}")`;
-                bgLayer.style.opacity = '0.45';
+                bgLayer.style.opacity = String(this.getPlayerCoverOpacity());
                 bgLayer.style.filter = 'blur(24px) saturate(180%)';
             } else {
                 bgLayer.style.backgroundImage = 'none';
@@ -348,6 +348,12 @@ export const coverThemeMethods = {
         }
     },
 
+    /** Opacité de la pochette floutée dans l'Island ouverte (réglage « Pochette en fond du lecteur »). */
+    getPlayerCoverOpacity() {
+        const percent = Number(this._islandConfig?.playerCoverBg);
+        return (Number.isFinite(percent) ? Math.max(0, Math.min(100, percent)) : 50) * 0.009;
+    },
+
     syncGlobalCoverAesthetics() {
         const data = this.musicData;
         const bgLayer = this.el.querySelector('.island-bg-layer');
@@ -360,7 +366,7 @@ export const coverThemeMethods = {
             if (this.isExpanded && bgLayer) {
                 const cleanCover = effectiveArt.replace(/\\/g, '/');
                 bgLayer.style.backgroundImage = `url("${cleanCover}")`;
-                bgLayer.style.opacity = '0.45';
+                bgLayer.style.opacity = String(this.getPlayerCoverOpacity());
                 bgLayer.style.filter = 'blur(24px) saturate(180%)';
             }
         } else {

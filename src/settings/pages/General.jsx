@@ -90,15 +90,15 @@ export default function General({ store }) {
 
             <Card title="Démarrage">
                 <Toggle label="Lancer au démarrage de Windows" checked={autoStart} onChange={setAutoStart} />
-                <Toggle
-                    label="Toujours au premier plan"
-                    description="L’Island reste au-dessus des autres fenêtres."
-                    checked={settings.persistent}
-                    onChange={(persistent) => update({ persistent })}
-                />
             </Card>
 
             <Card title="Comportement">
+                <Toggle
+                    label="Toujours au premier plan"
+                    description="L’Island reste devant toutes les fenêtres (navigateur, apps…). Sinon, elle passe derrière celle qui est active."
+                    checked={settings.persistent}
+                    onChange={(persistent) => update({ persistent })}
+                />
                 <Toggle
                     label="Masquer en plein écran"
                     description="Jeux et vidéos en plein écran sur le même écran que l’Island."

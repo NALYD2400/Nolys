@@ -2,12 +2,26 @@
 
 ## Prochaine version — en préparation
 
+### Personnalisation (nouvelle page « Island » des Réglages)
+
+- Thèmes en un clic : Cuivre, Néon, Minimal, Pochette, Nuit (matière, halo, visualiseur et couleurs d'un coup, puis tout reste réglable).
+- Pilule : forme de la pochette (ronde, arrondie, carrée), titre affiché ou non, largeur maximale (180 à 340 px), défilement des titres longs activable.
+- Visualiseur : 4 styles (gélules façon Apple, égaliseur, onde façon Siri, points), 3 à 9 barres, halo des barres, affichage dans la pilule et/ou le lecteur, couleurs (Liquide, pochette, unie, dégradé), sensibilité.
+- Lecteur et halo : intensité de la pochette floutée en fond du lecteur, halo qui respire pendant la lecture ou fixe.
+- Les réglages du visualiseur quittent la page Musique pour cette nouvelle page.
+
+### Corrections
+
+- Fond d'écran pochette : une pochette encore en attente pouvait revenir juste après la désactivation ; elle est maintenant annulée, et l'option est revérifiée avant d'appliquer.
+- Réglages : l'en-tête est en verre dépoli, et les cartes ne réapparaissent plus derrière le titre quand on fait défiler.
+- Menus déroulants des Réglages : le bouton reste visible quand le menu est ouvert (le menu s'en détache au lieu de le remplacer).
+
 - Pilule repliée : le titre du morceau s'affiche entre la pochette et l'onde, et la pilule prend la largeur de son contenu (150 à 240 px, avec le ressort à chaque morceau). Au-delà, le titre défile en boucle.
 - Visualiseur refait façon Apple : 5 barres en gélule centrées, chacune à son rythme, aux couleurs de la pochette avec un léger halo, qui retombent en points à la pause. Dessin net sur les écrans haute densité.
 - Pilule repliée : l'onde est posée dans le bout droit, symétrique de la pochette ronde ; le contenu ne déborde plus du bord.
 - Lecteur ouvert : la bande de barres coupée en bas est remplacée par la même onde, à droite du titre.
 - Lecteur ouvert plus compact : les temps sont collés sous la barre de progression, en Inter avec des chiffres de largeur fixe, et le vide du bas a disparu.
-- Titre trop long (pilule et lecteur) : il défile en boucle vers la gauche, sans retour en arrière, au lieu d'être coupé.
+- Titre trop long (pilule et lecteur) : il défile en boucle vers la gauche, sans retour en arrière, au lieu d'être coupé ; la copie suit de près.
 
 ## 2.1.0 — 14 octobre 2026
 

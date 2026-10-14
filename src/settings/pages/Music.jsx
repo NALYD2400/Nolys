@@ -1,5 +1,5 @@
-import { Card, ColorSwatch, Reveal, Row, Segmented, Select, SliderRow, Toggle } from '../components/controls.jsx';
-import { COMPACT_MODE_OPTIONS, VIZ_COLOR_OPTIONS } from '../state/presets.js';
+import { Card, Reveal, Row, Select, Toggle } from '../components/controls.jsx';
+import { COMPACT_MODE_OPTIONS } from '../state/presets.js';
 
 export default function Music({ store }) {
     const { settings, update } = store;
@@ -39,42 +39,7 @@ export default function Music({ store }) {
                     />
                 </Card>
 
-                <Card title="Visualiseur">
-                    <Toggle
-                        label="Barres audio sous le lecteur"
-                        checked={settings.showVisualizer}
-                        onChange={(showVisualizer) => update({ showVisualizer })}
-                    />
-                    <Segmented
-                        label="Couleurs"
-                        value={settings.vizColorMode}
-                        options={VIZ_COLOR_OPTIONS}
-                        onChange={(vizColorMode) => update({ vizColorMode })}
-                    />
-                    {settings.vizColorMode === 'solid' && (
-                        <Row label="Couleur">
-                            <ColorSwatch label="Couleur" value={settings.vizColorSolid} onChange={(vizColorSolid) => update({ vizColorSolid })} />
-                        </Row>
-                    )}
-                    {settings.vizColorMode === 'gradient' && (
-                        <Row label="Dégradé" description="Du grave vers l’aigu.">
-                            <div className="swatch-pair">
-                                <ColorSwatch label="Début" value={settings.vizColorGradA} onChange={(vizColorGradA) => update({ vizColorGradA })} />
-                                <span className="swatch-arrow" />
-                                <ColorSwatch label="Fin" value={settings.vizColorGradB} onChange={(vizColorGradB) => update({ vizColorGradB })} />
-                            </div>
-                        </Row>
-                    )}
-                    <SliderRow
-                        label="Sensibilité"
-                        value={settings.visualizerSensitivity}
-                        min={1}
-                        max={25}
-                        step={0.5}
-                        format={(v) => `${Number(v).toFixed(1)}×`}
-                        onChange={(visualizerSensitivity) => update({ visualizerSensitivity: Math.round(visualizerSensitivity * 2) / 2 })}
-                    />
-                </Card>
+                <p className="card-footer">Visualiseur, pochette et titre de la pilule : page Island.</p>
             </Reveal>
         </>
     );

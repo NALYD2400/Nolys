@@ -22,13 +22,24 @@ export const micMonitorMethods = {
         this._micSatellite = document.getElementById('island-satellite');
         this._micSatellite?.addEventListener('click', (e) => {
             e.stopPropagation();
+            this.disarmMicSatellite();
             this.openExpandedMode('mic');
         });
+        // Clic droit : la bulle passe au rouge, un second clic droit dans les 3 s coupe le retour.
+        // Un seul clic coupait tout de suite, sans prévenir (facile à faire par erreur).
         this._micSatellite?.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            this.setMicMonitor({ enabled: false });
+            if (this._micSatelliteArmed) {
+                this.disarmMicSatellite();
+                this.setMicMonitor({ enabled: false });
+                return;
+            }
+            this._micSatellite.classList.add('is-confirming');
+            this._micSatellite.title = 'Clic droit encore pour couper le retour micro';
+            this._micSatelliteArmed = setTimeout(() => this.disarmMicSatellite(), 3000);
         });
+        this._micSatellite?.addEventListener('mouseleave', () => this.disarmMicSatellite());
 
         // La bulle suit le bord droit de la pilule, même pendant ses changements de taille.
         new ResizeObserver(() => this.positionMicSatellite()).observe(this.el);
@@ -45,24 +56,54 @@ export const micMonitorMethods = {
             if (e.key === 'liquid_mic_satellite') this.syncMicActivity();
         });
 
-        ipcRenderer.on('mic-monitor-changed', (_event, status) => this.applyMicStatus(status));
+        ipcRenderer.on('mic-monitor-changed', (_event, status) => {
+            // Pendant nos propres envois, les états intermédiaires feraient reculer l'interface.
+            if (!this._micSending) this.applyMicStatus(status);
+        });
         ipcRenderer.invoke('get-mic-monitor').then((status) => this.applyMicStatus(status)).catch(() => {});
+    },
+
+    disarmMicSatellite() {
+        if (!this._micSatelliteArmed) return;
+        clearTimeout(this._micSatelliteArmed);
+        this._micSatelliteArmed = null;
+        this._micSatellite.classList.remove('is-confirming');
+        this._micSatellite.title = 'Retour micro : clic pour régler, deux clics droits pour couper';
     },
 
     get micConfig() {
         return this.micStatus?.config || {};
     },
 
-    /** Envoie une partie des réglages ; l'interface est mise à jour tout de suite. */
+    /**
+     * Envoie une partie des réglages ; l'interface est mise à jour tout de suite.
+     * Un seul envoi à la fois, les suivants regroupés : sinon deux envois rapprochés
+     * (glissement du seuil, clics répétés) pouvaient arriver dans le désordre et laisser
+     * un ancien réglage actif.
+     */
     async setMicMonitor(patch) {
-        const config = { ...this.micConfig, ...patch };
-        if (this.micStatus) this.micStatus.config = config;
+        if (this.micStatus) this.micStatus.config = { ...this.micConfig, ...patch };
         this.refreshMicView();
+        this._micPending = { ...this._micPending, ...patch };
+        if (this._micSending) return;
+        this._micSending = true;
         try {
-            const status = await ipcRenderer.invoke('set-mic-monitor', config);
-            this.applyMicStatus(status);
-        } catch (e) {
-            console.warn('[MicMonitor] Échec de l’envoi des réglages.', e);
+            while (this._micPending) {
+                // État pas encore reçu : on part des réglages enregistrés, pas des valeurs par défaut.
+                const base = this.micStatus
+                    ? this.micConfig
+                    : (await ipcRenderer.invoke('get-mic-monitor').catch(() => null))?.config || {};
+                const config = { ...base, ...this._micPending };
+                this._micPending = null;
+                try {
+                    const status = await ipcRenderer.invoke('set-mic-monitor', config);
+                    if (!this._micPending) this.applyMicStatus(status);
+                } catch (e) {
+                    console.warn('[MicMonitor] Échec de l’envoi des réglages.', e);
+                }
+            }
+        } finally {
+            this._micSending = false;
         }
     },
 
@@ -128,42 +169,46 @@ export const micMonitorMethods = {
         if (!enabled) this.paintMicLevels({ inputLevel: 0, outputLevel: 0, gateOpen: false, voice: 0 });
     },
 
+    /**
+     * Minuterie plutôt qu'un requestAnimationFrame continu : la bulle reste affichée des
+     * heures, inutile de réveiller la page à chaque image de l'écran (jusqu'à 360 i/s).
+     */
     startMicLoop() {
-        let busy = false;
-        let last = 0;
-        const tick = async (now) => {
-            if (!this._micLoop) return;
-            this._micLoop = requestAnimationFrame(tick);
-            // ~20 i/s dans la vue, ~8 i/s pour la bulle, moins en mode Éco.
-            const viewOpen = this.isExpanded && this.mode === 'mic';
-            const eco = localStorage.getItem('liquid_eco_mode') === 'true';
-            const interval = viewOpen ? (eco ? 100 : 50) : (eco ? 250 : 120);
-            if (busy || now - last < interval) return;
-            busy = true;
-            last = now;
+        const loop = { timer: null };
+        this._micLoop = loop;
+        const tick = async () => {
+            if (this._micLoop !== loop) return;
             try {
                 const status = await ipcRenderer.invoke('get-mic-monitor');
+                if (this._micLoop !== loop) return;
+                // Envoi en cours : on garde les réglages affichés (ceux du serveur sont en retard).
+                if (status && status.config && this._micSending && this.micStatus) status.config = this.micConfig;
                 if (status && status.config) {
                     const stateChanged = !this.micStatus
                         || status.running !== this.micStatus.running
                         || status.error !== this.micStatus.error
                         || status.inputName !== this.micStatus.inputName
-                        || status.outputName !== this.micStatus.outputName;
+                        || status.outputName !== this.micStatus.outputName
+                        || status.inputFallback !== this.micStatus.inputFallback
+                        || status.outputFallback !== this.micStatus.outputFallback;
                     this.micStatus = status;
                     if (stateChanged) this.refreshMicView();
                     this.paintMicLevels(status);
                 }
             } catch (e) {
                 // Le prochain tour réessaiera.
-            } finally {
-                busy = false;
             }
+            if (this._micLoop !== loop) return;
+            // ~20 i/s dans la vue, ~8 i/s pour la bulle, moins en mode Éco.
+            const viewOpen = this.isExpanded && this.mode === 'mic';
+            const eco = localStorage.getItem('liquid_eco_mode') === 'true';
+            loop.timer = setTimeout(tick, viewOpen ? (eco ? 100 : 50) : (eco ? 250 : 120));
         };
-        this._micLoop = requestAnimationFrame(tick);
+        tick();
     },
 
     stopMicLoop() {
-        if (this._micLoop) cancelAnimationFrame(this._micLoop);
+        if (this._micLoop) clearTimeout(this._micLoop.timer);
         this._micLoop = null;
     },
 

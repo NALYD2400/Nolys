@@ -65,6 +65,9 @@ export const visualizerMethods = {
         } else if (mode === 'gradient') {
             from = hexToRgb(this._islandConfig.vizColorGradA || '#D49460') || from;
             to = hexToRgb(this._islandConfig.vizColorGradB || '#EDBC89') || to;
+        } else if (mode === 'cyberpunk') {
+            from = { r: 0, g: 229, b: 255 };
+            to = { r: 188, g: 19, b: 254 };
         }
         // Éclaircies vers le blanc : sur la pilule sombre, une pochette sombre resterait invisible.
         const lift = (c) => Math.round(c + (255 - c) * 0.35);
@@ -76,6 +79,20 @@ export const visualizerMethods = {
                 lift(from.b * (1 - t) + to.b * t),
             ];
         });
+    },
+
+    /** Nombre de barres choisi dans les réglages (3 à 9). */
+    getVizBarCount() {
+        const count = Math.round(Number(this._islandConfig.vizBars) || 5);
+        return Math.max(3, Math.min(9, count));
+    },
+
+    /** Largeur du visualiseur selon le style et le nombre de barres (les points ont besoin d'air). */
+    getVizWidth(barW) {
+        const count = this.getVizBarCount();
+        if (this._islandConfig.vizStyle === 'dots') return count * 8 - 2;
+        if (this._islandConfig.vizStyle === 'wave') return count * 6;
+        return count * barW + (count - 1) * 2.5;
     },
 
     _updateVizCanvas() {
@@ -105,10 +122,8 @@ export const visualizerMethods = {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, cssW, cssH);
 
-        // Onde façon Apple : quelques gélules centrées, chacune à son rythme.
+        // Barres animées : chacune vise une hauteur tirée au hasard autour du niveau, à son rythme.
         const count = Number(canvas.dataset.bars) || 5;
-        const barW = Number(canvas.dataset.barWidth) || 3;
-        const gap = (cssW - count * barW) / Math.max(1, count - 1);
         const energy = this.musicData && this.musicData.isPlaying
             ? Math.max(...this._vizBands.slice(0, 2), 0)
             : 0;
@@ -126,22 +141,84 @@ export const visualizerMethods = {
                 bar.target = energy * shape * (0.45 + Math.random() * 0.55);
             });
         }
-
-        const colors = this._getVizColors(count);
-        for (let i = 0; i < count; i++) {
-            const bar = this._vizBars[i];
+        for (const bar of this._vizBars) {
             // Monte vite, redescend en douceur.
             bar.value += (bar.target - bar.value) * (bar.target > bar.value ? 0.45 : 0.18);
-            const barH = Math.max(barW, Math.min(1, bar.value) * cssH);
-            const x = i * (barW + gap);
-            const y = (cssH - barH) / 2;
-            const [r, g, b] = colors[i];
-            ctx.shadowColor = `rgba(${r}, ${g}, ${b}, 0.55)`;
-            ctx.shadowBlur = 4 + bar.value * 6;
-            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${0.75 + bar.value * 0.25})`;
-            ctx.beginPath();
-            ctx.roundRect(x, y, barW, barH, barW / 2);
-            ctx.fill();
+        }
+
+        const style = this._islandConfig.vizStyle || 'capsules';
+        const glow = this._islandConfig.vizGlow !== false;
+        const colors = this._getVizColors(count);
+        const rgba = (i, alpha) => `rgba(${colors[i][0]}, ${colors[i][1]}, ${colors[i][2]}, ${alpha})`;
+        const barW = Number(canvas.dataset.barWidth) || 3;
+        const step = count > 1 ? (cssW - barW) / (count - 1) : 0;
+
+        if (style === 'wave') {
+            // Onde façon Siri : une ligne qui ondule de haut en bas, plus une seconde en
+            // miroir, plus discrète. Les extrémités restent au centre.
+            const mid = cssH / 2;
+            const amps = this._vizBars.map((bar) => Math.max(0.06, Math.min(1, bar.value)) * (mid - 1.5));
+            const xs = this._vizBars.map((_, i) => ((i + 1) / (count + 1)) * cssW);
+            const trace = (flip) => {
+                ctx.beginPath();
+                ctx.moveTo(0, mid);
+                let px = 0;
+                let py = mid;
+                xs.forEach((x, i) => {
+                    const y = mid + (i % 2 ? -1 : 1) * flip * amps[i];
+                    const cx = (px + x) / 2;
+                    ctx.bezierCurveTo(cx, py, cx, y, x, y);
+                    px = x;
+                    py = y;
+                });
+                const cx = (px + cssW) / 2;
+                ctx.bezierCurveTo(cx, py, cx, mid, cssW, mid);
+            };
+            const gradient = ctx.createLinearGradient(0, 0, cssW, 0);
+            gradient.addColorStop(0, rgba(0, 0.95));
+            gradient.addColorStop(1, rgba(count - 1, 0.95));
+            ctx.strokeStyle = gradient;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            if (glow) {
+                ctx.shadowColor = rgba(Math.floor(count / 2), 0.7);
+                ctx.shadowBlur = 6;
+            }
+            ctx.globalAlpha = 0.4;
+            ctx.lineWidth = 1.2;
+            trace(-0.6);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            ctx.lineWidth = 2;
+            trace(1);
+            ctx.stroke();
+        } else {
+            for (let i = 0; i < count; i++) {
+                const value = Math.min(1, this._vizBars[i].value);
+                const x = i * step;
+                if (glow) {
+                    ctx.shadowColor = rgba(i, 0.55);
+                    ctx.shadowBlur = 4 + value * 6;
+                }
+                ctx.fillStyle = rgba(i, 0.75 + value * 0.25);
+                ctx.beginPath();
+                if (style === 'dots') {
+                    // Points qui gonflent avec le son, sans déborder du cadre.
+                    const maxRadius = Math.min(cssH, cssW / count) / 2 - 0.5;
+                    const minRadius = Math.min(1.5, maxRadius);
+                    const cx = maxRadius + (count > 1 ? i * (cssW - 2 * maxRadius) / (count - 1) : 0);
+                    ctx.arc(cx, cssH / 2, minRadius + value * (maxRadius - minRadius), 0, Math.PI * 2);
+                } else if (style === 'bars') {
+                    // Égaliseur classique : les barres montent depuis le bas.
+                    const barH = Math.max(barW, value * cssH);
+                    ctx.roundRect(x, cssH - barH, barW, barH, [barW / 2, barW / 2, 1, 1]);
+                } else {
+                    // Gélules centrées façon Apple.
+                    const barH = Math.max(barW, value * cssH);
+                    ctx.roundRect(x, (cssH - barH) / 2, barW, barH, barW / 2);
+                }
+                ctx.fill();
+            }
         }
         ctx.shadowBlur = 0;
 
@@ -153,13 +230,23 @@ export const visualizerMethods = {
             const size = this._islandConfig.glowDensity || 20;
             const island = document.getElementById('dynamic-island');
             if (island) {
+                // Halo déjà posé tel quel (et personne n'y a touché depuis) : on ne réécrit pas le
+                // style 24 fois par seconde, ce qui recalculait le style et réveillait à chaque
+                // image l'observateur de la bulle d'activité.
+                const playing = Boolean(this.musicData && this.musicData.isPlaying);
+                const glowKey = `${primaryRgbStr}|${size}|${playing}`;
+                const glow = this._vizGlowApplied;
+                if (glow && glow.key === glowKey
+                    && island.style.getPropertyValue('--island-glow-rgb') === primaryRgbStr
+                    && island.style.boxShadow === glow.shadow) return;
                 island.style.setProperty('--island-glow-color', primaryHex);
                 island.style.setProperty('--island-glow-rgb', primaryRgbStr);
-                if (this.musicData && this.musicData.isPlaying) {
+                if (playing) {
                     island.style.boxShadow = '';
                 } else {
                     island.style.boxShadow = ThemeService.buildIslandShadow(size, primaryRgbStr, true);
                 }
+                this._vizGlowApplied = { key: glowKey, shadow: island.style.boxShadow };
             }
         }
     },

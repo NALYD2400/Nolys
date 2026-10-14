@@ -91,7 +91,9 @@ pub fn config_changed(app: AppHandle, config: Value) {
             let cover = state.media.lock().current().active_cover().to_string();
             if !enabled {
                 if enabled_changed {
-                    tauri::async_runtime::spawn_blocking(move || wallpaper.restore_original());
+                    // Annulation immédiate : une pochette en attente ne revient pas après la coupure.
+                    let generation = wallpaper.cancel_pending();
+                    tauri::async_runtime::spawn_blocking(move || wallpaper.restore_if_current(generation));
                 }
             } else if !cover.is_empty() {
                 if enabled_changed {

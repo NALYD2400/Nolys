@@ -33,17 +33,18 @@
     gap: 10px;
 }
 
+/* Pastille discrète : le titre « Retour micro » reste l'élément principal de l'en-tête. */
 .mic-badge {
     position: relative;
-    width: 34px;
-    height: 34px;
+    width: 26px;
+    height: 26px;
     flex-shrink: 0;
     border-radius: 50%;
     display: grid;
     place-items: center;
     background: rgba(255, 255, 255, 0.08);
     color: rgba(255, 255, 255, 0.7);
-    font-size: 16px;
+    font-size: 13px;
     transition: background 0.3s ease, color 0.3s ease;
 }
 
@@ -55,9 +56,9 @@
 /* Anneau qui respire avec la voix. */
 .mic-badge-ring {
     position: absolute;
-    inset: -3px;
+    inset: -2px;
     border-radius: 50%;
-    border: 2px solid var(--mic-accent);
+    border: 1.5px solid var(--mic-accent);
     opacity: 0;
     transform: scale(calc(0.9 + var(--mic-out) / 400));
     transition: transform 0.08s linear, opacity 0.2s ease;
@@ -840,6 +841,37 @@ body.motion-sober #island-satellite.is-glowing {
     border-radius: 50%;
     background: #ff453a;
     box-shadow: 0 0 6px #ff453a;
+}
+
+/* Premier clic droit : la bulle vire au rouge, un second clic droit coupe le retour. */
+.satellite-confirm {
+    position: relative;
+    grid-area: 1 / 1;
+    font-size: 15px;
+    color: #fff;
+    opacity: 0;
+    transform: scale(0.6);
+    transition: opacity 0.18s ease, transform 0.25s ease;
+}
+
+#island-satellite.is-confirming {
+    background: rgba(255, 69, 58, 0.85);
+}
+
+/* La pochette floutée (opacité posée en ligne) masquerait le rouge. */
+#island-satellite.is-confirming .satellite-bg {
+    visibility: hidden;
+}
+
+#island-satellite.is-confirming .satellite-icon,
+#island-satellite.is-confirming .satellite-bars {
+    opacity: 0;
+    transform: scale(0.6);
+}
+
+#island-satellite.is-confirming .satellite-confirm {
+    opacity: 1;
+    transform: scale(1);
 }
 
 #island-satellite:hover {

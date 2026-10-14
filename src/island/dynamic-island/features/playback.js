@@ -252,7 +252,12 @@ export const playbackMethods = {
                 this.renderMusicHistory();
             }
         } else if (!this.isExpanded) {
-            if (trackChanged) {
+            // La pilule affiche la musique seulement pendant la lecture : elle doit aussi se
+            // redessiner quand la lecture démarre ou s'arrête. Sans ça, un morceau annoncé
+            // d'abord « en pause » par Windows (YouTube fermé, reprise de Spotify…) laissait
+            // la pilule vide alors que la musique jouait.
+            // Notification en cours dans la pilule : elle se termine d'elle-même par renderIdle.
+            if ((trackChanged || playbackChanged) && this.mode !== 'notification') {
                 this.renderIdle();
             }
         }

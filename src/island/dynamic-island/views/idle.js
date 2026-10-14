@@ -95,29 +95,35 @@ export const idleView = {
             this.el.classList.add('island-active-music');
             this.el.classList.remove('island-active-network'); // Ensure unique state
             const compactMode = localStorage.getItem('liquid_idle_compact_mode') || 'cover';
-            const showIdleVisualizer = localStorage.getItem('liquid_eco_mode') !== 'true' && localStorage.getItem('liquid_player_show_visualizer') !== 'false';
+            const pillConfig = this._islandConfig || {};
+            const showIdleVisualizer = localStorage.getItem('liquid_eco_mode') !== 'true' && pillConfig.vizInPill !== false;
+            const coverRadius = { round: '50%', rounded: '9px', square: '5px' }[pillConfig.pillCoverShape] || '50%';
+            // Mouvements sobres : pas de défilement, le titre est coupé par « … ».
+            const titleNoScroll = pillConfig.titleScroll === false || document.body.classList.contains('motion-sober');
+            const vizBars = this.getVizBarCount();
+            const vizWidth = this.getVizWidth(3);
 
             let coverHtml;
             const appIcon = getFallbackIcon(this.musicData.appId, this.musicData.title, this.musicData.artist, this.musicData.windowTitle);
             const preferServiceIcon = shouldPreferServiceIcon(this.musicData.appId, this.musicData.title, this.musicData.artist);
             const displayArt = getDisplayMediaArt(this.musicData);
             if (preferServiceIcon && appIcon) {
-                coverHtml = `<img src="${appIcon}" style="width: 28px; height: 28px; border-radius: 50%; ${getServiceArtStyle('small')} margin-left: 2px;" onerror="this.outerHTML='<div style=\\'width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, var(--neon-primary), var(--neon-secondary)); display: flex; align-items: center; justify-content: center; margin-left: 2px;\\'><i class=\\'ph ph-music-note\\' style=\\'font-size: 14px; color: #fff;\\'></i></div>';">`;
+                coverHtml = `<img src="${appIcon}" style="width: 28px; height: 28px; border-radius: ${coverRadius}; ${getServiceArtStyle('small')} margin-left: 2px;" onerror="this.outerHTML='<div style=\\'width: 28px; height: 28px; border-radius: ${coverRadius}; background: linear-gradient(135deg, var(--neon-primary), var(--neon-secondary)); display: flex; align-items: center; justify-content: center; margin-left: 2px;\\'><i class=\\'ph ph-music-note\\' style=\\'font-size: 14px; color: #fff;\\'></i></div>';">`;
             } else if (displayArt && displayArt.length > 0) {
-                coverHtml = `<img src="${displayArt}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; margin-left: 2px;" onerror="this.outerHTML='<div style=\\'width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, var(--neon-primary), var(--neon-secondary)); display: flex; align-items: center; justify-content: center; margin-left: 2px;\\'><i class=\\'ph ph-music-note\\' style=\\'font-size: 14px; color: #fff;\\'></i></div>';">`;
+                coverHtml = `<img src="${displayArt}" style="width: 28px; height: 28px; border-radius: ${coverRadius}; object-fit: cover; margin-left: 2px;" onerror="this.outerHTML='<div style=\\'width: 28px; height: 28px; border-radius: ${coverRadius}; background: linear-gradient(135deg, var(--neon-primary), var(--neon-secondary)); display: flex; align-items: center; justify-content: center; margin-left: 2px;\\'><i class=\\'ph ph-music-note\\' style=\\'font-size: 14px; color: #fff;\\'></i></div>';">`;
             } else {
                 if (appIcon) {
-                    coverHtml = `<img src="${appIcon}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: contain; background: #000; padding: 2px; margin-left: 2px;" onerror="this.outerHTML='<div style=\\'width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, var(--neon-primary), var(--neon-secondary)); display: flex; align-items: center; justify-content: center; margin-left: 2px;\\'><i class=\\'ph ph-music-note\\' style=\\'font-size: 14px; color: #fff;\\'></i></div>';">`;
+                    coverHtml = `<img src="${appIcon}" style="width: 28px; height: 28px; border-radius: ${coverRadius}; object-fit: contain; background: #000; padding: 2px; margin-left: 2px;" onerror="this.outerHTML='<div style=\\'width: 28px; height: 28px; border-radius: ${coverRadius}; background: linear-gradient(135deg, var(--neon-primary), var(--neon-secondary)); display: flex; align-items: center; justify-content: center; margin-left: 2px;\\'><i class=\\'ph ph-music-note\\' style=\\'font-size: 14px; color: #fff;\\'></i></div>';">`;
                 } else {
-                    coverHtml = `<img src="${APP_LOGO_ART}" class="idle-cover-art app-logo-art" alt="Nolys">`;
+                    coverHtml = `<img src="${APP_LOGO_ART}" class="idle-cover-art app-logo-art" style="border-radius: ${coverRadius};" alt="Nolys">`;
                 }
             }
 
             // Pochette, titre du morceau (qui défile s'il est trop long), puis l'onde.
             let idleInnerHtml = `
           ${coverHtml}
-          <div class="idle-title"><span class="idle-title-text">${escapeHtml(this.musicData.title || 'Lecture')}</span></div>
-          ${showIdleVisualizer ? '<canvas class="live-viz-canvas" data-bars="5" data-bar-width="3"></canvas>' : ''}
+          ${pillConfig.pillShowTitle !== false ? `<div class="idle-title ${titleNoScroll ? 'no-scroll' : ''}"><span class="idle-title-text">${escapeHtml(this.musicData.title || 'Lecture')}</span></div>` : ''}
+          ${showIdleVisualizer ? `<canvas class="live-viz-canvas" data-bars="${vizBars}" data-bar-width="3" style="width: ${vizWidth}px"></canvas>` : ''}
             `;
 
             if (compactMode === 'title') {
@@ -176,21 +182,35 @@ export const idleView = {
     },
 
     /**
-     * La pilule prend la largeur de son contenu (150 à 240 px) : pas de grand vide au
-     * milieu, et le ressort anime le changement à chaque morceau. Au-delà de 240 px,
-     * le titre défile.
+     * La pilule prend la largeur de son contenu (150 px jusqu'au maximum choisi, 240 par
+     * défaut) : pas de grand vide au milieu, et le ressort anime le changement à chaque
+     * morceau. Au-delà, le titre défile (ou est coupé si le défilement est désactivé).
      */
     fitIdleToTitle() {
+        if (this.el.classList.contains('island-game-compact')) return;
         const title = this.content.querySelector('.idle-title');
         const text = title && title.querySelector('.idle-title-text');
-        if (!text || this.el.classList.contains('island-game-compact')) return;
+        if (!text) {
+            // Sans titre : pilule compacte, juste la pochette et le visualiseur.
+            this.el.style.width = '130px';
+            return;
+        }
         const MIN = 150;
-        const MAX = 240;
+        const MAX = Math.max(180, Math.min(340, Number(this._islandConfig?.pillMaxWidth) || 240));
         const others = this.el.offsetWidth - title.clientWidth; // pochette, onde, marges
-        const wanted = Math.ceil(text.scrollWidth + others);
+        const wanted = Math.ceil(Math.max(text.scrollWidth, text.getBoundingClientRect().width) + others);
         const width = Math.max(MIN, Math.min(MAX, wanted));
         this.el.style.width = `${width}px`;
 
-        applyLoopMarquee(title, text, wanted - MAX);
+        if (!title.classList.contains('no-scroll')) applyLoopMarquee(title, text, wanted - MAX);
+
+        // Police pas encore chargée au tout premier rendu : la largeur mesurée est fausse,
+        // on refait la pilule une fois le texte dans sa vraie police.
+        if (document.fonts && document.fonts.status !== 'loaded' && !this._idleFontsWait) {
+            this._idleFontsWait = document.fonts.ready.then(() => {
+                this._idleFontsWait = null;
+                if (!this.isExpanded && title.isConnected) this.renderIdle();
+            });
+        }
     },
 };

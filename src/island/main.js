@@ -3,6 +3,7 @@
  * (`window.island`, `window.spotifyControl`…) et écoute des réglages.
  */
 import { ipcRenderer } from '../shared/ipc.js';
+import { disableNativeContextMenu } from '../shared/context-menu.js';
 import { enableWindowDragging } from '../shared/window-drag.js';
 import { ThemeService } from '../services/ThemeService.js';
 import { visualizerService } from '../services/AudioVisualizerService.js';
@@ -118,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const capsule = document.getElementById('dynamic-island');
     trackHitRegion();
     enableWindowDragging();
+    disableNativeContextMenu();
 
     capsule.addEventListener('mouseenter', () => {
         // Enforce mouse capture when hovering over the active pill
@@ -132,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Listen to settings configurations IPC changes in real-time
-    ipcRenderer.on('config-changed', (event, config) => {
+    const applyConfig = (config) => {
         if (config.aiAgentMonitor !== undefined) {
             localStorage.setItem('liquid_ai_agent_monitor', config.aiAgentMonitor);
         }
@@ -211,6 +213,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (config.player.wheelAppVolume !== undefined) localStorage.setItem('liquid_player_wheel_app_volume', config.player.wheelAppVolume);
         }
         
+        // Niveau de mouvement : appliqué tout de suite (il n'était lu qu'au démarrage), avant le
+        // nouveau rendu qui en dépend (défilement des titres en mode sobre).
+        if (config.motion !== undefined) {
+            localStorage.setItem('liquid_motion_level', config.motion);
+            window.island?.syncMotionPreference?.();
+        }
+
         // Un profil rapide peut avoir changé le mode Focus (écrit dans le stockage partagé).
         document.body.classList.toggle('focus-mode-active', localStorage.getItem('liquid_focus_mode') === 'true');
 
@@ -224,6 +233,22 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Broadcast custom change event
         window.dispatchEvent(new CustomEvent('liquid-island-config-changed', { detail: config.glow }));
+    };
+
+    // Réglages modifiés : on n'applique que le dernier reçu, au plus une fois toutes les 16 ms.
+    // Chaque application redessine toute l'Island ; pendant qu'on glisse un curseur, les envois
+    // s'empilaient plus vite qu'ils n'étaient traités et l'Island affichait avec du retard.
+    // (Chaque envoi contient tous les réglages : sauter les intermédiaires ne perd rien.)
+    let pendingConfig = null;
+    ipcRenderer.on('config-changed', (event, config) => {
+        const scheduled = pendingConfig !== null;
+        pendingConfig = config || {};
+        if (scheduled) return;
+        setTimeout(() => {
+            const next = pendingConfig;
+            pendingConfig = null;
+            applyConfig(next);
+        }, 16);
     });
 
     // Listen to custom alert triggers

@@ -41,7 +41,7 @@
     <div id="dynamic-island-container">
       <div id="layout-drag-surface" aria-hidden="true"></div>
       <!-- Bulle d'activité (retour micro) : features/mic-monitor.js -->
-      <button type="button" id="island-satellite" title="Retour micro : clic pour régler, clic droit pour couper" aria-label="Retour micro"><span class="satellite-bg"></span><i class="ph-fill ph-microphone satellite-icon"></i><span class="satellite-bars"><span></span><span></span><span></span><span></span></span></button>
+      <button type="button" id="island-satellite" title="Retour micro : clic pour régler, deux clics droits pour couper" aria-label="Retour micro"><span class="satellite-bg"></span><i class="ph-fill ph-microphone satellite-icon"></i><i class="ph-bold ph-power satellite-confirm"></i><span class="satellite-bars"><span></span><span></span><span></span><span></span></span></button>
       <div id="dynamic-island" class="island-idle">
         <div class="island-glass-backdrop"><div class="island-bg-layer"></div></div>
         <div class="island-content">
@@ -56,8 +56,9 @@
           <button type="button" data-layout="bigger" title="Plus grande"><i class="ph-bold ph-plus"></i></button>
         </div>
         <button type="button" class="layout-edit-text-btn" data-layout="center" title="Recentrer en haut de l’écran"><i class="ph ph-align-center-horizontal"></i>Centrer</button>
+        <button type="button" class="layout-edit-text-btn" data-layout="preview" aria-pressed="false" title="Voir l’Island ouverte à cet endroit (lecteur)"><i class="ph ph-arrows-out-simple"></i>Aperçu</button>
         <button type="button" class="layout-edit-text-btn is-primary" data-layout="done"><i class="ph-bold ph-check"></i>Terminer</button>
-        <p class="layout-edit-hint">Glisser : déplacer · Flèches : affiner · Molette : taille · Échap : terminer</p>
+        <p class="layout-edit-hint">Glisser : déplacer · Flèches : affiner · Molette : taille · Aperçu : voir l’Island ouverte · Échap : terminer</p>
       </div>
     </div>
 

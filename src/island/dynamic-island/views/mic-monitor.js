@@ -45,6 +45,10 @@ export const micMonitorView = {
 
         const inputName = cleanDeviceName(status.inputName) || (config.inputId ? 'Micro choisi' : 'Micro par défaut');
         const outputName = cleanDeviceName(status.outputName) || (config.outputId ? 'Sortie choisie' : 'Sortie par défaut');
+        // Choix débranché : le retour passe par le périphérique de Windows en attendant.
+        const inputFallback = running && status.inputFallback;
+        const outputFallback = running && status.outputFallback;
+        const fallbackNote = ' (choix débranché : celui de Windows en attendant)';
 
         this.content.innerHTML = `
             <div class="mic-view di-stagger ${enabled ? 'is-on' : ''} ${running ? 'is-running' : ''} ${error ? 'has-error' : ''} ${config.gateEnabled ? 'gate-enabled' : ''}"
@@ -111,11 +115,11 @@ export const micMonitorView = {
                 </section>
 
                 <section class="mic-devices">
-                    <button class="mic-device" data-mic="input" title="Choisir le micro">
-                        <i class="ph ph-microphone"></i><span>${escapeHtml(inputName)}</span><i class="ph ph-caret-up-down"></i>
+                    <button class="mic-device ${inputFallback ? 'warn' : ''}" data-mic="input" title="${inputFallback ? `Micro${fallbackNote}` : 'Choisir le micro'}">
+                        <i class="ph ${inputFallback ? 'ph-plugs' : 'ph-microphone'}"></i><span>${escapeHtml(inputName)}</span><i class="ph ph-caret-up-down"></i>
                     </button>
-                    <button class="mic-device ${speakers ? 'warn' : ''}" data-mic="output" title="${speakers ? 'Enceintes : risque de Larsen, préfère un casque' : 'Choisir la sortie'}">
-                        <i class="ph ${speakers ? 'ph-warning' : OUTPUT_ICONS[status.outputKind] || 'ph-headphones'}"></i><span>${escapeHtml(outputName)}</span><i class="ph ph-caret-up-down"></i>
+                    <button class="mic-device ${speakers || outputFallback ? 'warn' : ''}" data-mic="output" title="${speakers ? 'Enceintes : risque de Larsen, préfère un casque' : outputFallback ? `Sortie${fallbackNote}` : 'Choisir la sortie'}">
+                        <i class="ph ${speakers ? 'ph-warning' : outputFallback ? 'ph-plugs' : OUTPUT_ICONS[status.outputKind] || 'ph-headphones'}"></i><span>${escapeHtml(outputName)}</span><i class="ph ph-caret-up-down"></i>
                     </button>
                 </section>
             </div>
@@ -247,6 +251,10 @@ export const micMonitorView = {
                 <button class="mic-sheet-item ${current === '' ? 'on' : ''}" data-id="">
                     <i class="ph ph-sparkle"></i><span>Par défaut de Windows</span><i class="ph-bold ph-check"></i>
                 </button>
+                ${current && !(devices || []).some((d) => d.id === current) ? `
+                    <button class="mic-sheet-item on" data-id="${escapeHtml(current)}" title="Le retour y reviendra dès qu'il sera rebranché">
+                        <i class="ph ph-plugs"></i><span>Choix précédent <small>débranché</small></span><i class="ph-bold ph-check"></i>
+                    </button>` : ''}
                 ${(devices || []).map((d) => `
                     <button class="mic-sheet-item ${current === d.id ? 'on' : ''}" data-id="${escapeHtml(d.id)}">
                         <i class="ph ${kind === 'input' ? 'ph-microphone' : 'ph-headphones'}"></i>

@@ -72,6 +72,9 @@ export const ThemeService = {
         island.classList.remove('effect-grain-none', 'effect-grain-light', 'effect-grain-medium');
         island.classList.add(`effect-grain-${grain}`);
 
+        // Halo qui respire pendant la lecture (réglage de la page Island).
+        document.body.classList.toggle('no-glow-breath', config.glowBreath === false);
+
         // Glow Settings
         if (config.glowEnabled === false) {
             island.style.setProperty('--island-glow-opacity', '0');

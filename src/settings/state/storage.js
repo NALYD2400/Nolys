@@ -33,7 +33,8 @@ export function loadSettings() {
 
     return {
         // Général
-        persistent: optIn('liquid_island_persistent'),
+        // Au premier plan par défaut : une Island cachée derrière le navigateur ne sert à rien.
+        persistent: flag('liquid_island_persistent'),
         gameDetection: flag('liquid_game_detection_enabled'),
         notifications: flag('liquid_notifications_enabled'),
         soundEffects: flag('liquid_sound_effects_enabled'),
@@ -69,6 +70,18 @@ export function loadSettings() {
         vizColorGradB: glow.vizColorGradB || '#EDBC89',
         visualizerSensitivity: number('liquid_visualizer_sensitivity', 2.5),
         visualizerMode: read('liquid_visualizer_mode', 'real'),
+        vizStyle: glow.vizStyle || 'capsules',
+        vizBars: glow.vizBars ?? 5,
+        vizGlow: glow.vizGlow !== false,
+        vizInPill: glow.vizInPill !== false,
+
+        // Pilule et lecteur
+        pillCoverShape: glow.pillCoverShape || 'round',
+        pillShowTitle: glow.pillShowTitle !== false,
+        pillMaxWidth: glow.pillMaxWidth ?? 240,
+        titleScroll: glow.titleScroll !== false,
+        playerCoverBg: glow.playerCoverBg ?? 50,
+        glowBreath: glow.glowBreath !== false,
 
         // Fond d'écran
         wallpaperSync: optIn('liquid_wallpaper_sync'),
@@ -137,6 +150,16 @@ export function buildConfig(s) {
             materialStyle: s.materialStyle,
             grainEffect: s.grainEffect,
             glassControls: s.glassControls,
+            vizStyle: s.vizStyle,
+            vizBars: s.vizBars,
+            vizGlow: s.vizGlow,
+            vizInPill: s.vizInPill,
+            pillCoverShape: s.pillCoverShape,
+            pillShowTitle: s.pillShowTitle,
+            pillMaxWidth: s.pillMaxWidth,
+            titleScroll: s.titleScroll,
+            playerCoverBg: s.playerCoverBg,
+            glowBreath: s.glowBreath,
         },
     };
 }
@@ -223,7 +246,7 @@ export function fromSnapshot(current, snapshot = {}) {
         ...current,
         motion: pick(snapshot.motion, current.motion),
         widgetType: pick(snapshot.widgetType, current.widgetType),
-        persistent: snapshot.persistent === true,
+        persistent: snapshot.persistent !== false,
         notifications: snapshot.notifications !== false,
         coverSync: snapshot.coverSync !== false,
         idleCoverBg: snapshot.idleCoverBg !== false,
@@ -252,6 +275,16 @@ export function fromSnapshot(current, snapshot = {}) {
         materialStyle: pick(glow.materialStyle, current.materialStyle),
         grainEffect: pick(glow.grainEffect, current.grainEffect),
         glassControls: pick(glow.glassControls, current.glassControls),
+        vizStyle: pick(glow.vizStyle, current.vizStyle),
+        vizBars: pick(glow.vizBars, current.vizBars),
+        vizGlow: pick(glow.vizGlow, current.vizGlow),
+        vizInPill: pick(glow.vizInPill, current.vizInPill),
+        pillCoverShape: pick(glow.pillCoverShape, current.pillCoverShape),
+        pillShowTitle: pick(glow.pillShowTitle, current.pillShowTitle),
+        pillMaxWidth: pick(glow.pillMaxWidth, current.pillMaxWidth),
+        titleScroll: pick(glow.titleScroll, current.titleScroll),
+        playerCoverBg: pick(glow.playerCoverBg, current.playerCoverBg),
+        glowBreath: pick(glow.glowBreath, current.glowBreath),
         shortcut: pick(snapshot.shortcut, current.shortcut),
         shortcuts: Array.isArray(snapshot.shortcuts) ? snapshot.shortcuts : current.shortcuts,
         showTimes: player.showTimes ?? current.showTimes,
