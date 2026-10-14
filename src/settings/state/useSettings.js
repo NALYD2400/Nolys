@@ -235,3 +235,38 @@ export function useCoverTheme(enabled) {
     useEffect(() => ipcRenderer.on('cover-color-changed', (_event, next) => next && setCover(next)), []);
     return enabled ? cover : {};
 }
+
+/**
+ * Retour micro (géré par le cœur natif) : réglages, niveaux en direct et listes
+ * de périphériques. Les changements faits dans l'Island arrivent par événement.
+ */
+export function useMicMonitor() {
+    const [status, setStatus] = useState(null);
+    const [inputs, setInputs] = useState([]);
+    const [outputs, setOutputs] = useState([]);
+
+    useEffect(() => {
+        let alive = true;
+        const refresh = () => ipcRenderer.invoke('get-mic-monitor').then((next) => alive && next && setStatus(next)).catch(() => {});
+        refresh();
+        ipcRenderer.invoke('get-audio-input-devices').then((list) => alive && setInputs(list || [])).catch(() => {});
+        ipcRenderer.invoke('get-audio-devices').then((list) => alive && setOutputs(list || [])).catch(() => {});
+        const off = ipcRenderer.on('mic-monitor-changed', (_event, next) => next && setStatus(next));
+        // Vumètre : ~15 rafraîchissements par seconde tant que la page est ouverte.
+        const timer = setInterval(refresh, 66);
+        return () => {
+            alive = false;
+            clearInterval(timer);
+            off();
+        };
+    }, []);
+
+    const update = useCallback(async (patch) => {
+        setStatus((current) => (current ? { ...current, config: { ...current.config, ...patch } } : current));
+        const current = await ipcRenderer.invoke('get-mic-monitor').catch(() => null);
+        const next = await ipcRenderer.invoke('set-mic-monitor', { ...(current?.config || {}), ...patch }).catch(() => null);
+        if (next) setStatus(next);
+    }, []);
+
+    return { status, inputs, outputs, update };
+}

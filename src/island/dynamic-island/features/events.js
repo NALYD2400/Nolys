@@ -20,7 +20,7 @@ export const eventMethods = {
 
         this.el.addEventListener('click', (e) => {
             if (this._layoutEditMode) return;
-            if (this.isExpanded && (this.mode === 'search' || this.mode === 'music-search' || this.mode === 'music-history' || this.mode === 'control' || this.mode === 'mixer')) return; // Don't toggle expansion on interactive screens
+            if (this.isExpanded && (this.mode === 'search' || this.mode === 'music-search' || this.mode === 'music-history' || this.mode === 'control' || this.mode === 'mixer' || this.mode === 'mic')) return; // Don't toggle expansion on interactive screens
 
             if (this.mode === 'ai-thinking' || this.mode === 'ai-action') {
                 window.dispatchEvent(new CustomEvent('liquid-open-widget', { detail: 'ai' }));

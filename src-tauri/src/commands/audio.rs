@@ -1,8 +1,11 @@
 use serde::Deserialize;
 use serde_json::Value;
+use tauri::{AppHandle, Emitter};
 
 use super::{blocking, clamp_int, is_safe_text};
+use crate::events;
 use crate::platform::audio::{self, AudioDevice, AudioPeak, AudioSession};
+use crate::platform::mic_monitor::{self, MonitorConfig, MonitorStatus};
 
 #[tauri::command]
 pub async fn get_audio_meter() -> AudioPeak {
@@ -78,4 +81,18 @@ pub async fn set_default_audio_device(device_id: String) -> bool {
         return false;
     }
     blocking(move || audio::set_default_device(&device_id), false).await
+}
+
+/// État du retour micro (réglages, niveaux, périphériques ouverts).
+#[tauri::command]
+pub async fn get_mic_monitor() -> MonitorStatus {
+    blocking(mic_monitor::status, MonitorStatus::default()).await
+}
+
+/// Nouveaux réglages du retour micro, relayés aux deux fenêtres pour rester synchrones.
+#[tauri::command]
+pub async fn set_mic_monitor(app: AppHandle, config: MonitorConfig) -> MonitorStatus {
+    let status = blocking(move || mic_monitor::set_config(config), MonitorStatus::default()).await;
+    let _ = app.emit(events::MIC_MONITOR_CHANGED, &status);
+    status
 }

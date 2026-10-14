@@ -120,7 +120,20 @@ fn spawn_meter_thread() -> mpsc::Sender<PeakReply> {
         .spawn(move || {
             com::ensure_mta();
             let mut cached: Option<(IAudioMeterInformation, Instant)> = None;
+            let mut session_meters: Option<(Vec<IAudioMeterInformation>, Instant)> = None;
             for reply in requests {
+                // Retour micro actif : il passe par la même sortie. On additionne alors les
+                // compteurs des autres applications pour que le visualiseur ignore la voix.
+                if super::mic_monitor::is_running() {
+                    if session_meters.as_ref().is_none_or(|(_, at)| at.elapsed() > METER_REFRESH) {
+                        session_meters = Some((foreign_session_meters(), Instant::now()));
+                    }
+                    let value = session_meters.as_ref().map(|(meters, _)| combine_peaks(meters)).unwrap_or_default();
+                    let _ = reply.send(value);
+                    continue;
+                }
+                session_meters = None;
+
                 if cached.as_ref().is_none_or(|(_, at)| at.elapsed() > METER_REFRESH) {
                     cached = default_meter().map(|meter| (meter, Instant::now()));
                 }
@@ -142,6 +155,35 @@ fn default_meter() -> Option<IAudioMeterInformation> {
     [eConsole, eMultimedia]
         .into_iter()
         .find_map(|role| default_endpoint(eRender, role).and_then(|device| activate::<IAudioMeterInformation>(&device)))
+}
+
+/// Compteurs de chaque session audio de la sortie par défaut, sauf celles de Nolys.
+fn foreign_session_meters() -> Vec<IAudioMeterInformation> {
+    let own_pid = std::process::id();
+    let mut meters = Vec::new();
+    for role in [eConsole, eMultimedia] {
+        for_each_session(role, |control, _| {
+            if unsafe { control.GetProcessId() }.ok() != Some(own_pid) {
+                if let Ok(meter) = control.cast::<IAudioMeterInformation>() {
+                    meters.push(meter);
+                }
+            }
+            true
+        });
+        if !meters.is_empty() {
+            break;
+        }
+    }
+    meters
+}
+
+fn combine_peaks(meters: &[IAudioMeterInformation]) -> AudioPeak {
+    meters.iter().filter_map(read_peak).fold(AudioPeak::default(), |acc, p| AudioPeak {
+        peak: acc.peak.max(p.peak),
+        left: acc.left.max(p.left),
+        right: acc.right.max(p.right),
+        channels: acc.channels.max(p.channels),
+    })
 }
 
 fn read_peak(meter: &IAudioMeterInformation) -> Option<AudioPeak> {
@@ -333,3 +375,4 @@ pub fn set_default_device(device_id: &str) -> bool {
         true
     }
 }
+

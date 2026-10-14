@@ -47,6 +47,12 @@ export const menuView = {
             <span>Mélangeur</span>
         </div>`;
 
+        itemsHtml += `
+        <div class="island-menu-item" onclick="event.stopPropagation(); window.island.setMode('mic')">
+            <div class="menu-icon"><i class="ph ph-microphone"></i></div>
+            <span>Micro</span>
+        </div>`;
+
         // Réglages integration
         itemsHtml += `
         <div class="island-menu-item" onclick="event.stopPropagation(); window.island.setMode('settings')">

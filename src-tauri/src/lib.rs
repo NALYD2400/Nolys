@@ -49,6 +49,8 @@ pub fn run() {
             commands::audio::get_audio_devices,
             commands::audio::get_audio_input_devices,
             commands::audio::set_default_audio_device,
+            commands::audio::get_mic_monitor,
+            commands::audio::set_mic_monitor,
             commands::system::wifi_control,
             commands::system::bluetooth_control,
             commands::system::dnd_control,
@@ -98,6 +100,7 @@ fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     logger::init(data_dir.clone());
     logger::log(&format!("[App] Starting Nolys {}", app.package_info().version));
     migration::import_legacy_files(&data_dir);
+    platform::mic_monitor::init(&data_dir);
     let legacy_settings = migration::legacy_settings_script(&data_dir);
 
     let layout = island::layout::load(app, &data_dir);
@@ -125,6 +128,7 @@ fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
 pub fn quit(app: &AppHandle) {
     let handle = app.clone();
     tauri::async_runtime::spawn(async move {
+        let _ = tauri::async_runtime::spawn_blocking(platform::mic_monitor::shutdown).await;
         let wallpaper = handle.state::<AppState>().wallpaper.clone();
         if wallpaper.is_enabled() {
             let _ = tauri::async_runtime::spawn_blocking(move || wallpaper.restore_original()).await;

@@ -7,6 +7,7 @@ pub mod audio;
 pub mod com;
 pub mod http;
 pub mod icons;
+pub mod mic_monitor;
 pub mod process;
 pub mod radios;
 pub mod registry;

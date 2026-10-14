@@ -18,6 +18,7 @@ import { musicHistoryMethods } from './features/music-history.js';
 import { volumeMethods } from './features/volume.js';
 import { mixerMethods } from './features/mixer.js';
 import { glassMethods } from './features/glass.js';
+import { micMonitorMethods } from './features/mic-monitor.js';
 import { idleView } from './views/idle.js';
 import { musicView } from './views/music.js';
 import { musicSearchView } from './views/music-search.js';
@@ -26,6 +27,7 @@ import { controlCenterView } from './views/control-center.js';
 import { menuView } from './views/menu.js';
 import { notificationView } from './views/notification.js';
 import { systemViews } from './views/system.js';
+import { micMonitorView } from './views/mic-monitor.js';
 
 export class DynamicIsland {
     constructor() {
@@ -97,6 +99,7 @@ export class DynamicIsland {
         this.syncPersistentSetting();
         this.syncMotionPreference();
         this.syncEcoMode();
+        this.initMicMonitor();
 
         // Register global keyboard shortcut listener on Electron main process at boot
         const startupShortcut = localStorage.getItem('liquid_island_shortcut') || 'Alt+I';
@@ -129,6 +132,7 @@ const METHOD_GROUPS = [
     volumeMethods,
     mixerMethods,
     glassMethods,
+    micMonitorMethods,
     idleView,
     musicView,
     musicSearchView,
@@ -137,6 +141,7 @@ const METHOD_GROUPS = [
     menuView,
     notificationView,
     systemViews,
+    micMonitorView,
 ];
 
 // Méthodes non énumérables, comme celles déclarées directement dans une classe.

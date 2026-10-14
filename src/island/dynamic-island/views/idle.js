@@ -99,12 +99,12 @@ export const idleView = {
             const preferServiceIcon = shouldPreferServiceIcon(this.musicData.appId, this.musicData.title, this.musicData.artist);
             const displayArt = getDisplayMediaArt(this.musicData);
             if (preferServiceIcon && appIcon) {
-                coverHtml = `<img src="${appIcon}" style="width: 28px; height: 28px; border-radius: 6px; ${getServiceArtStyle('small')} margin-left: 2px;" onerror="this.outerHTML='<div style=\\'width: 28px; height: 28px; border-radius: 6px; background: linear-gradient(135deg, var(--neon-primary), var(--neon-secondary)); display: flex; align-items: center; justify-content: center; margin-left: 2px;\\'><i class=\\'ph ph-music-note\\' style=\\'font-size: 14px; color: #fff;\\'></i></div>';">`;
+                coverHtml = `<img src="${appIcon}" style="width: 28px; height: 28px; border-radius: 50%; ${getServiceArtStyle('small')} margin-left: 2px;" onerror="this.outerHTML='<div style=\\'width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, var(--neon-primary), var(--neon-secondary)); display: flex; align-items: center; justify-content: center; margin-left: 2px;\\'><i class=\\'ph ph-music-note\\' style=\\'font-size: 14px; color: #fff;\\'></i></div>';">`;
             } else if (displayArt && displayArt.length > 0) {
-                coverHtml = `<img src="${displayArt}" style="width: 28px; height: 28px; border-radius: 6px; object-fit: cover; margin-left: 2px;" onerror="this.outerHTML='<div style=\\'width: 28px; height: 28px; border-radius: 6px; background: linear-gradient(135deg, var(--neon-primary), var(--neon-secondary)); display: flex; align-items: center; justify-content: center; margin-left: 2px;\\'><i class=\\'ph ph-music-note\\' style=\\'font-size: 14px; color: #fff;\\'></i></div>';">`;
+                coverHtml = `<img src="${displayArt}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; margin-left: 2px;" onerror="this.outerHTML='<div style=\\'width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, var(--neon-primary), var(--neon-secondary)); display: flex; align-items: center; justify-content: center; margin-left: 2px;\\'><i class=\\'ph ph-music-note\\' style=\\'font-size: 14px; color: #fff;\\'></i></div>';">`;
             } else {
                 if (appIcon) {
-                    coverHtml = `<img src="${appIcon}" style="width: 28px; height: 28px; border-radius: 6px; object-fit: contain; background: #000; padding: 2px; margin-left: 2px;" onerror="this.outerHTML='<div style=\\'width: 28px; height: 28px; border-radius: 6px; background: linear-gradient(135deg, var(--neon-primary), var(--neon-secondary)); display: flex; align-items: center; justify-content: center; margin-left: 2px;\\'><i class=\\'ph ph-music-note\\' style=\\'font-size: 14px; color: #fff;\\'></i></div>';">`;
+                    coverHtml = `<img src="${appIcon}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: contain; background: #000; padding: 2px; margin-left: 2px;" onerror="this.outerHTML='<div style=\\'width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, var(--neon-primary), var(--neon-secondary)); display: flex; align-items: center; justify-content: center; margin-left: 2px;\\'><i class=\\'ph ph-music-note\\' style=\\'font-size: 14px; color: #fff;\\'></i></div>';">`;
                 } else {
                     coverHtml = `<img src="${APP_LOGO_ART}" class="idle-cover-art app-logo-art" alt="Nolys">`;
                 }
@@ -149,7 +149,7 @@ export const idleView = {
             }
 
             this.content.innerHTML = `
-        <div class="island-idle-content" style="display: flex; align-items: center; justify-content: space-between; width: 100%; height: 100%; padding: 0 18px 0 8px;">
+        <div class="island-idle-content" style="display: flex; align-items: center; justify-content: space-between; width: 100%; height: 100%; padding: 0 18px 0 1px;">
           ${idleInnerHtml}
         </div>
             `;

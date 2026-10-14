@@ -15,6 +15,7 @@ const TILE_TINTS = {
     'ic-dnd': '#af52de',
     'ic-focus': '#5856d6',
     'ic-eco': '#34c759',
+    'ic-mic': '#e08a5a',
 };
 
 /**

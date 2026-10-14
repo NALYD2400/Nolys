@@ -7,7 +7,7 @@
  */
 import { native } from '../shared/ipc.js';
 
-const TRACKED_SELECTORS = ['#dynamic-island', '#island-context-menu'];
+const TRACKED_SELECTORS = ['#dynamic-island', '#island-context-menu', '#island-satellite.is-visible'];
 
 let lastPayload = '';
 let frameRequested = false;
@@ -48,6 +48,11 @@ export function trackHitRegion() {
 
     // Taille (transitions comprises), classes d'état et éléments ajoutés (menu contextuel).
     new ResizeObserver(schedule).observe(island);
+    const satellite = document.getElementById('island-satellite');
+    if (satellite) {
+        new MutationObserver(schedule).observe(satellite, { attributes: true, attributeFilter: ['class'] });
+        satellite.addEventListener('transitionend', schedule);
+    }
     new MutationObserver(schedule).observe(island, { attributes: true, attributeFilter: ['class'] });
     new MutationObserver(schedule).observe(document.body, { childList: true, attributes: true, attributeFilter: ['class'] });
     island.addEventListener('transitionend', schedule);

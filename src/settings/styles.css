@@ -693,3 +693,37 @@ div.profile {
     background: var(--accent);
     transition: width 0.3s ease;
 }
+
+/* ---------------------------------------------------------------- Retour micro : vumètre */
+.mic-level {
+    position: relative;
+    width: 180px;
+    height: 10px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.mic-level-in,
+.mic-level-out {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #30d158 0 62%, #ffd60a 82%, #ff453a);
+    background-size: 180px 100%;
+    transition: width 0.07s linear;
+}
+
+.mic-level-in {
+    opacity: 0.35;
+}
+
+.mic-level-gate {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    margin-left: -1px;
+    background: #fff;
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+}

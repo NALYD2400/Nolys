@@ -1,6 +1,6 @@
 [package]
 name = "liquid-dynamic-island"
-version = "2.0.2"
+version = "2.1.0"
 description = "Nolys — widget Dynamic Island pour Windows"
 authors = ["NALYD2400"]
 edition = "2021"
@@ -27,6 +27,8 @@ parking_lot = "0.12"
 rand = "0.9"
 tokio = { version = "1", features = ["time"] }
 rusty-leveldb = "4.0.1"
+# Réduction de bruit du retour micro (portage Rust de RNNoise, BSD-3).
+nnnoiseless = { version = "0.5.2", default-features = false }
 
 [dependencies.windows]
 version = "0.62"
@@ -48,6 +50,7 @@ features = [
     "Win32_System_Com_StructuredStorage",
     "Win32_System_Registry",
     "Win32_System_Threading",
+    "Win32_Security",
     "Win32_System_SystemInformation",
     "Win32_System_Variant",
     "Win32_UI_Input_KeyboardAndMouse",

@@ -36,6 +36,10 @@ export const navigationMethods = {
 
             // 5. Clear transition flag and render the complete, heavy HTML content
             this._isTransitioning = false;
+            // Cascade d'entrée : seulement pour ce rendu-là, pas pour les mises à jour suivantes.
+            this.content.classList.add('di-intro');
+            clearTimeout(this._introTimer);
+            this._introTimer = setTimeout(() => this.content.classList.remove('di-intro'), 900);
             this.renderContent();
 
             // 6. Wait a tiny bit for the DOM tree to settle and paint
@@ -134,6 +138,11 @@ export const navigationMethods = {
         }
         if (action === 'mixer') {
             this.mode = 'mixer';
+            this.renderContent();
+            return;
+        }
+        if (action === 'mic') {
+            this.mode = 'mic';
             this.renderContent();
             return;
         }
@@ -243,7 +252,8 @@ export const navigationMethods = {
             'island-mode-music-search',
             'island-mode-music-history',
             'island-mode-control',
-            'island-mode-mixer'
+            'island-mode-mixer',
+            'island-mode-mic'
         ];
     },
 
@@ -258,7 +268,8 @@ export const navigationMethods = {
             'music-search': 'island-mode-music-search',
             'music-history': 'island-mode-music-history',
             control: 'island-mode-control',
-            mixer: 'island-mode-mixer'
+            mixer: 'island-mode-mixer',
+            mic: 'island-mode-mic'
         };
 
         return sizeByMode[this.mode] || 'island-mode-music';
@@ -310,6 +321,9 @@ export const navigationMethods = {
             this.el.style.width = '';
         }
 
+        this._micSheet = null;
+        this._micDragging = false;
+
         // Clear any active real-time system stats update interval
         if (this.statsInterval) {
             clearInterval(this.statsInterval);
@@ -357,6 +371,7 @@ export const navigationMethods = {
             else if (this.mode === 'music-history') this.renderMusicHistory();
             else if (this.mode === 'control') this.renderControl();
             else if (this.mode === 'mixer') this.renderMixer();
+            else if (this.mode === 'mic') this.renderMicMonitor();
         } else if (keepCompactNotification) {
             this.renderNotification();
         } else {
@@ -377,6 +392,10 @@ export const navigationMethods = {
         if (this.isExpanded && (this.mode === 'mixer' || (this.mode === 'control' && localStorage.getItem('liquid_control_widget_type') === 'mixer'))) {
             this.updateAudioSessions();
         }
+
+        // Bulle du retour micro : visible seulement Island repliée.
+        this.syncMicActivity?.();
+        this.positionMicSatellite?.();
 
         // Enforce active album artwork cover & colors across all screens!
         this.syncGlobalCoverAesthetics();

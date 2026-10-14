@@ -211,12 +211,13 @@ export const controlCenterView = {
                                     <span class="ic-tile-status">${isEcoMode ? 'Activé' : 'Désactivé'}</span>
                                 </div>
                             </div>
-                            <div class="ic-tile" id="ic-sett-tile" title="Ouvrir les Réglages">
-                                <i class="ph ph-gear"></i>
+                            <div class="ic-tile ${this.micConfig.enabled ? 'active' : ''}" id="ic-mic" title="Retour micro : t’entendre dans le casque">
+                                <i class="ph ph-microphone"></i>
                                 <div class="ic-tile-text">
-                                    <span class="ic-tile-label">Réglages</span>
-                                    <span class="ic-tile-status">Configurer</span>
+                                    <span class="ic-tile-label">Micro</span>
+                                    <span class="ic-tile-status">${this.micConfig.enabled ? 'Retour activé' : 'Retour coupé'}</span>
                                 </div>
+                                <span class="ic-tile-more" title="Régler le retour micro"><i class="ph-bold ph-caret-right"></i></span>
                             </div>
                         </div>
 
@@ -464,12 +465,15 @@ export const controlCenterView = {
             }
         }, 2000);
 
-        // Bind Settings quick tile
-        const settTile = container.querySelector('#ic-sett-tile');
-        if (settTile) {
-            settTile.onclick = () => {
-                this.setMode('settings');
-                this.renderContent();
+        // Retour micro : la tuile l'allume ou le coupe, la flèche ouvre ses réglages.
+        const micTile = container.querySelector('#ic-mic');
+        if (micTile) {
+            micTile.onclick = (e) => {
+                if (e.target.closest('.ic-tile-more')) {
+                    this.setMode('mic');
+                    return;
+                }
+                this.toggleMicMonitor();
             };
         }
 
@@ -686,6 +690,20 @@ export const controlCenterView = {
         // Fire async updates immediately without blocking the synchronous render thread!
         updateAsyncSystemData();
         if (widgetType === 'weather') this.fillWeatherCard();
+        this.syncGlassControls();
+    },
+
+    /** Tuile du retour micro à jour sans redessiner tout le centre de contrôle. */
+    syncMicTile() {
+        const tile = this.content.querySelector('#ic-mic');
+        if (!tile) return;
+        const enabled = Boolean(this.micConfig.enabled);
+        const error = enabled && this.micStatus?.error;
+        if (tile.classList.contains('active') === enabled && tile.classList.contains('has-error') === Boolean(error)) return;
+        tile.classList.toggle('active', enabled);
+        tile.classList.toggle('has-error', Boolean(error));
+        const status = tile.querySelector('.ic-tile-status');
+        if (status) status.textContent = error ? 'Erreur' : (enabled ? 'Retour activé' : 'Retour coupé');
         this.syncGlassControls();
     },
 

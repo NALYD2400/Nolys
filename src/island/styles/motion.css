@@ -1,0 +1,110 @@
+/*
+ * Mouvement : la pilule se déforme comme un ressort (léger dépassement puis
+ * retour), et le contenu entre en cascade avec un flou qui se dissipe.
+ *
+ * Les courbes `linear()` sont des ressorts amortis précalculés :
+ *   --spring-soft   : amortissement 0.72, dépassement ~4 %
+ *   --spring-bouncy : amortissement 0.60, dépassement ~9 % (mouvement « vif »)
+ * Le mode de mouvement « sobre » garde ses transitions courtes sans ressort.
+ */
+
+:root {
+    --spring-soft: linear(0, 0.0369, 0.1276, 0.2473, 0.3779, 0.5066, 0.6252, 0.729, 0.8159, 0.8857, 0.9394, 0.9789, 1.0063, 1.0239, 1.0338, 1.0379, 1.0381, 1.0355, 1.0314, 1.0265, 1.0215, 1.0167, 1.0124, 1.0087, 1.0057, 1.0033, 1.0015, 1.0003, 0.9994, 0.9989, 0.9986, 0.9985, 0.9986, 0.9987, 0.9989, 0.9991, 1);
+    --spring-bouncy: linear(0, 0.0541, 0.1852, 0.3533, 0.5286, 0.6908, 0.8282, 0.9353, 1.012, 1.0608, 1.0866, 1.0947, 1.0905, 1.0785, 1.0628, 1.0461, 1.0306, 1.0173, 1.0069, 0.9994, 0.9945, 0.9919, 0.991, 0.9914, 0.9924, 0.9939, 0.9955, 0.997, 0.9983, 0.9993, 1);
+}
+
+body:not(.motion-sober) #dynamic-island {
+    transition:
+        width 0.62s var(--spring-soft),
+        height 0.62s var(--spring-soft),
+        border-radius 0.5s var(--spring-soft),
+        transform 0.45s var(--spring-soft),
+        background-color 0.3s ease,
+        box-shadow 0.25s ease;
+}
+
+body.motion-vivid #dynamic-island {
+    transition:
+        width 0.72s var(--spring-bouncy),
+        height 0.72s var(--spring-bouncy),
+        border-radius 0.55s var(--spring-bouncy),
+        transform 0.5s var(--spring-bouncy),
+        background-color 0.28s ease,
+        box-shadow 0.28s ease;
+}
+
+/* Appui sur la pilule repliée seulement : elle s'écrase un peu, puis rebondit en se dépliant.
+ * (Island ouverte, island-active-music reste posée : on ne cible donc que island-idle.) */
+body:not(.motion-sober) #dynamic-island.island-idle:active {
+    transform: scale(0.96, 0.92);
+}
+
+/* ---------------------------------------------------------------- Entrée du contenu */
+
+/* Fondu et mise au point seulement : les vues en verre (lecteur, centre de
+ * contrôle) mesurent la position de leurs boutons juste après le rendu, un
+ * déplacement les décalerait. */
+@keyframes diContentIn {
+    from {
+        opacity: 0;
+        filter: blur(6px);
+    }
+}
+
+/* Vues sans verre : le bloc monte en plus légèrement. */
+@keyframes diRiseIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.98);
+        filter: blur(6px);
+    }
+}
+
+/* Cascade : chaque bloc arrive 35 ms après le précédent. */
+body:not(.motion-sober) .island-content.di-intro .ic-control-stack > *,
+body:not(.motion-sober) .island-content.di-intro .ic-toggles-grid > * {
+    animation: diContentIn 0.46s cubic-bezier(0.2, 0.9, 0.25, 1) backwards;
+}
+
+body:not(.motion-sober) .island-content.di-intro .di-stagger > *,
+body:not(.motion-sober) .island-content.di-intro .island-menu-grid > * {
+    animation: diRiseIn 0.5s var(--spring-soft) backwards;
+}
+
+.di-stagger > :nth-child(2),
+.ic-control-stack > :nth-child(2),
+.ic-toggles-grid > :nth-child(2),
+.island-menu-grid > :nth-child(2) { animation-delay: 35ms; }
+
+.di-stagger > :nth-child(3),
+.ic-control-stack > :nth-child(3),
+.ic-toggles-grid > :nth-child(3),
+.island-menu-grid > :nth-child(3) { animation-delay: 70ms; }
+
+.di-stagger > :nth-child(4),
+.ic-toggles-grid > :nth-child(4),
+.island-menu-grid > :nth-child(4) { animation-delay: 105ms; }
+
+.di-stagger > :nth-child(5),
+.ic-toggles-grid > :nth-child(5),
+.island-menu-grid > :nth-child(5) { animation-delay: 140ms; }
+
+.di-stagger > :nth-child(n + 6),
+.ic-toggles-grid > :nth-child(n + 6),
+.island-menu-grid > :nth-child(n + 6) { animation-delay: 175ms; }
+
+/* La feuille de périphériques a sa propre animation. */
+body .di-stagger > .mic-sheet {
+    animation: micSheetIn 0.42s var(--spring-soft) both;
+}
+
+body .di-stagger > .mic-sheet.leaving {
+    animation: micSheetOut 0.2s ease-in both;
+}
+
+/* La cascade ne joue qu'à l'ouverture d'une vue (classe di-intro posée par
+ * transitionState) : un clic qui redessine la vue ne la rejoue pas. */
+
+/* Pas de règle prefers-reduced-motion ici : Windows la déclenche dès que ses
+ * « effets d'animation » sont coupés, ce qui figeait toute l'Island. Le réglage
+ * « Mouvement sobre » de l'app sert à ça. */

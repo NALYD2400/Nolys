@@ -178,8 +178,14 @@ class AudioVisualizerService {
 
         this._meterPeak += (this._meterTargetPeak - this._meterPeak) * 0.34;
 
+        // Gain automatique : le niveau est rapporté au maximum des dernières secondes, pour
+        // que les barres bougent autant à faible volume (Windows, lecteur ou morceau calme)
+        // qu'à fort volume. En dessous de -54 dB, c'est du silence : rien n'est amplifié.
+        this._agcRef = Math.max(this._meterPeak, (this._agcRef || 0.25) * 0.996, 0.02);
+        const normalized = this._meterTargetPeak < 0.002 ? 0 : this._meterPeak / this._agcRef;
         const sensitivity = parseFloat(localStorage.getItem('liquid_visualizer_sensitivity') || '2.5');
-        const peak = this._clamp01(this._meterPeak * sensitivity);
+        // La sensibilité garde son rôle (2,5 = réglage par défaut = niveau normalisé tel quel).
+        const peak = this._clamp01(normalized * 0.85 * Math.sqrt(sensitivity / 2.5));
         const stereoWidth = Math.abs(this._meterLeft - this._meterRight);
         const t = now / 1000;
 

@@ -1,0 +1,209 @@
+/**
+ * Retour micro : état partagé avec le cœur Rust, vumètre en direct et bulle
+ * « activité en cours » à côté de la pilule.
+ *
+ * Le traitement audio est entièrement natif (platform/mic_monitor.rs) ; ici on
+ * ne fait qu'afficher les niveaux et envoyer les réglages.
+ */
+import { ipcRenderer } from '../../../shared/ipc.js';
+import { SoundService } from '../../../services/SoundService.js';
+
+/** Échelle du vumètre : -80 dBFS à gauche, 0 dBFS à droite. */
+export const METER_FLOOR_DB = -80;
+
+export const toDb = (linear) => (linear > 0.00001 ? 20 * Math.log10(linear) : METER_FLOOR_DB);
+export const dbToPct = (db) => Math.max(0, Math.min(100, ((db - METER_FLOOR_DB) / -METER_FLOOR_DB) * 100));
+export const pctToDb = (pct) => METER_FLOOR_DB + (pct / 100) * -METER_FLOOR_DB;
+
+export const micMonitorMethods = {
+    /** Appelé une fois au démarrage : état initial et synchro avec la fenêtre des réglages. */
+    initMicMonitor() {
+        this.micStatus = null;
+        this._micSatellite = document.getElementById('island-satellite');
+        this._micSatellite?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.openExpandedMode('mic');
+        });
+        this._micSatellite?.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.setMicMonitor({ enabled: false });
+        });
+
+        // La bulle suit le bord droit de la pilule, même pendant ses changements de taille.
+        new ResizeObserver(() => this.positionMicSatellite()).observe(this.el);
+
+        // Même thème que la pilule : couleurs, halo et pochette floutée suivent ses changements.
+        const themeObserver = new MutationObserver(() => this.syncSatelliteTheme());
+        themeObserver.observe(this.el, { attributes: true, attributeFilter: ['style', 'class'] });
+        const bgLayer = this.el.querySelector('.island-bg-layer');
+        if (bgLayer) themeObserver.observe(bgLayer, { attributes: true, attributeFilter: ['style'] });
+        this.syncSatelliteTheme();
+
+        // Option « bulle d'activité » changée dans les réglages (même stockage local).
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'liquid_mic_satellite') this.syncMicActivity();
+        });
+
+        ipcRenderer.on('mic-monitor-changed', (_event, status) => this.applyMicStatus(status));
+        ipcRenderer.invoke('get-mic-monitor').then((status) => this.applyMicStatus(status)).catch(() => {});
+    },
+
+    get micConfig() {
+        return this.micStatus?.config || {};
+    },
+
+    /** Envoie une partie des réglages ; l'interface est mise à jour tout de suite. */
+    async setMicMonitor(patch) {
+        const config = { ...this.micConfig, ...patch };
+        if (this.micStatus) this.micStatus.config = config;
+        this.refreshMicView();
+        try {
+            const status = await ipcRenderer.invoke('set-mic-monitor', config);
+            this.applyMicStatus(status);
+        } catch (e) {
+            console.warn('[MicMonitor] Échec de l’envoi des réglages.', e);
+        }
+    },
+
+    toggleMicMonitor(force) {
+        const enabled = typeof force === 'boolean' ? force : !this.micConfig.enabled;
+        SoundService.play('click');
+        return this.setMicMonitor({ enabled });
+    },
+
+    applyMicStatus(status) {
+        if (!status || !status.config) return;
+        const wasEnabled = Boolean(this.micConfig.enabled);
+        this.micStatus = status;
+        if (wasEnabled !== Boolean(status.config.enabled)) {
+            this.refreshMicView({ full: true });
+        } else {
+            this.refreshMicView();
+        }
+        this.syncMicActivity();
+    },
+
+    positionMicSatellite() {
+        if (!this._micSatellite) return;
+        const half = this.el.offsetWidth / 2;
+        this._micSatellite.style.setProperty('--satellite-to', `${Math.round(half + 8)}px`);
+        this._micSatellite.style.setProperty('--satellite-from', `${Math.round(half - 36)}px`);
+    },
+
+    /** Recopie la matière de la pilule (variables posées par ThemeService, pochette floutée). */
+    syncSatelliteTheme() {
+        const satellite = this._micSatellite;
+        if (!satellite) return;
+        for (const name of ['--island-bg', '--island-blur', '--island-glow-size', '--island-glow-rgb', '--island-glow-opacity']) {
+            const value = this.el.style.getPropertyValue(name);
+            if (value) satellite.style.setProperty(name, value);
+            else satellite.style.removeProperty(name);
+        }
+        satellite.classList.toggle('is-glowing', this.el.classList.contains('island-active-music'));
+
+        const source = this.el.querySelector('.island-bg-layer');
+        const target = satellite.querySelector('.satellite-bg');
+        if (source && target) {
+            target.style.backgroundImage = source.style.backgroundImage || 'none';
+            target.style.opacity = source.style.opacity || '0';
+            target.style.filter = source.style.filter || '';
+        }
+    },
+
+    /** Le vumètre tourne tant que la vue micro ou la bulle sont visibles. */
+    syncMicActivity() {
+        const enabled = Boolean(this.micConfig.enabled);
+        const viewOpen = this.isExpanded && this.mode === 'mic';
+        const satelliteVisible = enabled && !this.isExpanded && localStorage.getItem('liquid_mic_satellite') !== 'false';
+
+        if (this._micSatellite) {
+            this._micSatellite.classList.toggle('is-visible', satelliteVisible);
+            this._micSatellite.classList.toggle('has-error', Boolean(this.micStatus?.error));
+        }
+
+        const wantLoop = enabled && (viewOpen || satelliteVisible);
+        if (wantLoop && !this._micLoop) this.startMicLoop();
+        if (!wantLoop && this._micLoop) this.stopMicLoop();
+        if (!enabled) this.paintMicLevels({ inputLevel: 0, outputLevel: 0, gateOpen: false, voice: 0 });
+    },
+
+    startMicLoop() {
+        let busy = false;
+        let last = 0;
+        const tick = async (now) => {
+            if (!this._micLoop) return;
+            this._micLoop = requestAnimationFrame(tick);
+            // ~20 i/s dans la vue, ~8 i/s pour la bulle, moins en mode Éco.
+            const viewOpen = this.isExpanded && this.mode === 'mic';
+            const eco = localStorage.getItem('liquid_eco_mode') === 'true';
+            const interval = viewOpen ? (eco ? 100 : 50) : (eco ? 250 : 120);
+            if (busy || now - last < interval) return;
+            busy = true;
+            last = now;
+            try {
+                const status = await ipcRenderer.invoke('get-mic-monitor');
+                if (status && status.config) {
+                    const stateChanged = !this.micStatus
+                        || status.running !== this.micStatus.running
+                        || status.error !== this.micStatus.error
+                        || status.inputName !== this.micStatus.inputName
+                        || status.outputName !== this.micStatus.outputName;
+                    this.micStatus = status;
+                    if (stateChanged) this.refreshMicView();
+                    this.paintMicLevels(status);
+                }
+            } catch (e) {
+                // Le prochain tour réessaiera.
+            } finally {
+                busy = false;
+            }
+        };
+        this._micLoop = requestAnimationFrame(tick);
+    },
+
+    stopMicLoop() {
+        if (this._micLoop) cancelAnimationFrame(this._micLoop);
+        this._micLoop = null;
+    },
+
+    /** Met à jour vumètre et bulle sans reconstruire le HTML. */
+    paintMicLevels(status) {
+        const inputPct = dbToPct(toDb(status.inputLevel || 0));
+        const outputPct = dbToPct(toDb(status.outputLevel || 0));
+
+        if (this._micSatellite) {
+            const level = outputPct / 100;
+            const speaking = Boolean(status.gateOpen) && outputPct > 35;
+            this._micSatellite.style.setProperty('--mic-level', level.toFixed(3));
+            this._micSatellite.classList.toggle('is-speaking', speaking);
+            // Quatre barres façon visualiseur : même niveau, un peu de variation entre elles.
+            const shape = [0.55, 1, 0.8, 0.45];
+            const energy = Math.max(0, (level - 0.35) / 0.65);
+            shape.forEach((weight, index) => {
+                const jitter = 0.75 + Math.random() * 0.5;
+                const height = speaking ? Math.min(1, 0.2 + energy * weight * jitter) : 0.2;
+                this._micSatellite.style.setProperty(`--b${index + 1}`, height.toFixed(3));
+            });
+        }
+
+        const view = this.content.querySelector('.mic-view');
+        if (!view) return;
+        view.style.setProperty('--mic-in', `${inputPct.toFixed(1)}%`);
+        view.style.setProperty('--mic-out', `${outputPct.toFixed(1)}%`);
+        view.classList.toggle('gate-open', Boolean(status.gateOpen));
+        // Silence parfait pendant 2 s alors que le retour tourne : micro coupé sur le casque, le plus souvent.
+        const silent = status.running && !(status.inputLevel > 0);
+        if (!silent) this._micSilentSince = null;
+        else this._micSilentSince ??= performance.now();
+        const muted = silent && performance.now() - this._micSilentSince > 2000;
+        view.classList.toggle('is-muted', muted);
+        const readout = view.querySelector('.mic-meter-readout');
+        if (readout) {
+            const db = toDb(status.inputLevel || 0);
+            readout.textContent = muted ? 'Aucun son : micro coupé ?' : (db <= METER_FLOOR_DB + 0.5 ? '−∞ dB' : `${Math.round(db)} dB`);
+        }
+        const voice = view.querySelector('.mic-voice-dot');
+        if (voice) voice.style.setProperty('--voice', (status.voice || 0).toFixed(2));
+    },
+};
