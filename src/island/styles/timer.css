@@ -18,21 +18,61 @@
     flex-shrink: 0;
 }
 
-.timer-title {
+/* Chrono / Minuteur : même langage que le sélecteur de latence du retour micro. */
+.timer-mode {
     display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    color: rgba(255, 255, 255, 0.82);
-    font-size: 12px;
-    font-weight: 750;
-    text-transform: uppercase;
-    letter-spacing: 0;
+    padding: 2px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.timer-title i {
-    color: var(--neon-primary);
-    font-size: 15px;
-    filter: drop-shadow(0 0 6px rgba(var(--neon-primary-rgb), 0.35));
+.timer-mode button {
+    height: 24px;
+    padding: 0 10px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.55);
+    font: 600 10.5px 'Inter', sans-serif;
+    cursor: pointer;
+    transition: background 0.25s ease, color 0.25s ease;
+}
+
+.timer-mode button.on {
+    background: rgba(255, 255, 255, 0.92);
+    color: #111;
+}
+
+/* Durées rapides du minuteur, à la place du statut quand il est prêt. */
+.timer-presets {
+    display: flex;
+    gap: 6px;
+    height: 22px;
+    align-items: center;
+}
+
+.timer-preset {
+    height: 22px;
+    padding: 0 9px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.055);
+    color: rgba(255, 255, 255, 0.75);
+    font: 600 10px 'Inter', sans-serif;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.timer-preset:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+
+.timer-preset.on {
+    background: rgba(var(--neon-primary-rgb), 0.28);
+    border-color: rgba(var(--neon-primary-rgb), 0.5);
+    color: #fff;
 }
 
 .timer-stage {

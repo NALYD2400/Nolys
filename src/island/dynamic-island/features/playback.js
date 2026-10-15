@@ -65,6 +65,9 @@ export const playbackMethods = {
         if (this.el) {
             this.el.classList.toggle('playing-music-glow', active);
         }
+        // Titre trop long : il avance seulement pendant la lecture (figé en pause, à sa position).
+        // Ce n'était pas le cas quand la pilule ou le lecteur n'étaient pas redessinés.
+        document.querySelectorAll('.is-marquee').forEach((box) => box.classList.toggle('is-paused', !active));
         document.querySelectorAll('.play-btn i, #ic-np-play-btn-val i').forEach((icon) => {
             icon.className = `ph ph-${active ? 'pause' : 'play'}`;
         });

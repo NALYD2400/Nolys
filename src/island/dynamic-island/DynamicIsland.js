@@ -39,8 +39,10 @@ export class DynamicIsland {
         this.isExpanded = false;
         this.isPlaying = false;
         this.mode = 'music';
-        this.timerValue = 0;
+        this.timerValue = 0; // secondes : écoulées (chrono) ou restantes (minuteur)
         this.isTimerRunning = false;
+        this.timerMode = 'stopwatch'; // 'stopwatch' | 'countdown'
+        this.timerPreset = 0; // dernière durée choisie pour le minuteur, en secondes
         this.fps = 60;
         this.lastTime = performance.now();
         this.frameCount = 0;
@@ -101,6 +103,7 @@ export class DynamicIsland {
         this.syncMotionPreference();
         this.syncEcoMode();
         this.initMicMonitor();
+        this.initTimerSatellite();
 
         // Raccourcis globaux (afficher / masquer, lecture, placement…) enregistrés au démarrage.
         // Une combinaison refusée (prise par Windows ou une autre appli) est signalée dans l'Island.

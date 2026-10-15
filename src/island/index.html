@@ -41,7 +41,9 @@
     <div id="dynamic-island-container">
       <div id="layout-drag-surface" aria-hidden="true"></div>
       <!-- Bulle d'activité (retour micro) : features/mic-monitor.js -->
-      <button type="button" id="island-satellite" title="Retour micro : clic pour régler, deux clics droits pour couper" aria-label="Retour micro"><span class="satellite-bg"></span><i class="ph-fill ph-microphone satellite-icon"></i><i class="ph-bold ph-power satellite-confirm"></i><span class="satellite-bars"><span></span><span></span><span></span><span></span></span></button>
+      <button type="button" id="island-satellite" class="island-satellite" title="Retour micro : clic pour régler, deux clics droits pour couper" aria-label="Retour micro"><span class="satellite-bg"></span><i class="ph-fill ph-microphone satellite-icon"></i><i class="ph-bold ph-power satellite-confirm"></i><span class="satellite-bars"><span></span><span></span><span></span><span></span></span></button>
+      <!-- Bulle du minuteur, à gauche de la pilule : features/system.js -->
+      <button type="button" id="island-timer-satellite" class="island-satellite island-satellite-timer" title="Chrono : clic pour l’ouvrir" aria-label="Minuteur en cours"><span class="satellite-bg"></span><svg class="satellite-ring" viewBox="0 0 36 36" aria-hidden="true"><circle pathLength="100" cx="18" cy="18" r="16"></circle></svg><span class="satellite-timer-value">0</span></button>
       <div id="dynamic-island" class="island-idle">
         <div class="island-glass-backdrop"><div class="island-bg-layer"></div></div>
         <div class="island-content">

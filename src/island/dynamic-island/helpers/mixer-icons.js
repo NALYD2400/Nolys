@@ -26,6 +26,26 @@ export const MIXER_ICONS = {
     soundcloud: APP_ICONS.soundcloud
 };
 
+/** Icône d'une sortie audio d'après son nom Windows (casque, écran, enceintes). */
+export function getOutputDeviceIcon(name = '') {
+    const n = String(name).toLowerCase();
+    if (n.includes('casque') || n.includes('headphones') || n.includes('headset') || n.includes('earphone')) return 'ph-headphones';
+    if (n.includes('hdmi') || n.includes('tv') || n.includes('display') || n.includes('moniteur') || n.includes('nvidia') || n.includes('intel') || n.includes('amd')) return 'ph-monitor';
+    return 'ph-speaker-high';
+}
+
+/** Icône d'une entrée micro d'après son nom Windows. */
+export function getInputDeviceIcon(name = '') {
+    const n = String(name).toLowerCase();
+    return n.includes('headset') || n.includes('casque') || n.includes('écouteurs') || n.includes('earphone') ? 'ph-microphone-stage' : 'ph-microphone';
+}
+
+/** Icône de volume : barré en muet, sinon selon le niveau. */
+export function getMuteIcon(isMuted, volume = 0) {
+    if (isMuted) return 'ph-speaker-slash';
+    return volume < 50 ? 'ph-speaker-low' : 'ph-speaker-high';
+}
+
 export function getMixerIcon(name, title) {
     const n = (name || '').toLowerCase();
     const t = (title || '').toLowerCase();

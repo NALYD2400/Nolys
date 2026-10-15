@@ -125,30 +125,45 @@ export const micMonitorMethods = {
         this.syncMicActivity();
     },
 
+    /**
+     * Micro à droite de la pilule, minuteur à gauche. La bulle est posée sur le centre de
+     * la pilule : à gauche, il faut la décaler de sa propre largeur pour que son bord
+     * droit reste à 8 px de la pilule.
+     */
     positionMicSatellite() {
-        if (!this._micSatellite) return;
         const half = this.el.offsetWidth / 2;
-        this._micSatellite.style.setProperty('--satellite-to', `${Math.round(half + 8)}px`);
-        this._micSatellite.style.setProperty('--satellite-from', `${Math.round(half - 36)}px`);
+        const place = (satellite, side) => {
+            // Largeur d'arrivée, pas la largeur actuelle : pendant l'élargissement du minuteur,
+            // offsetWidth vaut encore l'ancienne taille, et la bulle venait se coller à la pilule.
+            const width = satellite.classList.contains('is-hours') ? 66 : satellite.classList.contains('is-wide') ? 54 : 35;
+            // Le minuteur garde 12 px d'air avec la pilule (le micro 8 px), pour ne pas paraître collé.
+            const to = side > 0 ? half + 8 : -(half + 12 + width);
+            const from = side > 0 ? half - 36 : -(half - 1);
+            satellite.style.setProperty('--satellite-to', `${Math.round(to)}px`);
+            satellite.style.setProperty('--satellite-from', `${Math.round(from)}px`);
+        };
+        if (this._micSatellite) place(this._micSatellite, 1);
+        if (this._timerSatellite) place(this._timerSatellite, -1);
     },
 
     /** Recopie la matière de la pilule (variables posées par ThemeService, pochette floutée). */
     syncSatelliteTheme() {
-        const satellite = this._micSatellite;
-        if (!satellite) return;
-        for (const name of ['--island-bg', '--island-blur', '--island-glow-size', '--island-glow-rgb', '--island-glow-opacity']) {
-            const value = this.el.style.getPropertyValue(name);
-            if (value) satellite.style.setProperty(name, value);
-            else satellite.style.removeProperty(name);
-        }
-        satellite.classList.toggle('is-glowing', this.el.classList.contains('island-active-music'));
-
         const source = this.el.querySelector('.island-bg-layer');
-        const target = satellite.querySelector('.satellite-bg');
-        if (source && target) {
-            target.style.backgroundImage = source.style.backgroundImage || 'none';
-            target.style.opacity = source.style.opacity || '0';
-            target.style.filter = source.style.filter || '';
+        for (const satellite of [this._micSatellite, this._timerSatellite]) {
+            if (!satellite) continue;
+            for (const name of ['--island-bg', '--island-blur', '--island-glow-size', '--island-glow-rgb', '--island-glow-opacity']) {
+                const value = this.el.style.getPropertyValue(name);
+                if (value) satellite.style.setProperty(name, value);
+                else satellite.style.removeProperty(name);
+            }
+            satellite.classList.toggle('is-glowing', this.el.classList.contains('island-active-music'));
+
+            const target = satellite.querySelector('.satellite-bg');
+            if (source && target) {
+                target.style.backgroundImage = source.style.backgroundImage || 'none';
+                target.style.opacity = source.style.opacity || '0';
+                target.style.filter = source.style.filter || '';
+            }
         }
     },
 

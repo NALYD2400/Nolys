@@ -6,6 +6,7 @@ import { APP_LOGO_ART, getDisplayMediaArt, getFallbackIcon, getServiceArtStyle, 
 
 export const idleView = {
     renderIdle() {
+        this.syncTimerSatellite?.();
         if (this.isExpanded) return;
         // Largeur adaptée au titre : recalculée plus bas pour la musique, sinon taille du CSS.
         this.el.style.width = '';
@@ -58,28 +59,6 @@ export const idleView = {
                     <span style="font-family: inherit; font-size: 12px; letter-spacing: 0.5px;">Exécute : ${label}...</span>
                 </div>
             `;
-            this._vizCanvas = null;
-            this.syncVisualizerActivity();
-            return;
-        }
-
-        if (this.isTimerRunning) {
-            this.el.classList.add('island-active-music');
-            const mins = Math.floor(this.timerValue / 60).toString().padStart(2, '0');
-            const secs = (this.timerValue % 60).toString().padStart(2, '0');
-
-            const isMusicPlaying = this.musicData && this.musicData.isPlaying;
-            const timerColor = isMusicPlaying ? 'var(--neon-primary)' : '#ffffff';
-            const iconGlow = isMusicPlaying ? 'drop-shadow(0 0 4px var(--neon-primary))' : 'none';
-
-            this.content.innerHTML = `
-        <div class="island-idle-content" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 100%;">
-          <i class="ph ph-timer" style="color: ${timerColor}; font-size: 16px; filter: ${iconGlow};"></i>
-          <span style="color: ${timerColor}; font-family: var(--font-mono); font-weight: 700; font-size: 15px; letter-spacing: 0.5px;">
-            ${mins}:${secs}
-          </span>
-        </div>
-      `;
             this._vizCanvas = null;
             this.syncVisualizerActivity();
             return;
@@ -182,7 +161,7 @@ export const idleView = {
     },
 
     /**
-     * La pilule prend la largeur de son contenu (150 px jusqu'au maximum choisi, 240 par
+     * La pilule prend la largeur de son contenu (120 px au minimum, jusqu'au maximum choisi, 240 par
      * défaut) : pas de grand vide au milieu, et le ressort anime le changement à chaque
      * morceau. Au-delà, le titre défile (ou est coupé si le défilement est désactivé).
      */
@@ -195,7 +174,8 @@ export const idleView = {
             this.el.style.width = '130px';
             return;
         }
-        const MIN = 150;
+        // Minimum bas : un titre court (« VMA ») ne doit pas laisser une pilule trop large.
+        const MIN = 120;
         const MAX = Math.max(180, Math.min(340, Number(this._islandConfig?.pillMaxWidth) || 240));
         const others = this.el.offsetWidth - title.clientWidth; // pochette, onde, marges
         const wanted = Math.ceil(Math.max(text.scrollWidth, text.getBoundingClientRect().width) + others);

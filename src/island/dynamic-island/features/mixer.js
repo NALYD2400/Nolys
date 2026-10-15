@@ -1,7 +1,7 @@
 /** Mixeur audio par application et choix des périphériques. */
 import { ipcRenderer } from '../../../shared/ipc.js';
 import { escapeHtml } from '../helpers/format.js';
-import { getMixerIcon } from '../helpers/mixer-icons.js';
+import { getInputDeviceIcon, getMixerIcon, getMuteIcon, getOutputDeviceIcon } from '../helpers/mixer-icons.js';
 
 export const mixerMethods = {
     updateMixerScrub(e) {
@@ -27,11 +27,11 @@ export const mixerMethods = {
             if (muteBtn) {
                 if (clickPct === 0) {
                     muteBtn.classList.add('muted');
-                    muteBtn.innerHTML = '<i class="ph ph-speaker-slash"></i>';
+                    muteBtn.innerHTML = `<i class="ph ${getMuteIcon(true)}"></i>`;
                     row.classList.add('muted');
                 } else {
                     muteBtn.classList.remove('muted');
-                    muteBtn.innerHTML = `<i class="ph ${clickPct < 50 ? 'ph-speaker-low' : 'ph-speaker-high'}"></i>`;
+                    muteBtn.innerHTML = `<i class="ph ${getMuteIcon(false, clickPct)}"></i>`;
                     row.classList.remove('muted');
                 }
             }
@@ -89,11 +89,11 @@ export const mixerMethods = {
             if (muteBtn) {
                 if (mustMute) {
                     muteBtn.classList.add('muted');
-                    muteBtn.innerHTML = '<i class="ph ph-speaker-slash"></i>';
+                    muteBtn.innerHTML = `<i class="ph ${getMuteIcon(true)}"></i>`;
                     row.classList.add('muted');
                 } else {
                     muteBtn.classList.remove('muted');
-                    muteBtn.innerHTML = `<i class="ph ${visibleVolume < 50 ? 'ph-speaker-low' : 'ph-speaker-high'}"></i>`;
+                    muteBtn.innerHTML = `<i class="ph ${getMuteIcon(false, visibleVolume)}"></i>`;
                     row.classList.remove('muted');
                 }
             }
@@ -199,34 +199,13 @@ export const mixerMethods = {
         
         // Update header icon
         const btnIcon = this.content.querySelector('.device-select-btn i');
-        if (btnIcon) {
-            let headerIcon = 'ph-speaker-high';
-            if (activeDevice) {
-                const lowerName = activeDevice.name.toLowerCase();
-                if (lowerName.includes('casque') || lowerName.includes('headphones') || lowerName.includes('headset') || lowerName.includes('earphone')) {
-                    headerIcon = 'ph-headphones';
-                } else if (lowerName.includes('speakers') || lowerName.includes('haut-parleurs') || lowerName.includes('haut parleur') || lowerName.includes('speaker')) {
-                    headerIcon = 'ph-speaker-high';
-                } else if (lowerName.includes('hdmi') || lowerName.includes('tv') || lowerName.includes('display') || lowerName.includes('moniteur') || lowerName.includes('nvidia') || lowerName.includes('intel') || lowerName.includes('amd')) {
-                    headerIcon = 'ph-monitor';
-                }
-            }
-            btnIcon.className = `ph ${headerIcon}`;
-        }
+        if (btnIcon) btnIcon.className = `ph ${getOutputDeviceIcon(activeDevice?.name)}`;
 
         // Render items list
         const listContainer = this.content.querySelector('.audio-device-list-container');
         if (listContainer) {
             listContainer.innerHTML = devices.map(d => {
-                const lowerName = d.name.toLowerCase();
-                let icon = 'ph-speaker-low';
-                if (lowerName.includes('casque') || lowerName.includes('headphones') || lowerName.includes('headset') || lowerName.includes('earphone')) {
-                    icon = 'ph-headphones';
-                } else if (lowerName.includes('speakers') || lowerName.includes('haut-parleurs') || lowerName.includes('haut parleur') || lowerName.includes('speaker')) {
-                    icon = 'ph-speaker-high';
-                } else if (lowerName.includes('hdmi') || lowerName.includes('tv') || lowerName.includes('display') || lowerName.includes('moniteur') || lowerName.includes('nvidia') || lowerName.includes('intel') || lowerName.includes('amd')) {
-                    icon = 'ph-monitor';
-                }
+                const icon = getOutputDeviceIcon(d.name);
 
                 const activeClass = d.isDefault ? 'active' : '';
                 return `
@@ -273,11 +252,7 @@ export const mixerMethods = {
         const listContainer = this.content.querySelector('.mic-device-list-container');
         if (listContainer) {
             listContainer.innerHTML = devices.map(d => {
-                const lowerName = d.name.toLowerCase();
-                let icon = 'ph-microphone';
-                if (lowerName.includes('headset') || lowerName.includes('casque') || lowerName.includes('écouteurs') || lowerName.includes('earphone')) {
-                    icon = 'ph-microphone-stage';
-                }
+                const icon = getInputDeviceIcon(d.name);
 
                 const activeClass = d.isDefault ? 'active' : '';
                 return `
@@ -416,7 +391,7 @@ export const mixerMethods = {
                     iconHtml = `<i class="ph ph-music-note mixer-app-icon-fallback"></i>`;
                 }
                 
-                const muteIcon = isMuted ? 'ph-speaker-slash' : (activeVol < 50 ? 'ph-speaker-low' : 'ph-speaker-high');
+                const muteIcon = getMuteIcon(isMuted, activeVol);
                 const rowMutedClass = isMuted ? 'muted' : '';
                 const btnMutedClass = isMuted ? 'muted' : '';
                 
@@ -451,17 +426,7 @@ export const mixerMethods = {
 
         // Determine active device icon for header
         const activeDevice = this.audioDevices?.find(d => d.isDefault);
-        let headerIcon = 'ph-speaker-high';
-        if (activeDevice) {
-            const lowerName = activeDevice.name.toLowerCase();
-            if (lowerName.includes('casque') || lowerName.includes('headphones') || lowerName.includes('headset') || lowerName.includes('earphone')) {
-                headerIcon = 'ph-headphones';
-            } else if (lowerName.includes('speakers') || lowerName.includes('haut-parleurs') || lowerName.includes('haut parleur') || lowerName.includes('speaker')) {
-                headerIcon = 'ph-speaker-high';
-            } else if (lowerName.includes('hdmi') || lowerName.includes('tv') || lowerName.includes('display') || lowerName.includes('moniteur') || lowerName.includes('nvidia') || lowerName.includes('intel') || lowerName.includes('amd')) {
-                headerIcon = 'ph-monitor';
-            }
-        }
+        const headerIcon = getOutputDeviceIcon(activeDevice?.name);
 
         if (!this.audioDevices || this.audioDevices.length === 0) {
             this.loadAudioDevices(false);
@@ -576,7 +541,7 @@ export const mixerMethods = {
             }
             
             if (muteBtn) {
-                const muteIcon = isMuted ? 'ph-speaker-slash' : (activeVol < 50 ? 'ph-speaker-low' : 'ph-speaker-high');
+                const muteIcon = getMuteIcon(isMuted, activeVol);
                 muteBtn.className = `mixer-mute-btn ${isMuted ? 'muted' : ''}`;
                 muteBtn.innerHTML = `<i class="ph ${muteIcon}"></i>`;
             }
@@ -615,7 +580,7 @@ export const mixerMethods = {
             }
             if (muteIcon) {
                 muteIcon.className = `ic-mixer-mute ${isMuted ? 'muted' : ''}`;
-                muteIcon.innerHTML = `<i class="ph ${isMuted ? 'ph-speaker-slash' : (activeVol < 50 ? 'ph-speaker-low' : 'ph-speaker-high')}"></i>`;
+                muteIcon.innerHTML = `<i class="ph ${getMuteIcon(isMuted, activeVol)}"></i>`;
             }
         });
     },

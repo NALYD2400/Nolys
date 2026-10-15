@@ -42,7 +42,7 @@ body:not(.motion-sober) #dynamic-island.island-idle:active {
 /* Réglage « Halo qui respire » désactivé : halo fixe pendant la lecture. */
 body.no-glow-breath .island-active-music,
 body.no-glow-breath #dynamic-island.playing-music-glow,
-body.no-glow-breath #island-satellite.is-glowing {
+body.no-glow-breath .island-satellite.is-glowing {
     animation: none;
 }
 

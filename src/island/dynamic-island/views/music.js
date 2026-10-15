@@ -67,7 +67,7 @@ export const musicView = {
 
         const favoriteBtn = `
           <button class="island-action-btn music-favorite-btn ${isFavorite ? 'is-favorite' : ''}" onclick="event.stopPropagation(); window.island.toggleCurrentMusicFavorite()" title="${isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}">
-            <i class="ph ph-star"></i>
+            <i class="${isFavorite ? 'ph-fill' : 'ph'} ph-star"></i>
           </button>`;
 
         const historyBtn = `

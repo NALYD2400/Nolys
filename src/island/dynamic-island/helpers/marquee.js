@@ -27,6 +27,8 @@ export function applyLoopMarquee(box, text, overflow = textWidth(text) - box.cli
     text.replaceWith(track);
     track.append(text, copy);
     box.classList.add('is-marquee');
+    // Redessiné pendant une pause : le défilement reste figé (voir updatePlaybackVisualState).
+    box.classList.toggle('is-paused', window.island?.musicData?.isPlaying === false);
     box.style.setProperty('--marquee-shift', `-${width + GAP}px`);
     box.style.setProperty('--marquee-duration', `${((width + GAP) / SPEED).toFixed(1)}s`);
     return true;

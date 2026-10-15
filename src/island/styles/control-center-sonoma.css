@@ -60,7 +60,7 @@
 .ic-tile-label {
     font-size: 10px;
     font-weight: 700;
-    opacity: 0.9;
+    opacity: 0.8;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -68,9 +68,9 @@
 }
 
 .ic-tile-status {
-    font-size: 7.5px;
+    font-size: 9px;
     font-weight: 500;
-    opacity: 0.55;
+    opacity: 0.6;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -84,18 +84,9 @@
 
 .ic-tile i {
     font-size: 16px;
-    opacity: 0.6;
+    opacity: 0.8;
     transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
     flex-shrink: 0;
-}
-
-.ic-tile-label {
-    font-size: 10px;
-    font-weight: 700;
-    opacity: 0.8;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .ic-tile:hover {

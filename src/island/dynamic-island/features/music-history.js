@@ -324,7 +324,7 @@ export const musicHistoryMethods = {
                     </div>
                 </div>
                 <div class="music-history-actions">
-                    <button class="music-history-action ${item.favorite ? 'is-favorite' : ''}" data-action="favorite" title="${item.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}"><i class="ph ph-star"></i></button>
+                    <button class="music-history-action ${item.favorite ? 'is-favorite' : ''}" data-action="favorite" title="${item.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}"><i class="${item.favorite ? 'ph-fill' : 'ph'} ph-star"></i></button>
                     <button class="music-history-action" data-action="search" title="Rechercher"><i class="ph ph-magnifying-glass"></i></button>
                     <button class="music-history-action ${isCurrent ? '' : 'is-disabled'}" data-action="replay" title="${isCurrent ? 'Rejouer depuis le debut' : 'Rejouer marche seulement pour le morceau en cours'}" ${isCurrent ? '' : 'disabled'}><i class="ph ph-repeat"></i></button>
                     <button class="music-history-action" data-action="open" title="Ouvrir"><i class="ph ph-arrow-square-out"></i></button>

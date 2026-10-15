@@ -121,13 +121,18 @@ export const loopMethods = {
 
     onSecondTick() {
         if (this.isTimerRunning) {
-            this.timerValue++;
+            if (this.timerMode === 'countdown') {
+                this.timerValue = Math.max(0, this.timerValue - 1);
+                if (this.timerValue === 0) this.onCountdownDone();
+            } else {
+                this.timerValue++;
+            }
             if (this.isExpanded && this.mode === 'timer') {
                 this.renderTimer();
-            } else if (!this.isExpanded) {
-                this.renderIdle();
             }
         }
+        // La bulle du minuteur suit le décompte, la pilule reste libre (musique ou repos).
+        this.syncTimerSatellite();
 
         if (this.isExpanded) {
             if (this.mode === 'network') {

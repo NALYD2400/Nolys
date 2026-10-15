@@ -17,6 +17,11 @@ export const cleanDeviceName = (name = '') => {
 
 const OUTPUT_ICONS = { headset: 'ph-headset', headphones: 'ph-headphones', speakers: 'ph-speaker-hifi', other: 'ph-speaker-high' };
 
+/** Balance −100 (tout à gauche) … 100 (tout à droite) → position du curseur en %. */
+const balanceToPct = (balance) => ((balance + 100) / 200) * 100;
+/** Libellé court de la balance : « Centre », « G 20 », « D 35 ». */
+const balanceLabel = (balance) => (balance === 0 ? 'Centre' : balance < 0 ? `G ${-balance}` : `D ${balance}`);
+
 export const micMonitorView = {
     /** Rafraîchit ce qui dépend de l'état : la vue micro, ou la tuile du centre de contrôle. */
     refreshMicView() {
@@ -36,6 +41,7 @@ export const micMonitorView = {
         const error = enabled ? status.error : null;
         const volume = Number.isFinite(config.volume) ? config.volume : 60;
         const threshold = Number.isFinite(config.gateThreshold) ? config.gateThreshold : -50;
+        const balance = Number.isFinite(config.balance) ? config.balance : 0;
         const speakers = running && status.outputKind === 'speakers';
 
         let state = 'Coupé';
@@ -59,7 +65,7 @@ export const micMonitorView = {
                         <span class="mic-title-main">Retour micro</span>
                         <span class="mic-title-state"><span class="mic-state-dot"></span>${escapeHtml(state)}</span>
                     </div>
-                    <button class="mic-icon-btn" data-mic="back" title="Centre de contrôle"><i class="ph ph-squares-four"></i></button>
+                    <button class="mic-icon-btn" data-mic="back" title="Centre de contrôle"><i class="ph-bold ph-squares-four"></i></button>
                     <button class="mic-switch ${enabled ? 'on' : ''}" data-mic="toggle" role="switch" aria-checked="${enabled}" title="${enabled ? 'Couper le retour' : 'Activer le retour'}">
                         <span class="mic-switch-knob"></span>
                     </button>
@@ -85,7 +91,7 @@ export const micMonitorView = {
                 </section>
 
                 <section class="mic-volume" title="Volume du retour (au-delà de 100 % : amplifié)">
-                    <i class="ph ${volume === 0 ? 'ph-speaker-slash' : 'ph-speaker-low'}"></i>
+                    <i class="ph-bold ${volume === 0 ? 'ph-speaker-slash' : 'ph-speaker-low'}"></i>
                     <div class="mic-slider" data-mic="volume" style="--val: ${volume / 2}%">
                         <div class="mic-slider-fill"></div>
                         <div class="mic-slider-detent"></div>
@@ -94,21 +100,32 @@ export const micMonitorView = {
                     <span class="mic-volume-value">${volume} %</span>
                 </section>
 
+                <section class="mic-volume mic-balance" title="Balance gauche / droite (double-clic : centre)">
+                    <span class="mic-balance-side">G</span>
+                    <div class="mic-slider" data-mic="balance" style="--val: ${balanceToPct(balance)}%">
+                        <div class="mic-slider-fill"></div>
+                        <div class="mic-slider-detent"></div>
+                        <div class="mic-slider-knob"></div>
+                    </div>
+                    <span class="mic-balance-side">D</span>
+                    <span class="mic-volume-value">${balanceLabel(balance)}</span>
+                </section>
+
                 <section class="mic-chips">
                     <button class="mic-chip ${config.denoise ? 'on' : ''} ${status.denoiseAvailable === false ? 'is-disabled' : ''}" data-mic="denoise"
                         title="${status.denoiseAvailable === false ? 'Indisponible : le micro doit tourner à 48 kHz' : 'Réduction de bruit par réseau de neurones (RNNoise)'}">
-                        <i class="ph ph-sparkle"></i>Anti-bruit IA
+                        <i class="ph-bold ph-sparkle"></i>Anti-bruit IA
                     </button>
-                    <button class="mic-chip ${config.gateEnabled ? 'on' : ''}" data-mic="gate" title="Coupe le retour sous le seuil (clavier, ventilateur)">
-                        <i class="ph ph-funnel"></i>Porte
+                    <button class="mic-chip ${config.gateEnabled ? 'on' : ''}" data-mic="gate" title="Porte : coupe le retour sous le seuil (clavier, ventilateur)">
+                        <i class="ph-bold ph-waveform-slash"></i>Porte
                     </button>
                     <button class="mic-chip ${config.highPass ? 'on' : ''}" data-mic="highpass" title="Coupe-bas à 90 Hz (souffle, chocs)">
-                        <i class="ph ph-wave-sine"></i>Coupe-bas
+                        <i class="ph-bold ph-wave-sine"></i>Coupe-bas
                     </button>
                 </section>
 
                 <section class="mic-latency">
-                    <span title="Faible : le plus réactif. Sûre : si tu entends des craquements."><i class="ph ph-timer"></i>Latence</span>
+                    <span title="Faible : le plus réactif. Sûre : si tu entends des craquements."><i class="ph-bold ph-timer"></i>Latence</span>
                     <div class="mic-segment" role="radiogroup" aria-label="Latence">
                         ${LATENCIES.map((l) => `<button class="${(config.latency || 'normal') === l.id ? 'on' : ''}" data-mic-latency="${l.id}" title="Latence ${l.label.toLowerCase()}">${l.label}</button>`).join('')}
                     </div>
@@ -116,10 +133,10 @@ export const micMonitorView = {
 
                 <section class="mic-devices">
                     <button class="mic-device ${inputFallback ? 'warn' : ''}" data-mic="input" title="${inputFallback ? `Micro${fallbackNote}` : 'Choisir le micro'}">
-                        <i class="ph ${inputFallback ? 'ph-plugs' : 'ph-microphone'}"></i><span>${escapeHtml(inputName)}</span><i class="ph ph-caret-up-down"></i>
+                        <i class="ph-bold ${inputFallback ? 'ph-plugs' : 'ph-microphone'}"></i><span>${escapeHtml(inputName)}</span><i class="ph-bold ph-caret-up-down"></i>
                     </button>
                     <button class="mic-device ${speakers || outputFallback ? 'warn' : ''}" data-mic="output" title="${speakers ? 'Enceintes : risque de Larsen, préfère un casque' : outputFallback ? `Sortie${fallbackNote}` : 'Choisir la sortie'}">
-                        <i class="ph ${speakers ? 'ph-warning' : outputFallback ? 'ph-plugs' : OUTPUT_ICONS[status.outputKind] || 'ph-headphones'}"></i><span>${escapeHtml(outputName)}</span><i class="ph ph-caret-up-down"></i>
+                        <i class="ph-bold ${speakers ? 'ph-warning' : outputFallback ? 'ph-plugs' : OUTPUT_ICONS[status.outputKind] || 'ph-headphones'}"></i><span>${escapeHtml(outputName)}</span><i class="ph-bold ph-caret-up-down"></i>
                     </button>
                 </section>
             </div>
@@ -163,6 +180,26 @@ export const micMonitorView = {
             view.querySelector('.mic-volume-value').textContent = `${volume} %`;
             return { volume };
         });
+
+        // Balance : glisser de gauche à droite, aimantée au centre ; double-clic pour recentrer.
+        const balanceSlider = view.querySelector('[data-mic="balance"]');
+        this.bindMicDrag(balanceSlider, (pct) => {
+            let balance = Math.round((pct - 50) * 2);
+            if (Math.abs(balance) <= 4) balance = 0;
+            balanceSlider.style.setProperty('--val', `${balanceToPct(balance)}%`);
+            view.querySelector('.mic-balance .mic-volume-value').textContent = balanceLabel(balance);
+            return { balance };
+        });
+        balanceSlider.addEventListener('dblclick', (e) => {
+            e.stopPropagation();
+            this.setMicMonitor({ balance: 0 });
+        });
+        balanceSlider.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const balance = Math.max(-100, Math.min(100, (config().balance ?? 0) + (e.deltaY < 0 ? 5 : -5)));
+            this.setMicMonitor({ balance });
+        }, { passive: false });
 
         // Seuil de la porte : on le glisse directement sur le vumètre.
         const meter = view.querySelector('[data-mic="meter"]');

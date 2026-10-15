@@ -2,7 +2,7 @@
 
 .island-mode-mic {
     width: 404px;
-    height: 324px;
+    height: 360px;
     border-radius: 40px;
 }
 
@@ -370,6 +370,33 @@
     opacity: 0.85;
 }
 
+/* Balance : même curseur que le volume, mais le remplissage part du centre
+ * et le gain au-delà de 100 % n'existe pas ici. */
+.mic-balance-side {
+    font-size: 10px;
+    font-weight: 700;
+    opacity: 0.45;
+    width: 8px;
+    text-align: center;
+}
+
+.mic-balance .mic-volume-value {
+    width: 56px;
+}
+
+.mic-balance .mic-slider::after {
+    display: none;
+}
+
+.mic-balance .mic-slider-fill {
+    left: min(50%, var(--val));
+    width: abs(var(--val) - 50%);
+}
+
+.mic-balance .mic-slider-detent {
+    background: rgba(255, 255, 255, 0.5);
+}
+
 .mic-slider {
     --val: 30%;
     position: relative;
@@ -482,8 +509,10 @@
     transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
 }
 
+/* Icônes de la vue : graisse « bold » et taille commune, pour rester lisibles à 11 px. */
 .mic-chip i {
-    font-size: 13px;
+    font-size: 14px;
+    line-height: 1;
 }
 
 .mic-chip:hover {
@@ -712,7 +741,7 @@
  * floutée : variables recopiées par features/mic-monitor.js) et barres
  * dans la couleur du visualiseur, qui suivent la voix. */
 
-#island-satellite {
+.island-satellite {
     --mic-level: 0;
     --b1: 0.2;
     --b2: 0.2;
@@ -757,18 +786,18 @@
     z-index: 1;
 }
 
-#island-satellite.is-visible {
+.island-satellite.is-visible {
     pointer-events: auto;
     opacity: 1;
     transform: translateX(var(--satellite-to, 112px)) scale(1);
 }
 
 /* Même halo qui respire que la pilule quand la musique joue. */
-#island-satellite.is-glowing {
+.island-satellite.is-glowing {
     animation: islandGlowPulse 3s infinite ease-in-out;
 }
 
-body.motion-sober #island-satellite.is-glowing {
+body.motion-sober .island-satellite.is-glowing {
     animation: none;
 }
 
@@ -820,18 +849,18 @@ body.motion-sober #island-satellite.is-glowing {
 .satellite-bars span:nth-child(3) { transform: scaleY(var(--b3)); }
 .satellite-bars span:nth-child(4) { transform: scaleY(var(--b4)); }
 
-#island-satellite.is-speaking .satellite-icon {
+.island-satellite.is-speaking .satellite-icon {
     opacity: 0;
     transform: scale(0.6);
 }
 
-#island-satellite.is-speaking .satellite-bars {
+.island-satellite.is-speaking .satellite-bars {
     opacity: 1;
     transform: scale(1);
 }
 
 /* Erreur (micro débranché…) : petit point rouge, comme un badge. */
-#island-satellite.has-error::after {
+.island-satellite.has-error::after {
     content: '';
     position: absolute;
     top: 6px;
@@ -854,36 +883,94 @@ body.motion-sober #island-satellite.is-glowing {
     transition: opacity 0.18s ease, transform 0.25s ease;
 }
 
-#island-satellite.is-confirming {
+.island-satellite.is-confirming {
     background: rgba(255, 69, 58, 0.85);
 }
 
 /* La pochette floutée (opacité posée en ligne) masquerait le rouge. */
-#island-satellite.is-confirming .satellite-bg {
+.island-satellite.is-confirming .satellite-bg {
     visibility: hidden;
 }
 
-#island-satellite.is-confirming .satellite-icon,
-#island-satellite.is-confirming .satellite-bars {
+.island-satellite.is-confirming .satellite-icon,
+.island-satellite.is-confirming .satellite-bars {
     opacity: 0;
     transform: scale(0.6);
 }
 
-#island-satellite.is-confirming .satellite-confirm {
+.island-satellite.is-confirming .satellite-confirm {
     opacity: 1;
     transform: scale(1);
 }
 
-#island-satellite:hover {
+.island-satellite:hover {
     filter: brightness(1.15);
 }
 
-#island-satellite:active {
+.island-satellite:active {
     transform: translateX(var(--satellite-to, 112px)) scale(0.9);
 }
 
-body.layout-edit-mode #island-satellite {
+body.layout-edit-mode .island-satellite {
     display: none;
+}
+
+/* Minuteur : même bulle que le micro, à gauche de la pilule. L'anneau montre le temps
+ * restant ; le chrono (pas de fin) n'a pas d'anneau, seulement le temps. */
+.island-satellite-timer {
+    font-family: var(--font-mono, monospace);
+    color: #fff;
+}
+
+.island-satellite-timer .satellite-ring {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.island-satellite-timer .satellite-ring circle {
+    fill: none;
+    stroke: var(--neon-primary, #d49460);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-dasharray: var(--timer-pct, 0) 100;
+    transition: stroke-dasharray 0.9s linear;
+    filter: drop-shadow(0 0 3px color-mix(in srgb, var(--neon-primary, #d49460) 70%, transparent));
+}
+
+.island-satellite-timer.is-stopwatch .satellite-ring {
+    display: none;
+}
+
+/* Au-delà d'une minute : bulle élargie (m:ss tient à côté), sans anneau (un rond ne convient plus). */
+#island-timer-satellite {
+    transition: opacity 0.18s ease, transform 0.7s linear(0, 0.0541, 0.1852, 0.3533, 0.5286, 0.6908, 0.8282, 0.9353, 1.012, 1.0608, 1.0866, 1.0947, 1.0905, 1.0785, 1.0628, 1.0461, 1.0306, 1.0173, 1.0069, 0.9994, 0.9945, 0.9919, 0.991, 0.9914, 0.9924, 0.9939, 0.9955, 0.997, 0.9983, 0.9993, 1), width 0.25s ease, border-radius 0.25s ease;
+}
+
+#island-timer-satellite.is-wide {
+    width: 54px;
+    border-radius: 999px;
+}
+
+#island-timer-satellite.is-wide .satellite-ring {
+    display: none;
+}
+
+/* Au-delà d'une heure : h:mm:ss, bulle un peu plus large. */
+#island-timer-satellite.is-hours {
+    width: 66px;
+}
+
+.satellite-timer-value {
+    position: relative;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    color: rgba(255, 255, 255, 0.96);
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 /* ---------------------------------------------------------------- Tuile du centre de contrôle */

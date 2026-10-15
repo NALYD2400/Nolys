@@ -3,7 +3,7 @@ import { ipcRenderer } from '../../../shared/ipc.js';
 import { SoundService } from '../../../services/SoundService.js';
 import { escapeHtml } from '../helpers/format.js';
 import { APP_LOGO_ART, getDisplayMediaArt } from '../helpers/media-art.js';
-import { getMixerIcon } from '../helpers/mixer-icons.js';
+import { getMixerIcon, getMuteIcon } from '../helpers/mixer-icons.js';
 import { getMusicHistoryKey } from '../helpers/music-search.js';
 
 export const controlCenterView = {
@@ -215,7 +215,7 @@ export const controlCenterView = {
                                 <i class="ph ph-microphone"></i>
                                 <div class="ic-tile-text">
                                     <span class="ic-tile-label">Micro</span>
-                                    <span class="ic-tile-status">${this.micConfig.enabled ? 'Retour activé' : 'Retour coupé'}</span>
+                                    <span class="ic-tile-status">${this.micConfig.enabled ? 'Activé' : 'Coupé'}</span>
                                 </div>
                                 <span class="ic-tile-more" title="Régler le retour micro"><i class="ph-bold ph-caret-right"></i></span>
                             </div>
@@ -600,7 +600,7 @@ export const controlCenterView = {
                     if (battLabel) {
                         const battIcon = batteryCharging ? 'ph-battery-charging' : 'ph-battery-high';
                         const battLabelText = batteryCharging ? 'Secteur' : 'Batterie';
-                        battLabel.innerHTML = `<i class="ph ${battIcon}" style="dots; color: ${batteryCharging ? '#34c759' : ''}"></i> ${battLabelText}`;
+                        battLabel.innerHTML = `<i class="ph ${battIcon}" style="${batteryCharging ? 'color: #34c759;' : ''}"></i> ${battLabelText}`;
                     }
                 } catch(e){}
             }
@@ -659,7 +659,7 @@ export const controlCenterView = {
                                         iconHtml = `<i class="ph ph-music-note"></i>`;
                                     }
                                     
-                                    const muteIcon = isMuted ? 'ph-speaker-slash' : (activeVol < 50 ? 'ph-speaker-low' : 'ph-speaker-high');
+                                    const muteIcon = getMuteIcon(isMuted, activeVol);
                                     
                                     let cleanName = s.name.replace('.exe', '');
                                     if (cleanName.toLowerCase() === 'audiodg') cleanName = 'System Sounds';
@@ -703,7 +703,7 @@ export const controlCenterView = {
         tile.classList.toggle('active', enabled);
         tile.classList.toggle('has-error', Boolean(error));
         const status = tile.querySelector('.ic-tile-status');
-        if (status) status.textContent = error ? 'Erreur' : (enabled ? 'Retour activé' : 'Retour coupé');
+        if (status) status.textContent = error ? 'Erreur' : (enabled ? 'Activé' : 'Coupé');
         this.syncGlassControls();
     },
 

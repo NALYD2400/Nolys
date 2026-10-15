@@ -274,6 +274,11 @@ body.motion-sober .marquee-track {
     animation: none;
 }
 
+/* Pause : le titre reste à sa position (le défilement reprend à la lecture). */
+.is-marquee.is-paused .marquee-track {
+    animation-play-state: paused;
+}
+
 .track-artist {
     font-size: 13px;
     opacity: 0.7;
