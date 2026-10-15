@@ -168,7 +168,7 @@ export const controlCenterView = {
                     <div class="ic-header-actions">
                         <button class="ic-action-btn" onclick="event.stopPropagation(); window.island.setMode('settings')" title="Réglages"><i class="ph ph-gear"></i></button>
                         <button class="ic-action-btn power" id="ic-shutdown" title="Éteindre"><i class="ph ph-power"></i></button>
-                        <button class="ic-close" onclick="event.stopPropagation(); window.island.setMode('menu')" title="Menu des modules"><i class="ph ph-squares-four"></i></button>
+                        <button class="ic-close" onclick="event.stopPropagation(); window.island.setMode('menu')" title="Menu des modules"><i class="ph-bold ph-squares-four"></i></button>
                     </div>
                 </div>
                 

@@ -1,13 +1,50 @@
 /** Vues système : statistiques, réseau, chrono et minuteur. */
 import { SoundService } from '../../../services/SoundService.js';
 
-/** Durées proposées par le minuteur (en secondes). */
-const TIMER_PRESETS = [
-    { label: '1 min', seconds: 60 },
-    { label: '5 min', seconds: 300 },
-    { label: '10 min', seconds: 600 },
-    { label: '25 min', seconds: 1500 },
-];
+/** Durées proposées par le minuteur, par défaut (en secondes). */
+const DEFAULT_TIMER_PRESETS = [60, 300, 600, 1500];
+const TIMER_PRESETS_KEY = 'liquid_timer_presets';
+const MAX_TIMER_SECONDS = 99 * 3600;
+
+/** Durées rapides personnalisées (localStorage), avec repli sur les valeurs par défaut. */
+function loadTimerPresets() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(TIMER_PRESETS_KEY) || 'null');
+        if (Array.isArray(saved) && saved.length === DEFAULT_TIMER_PRESETS.length
+            && saved.every((n) => Number.isInteger(n) && n >= 1 && n <= MAX_TIMER_SECONDS)) {
+            return saved;
+        }
+    } catch (e) { /* valeurs par défaut */ }
+    return [...DEFAULT_TIMER_PRESETS];
+}
+
+/** « 1 h », « 25 min » ou « 1:30 » selon la durée. */
+export function formatTimerPreset(seconds) {
+    if (seconds % 3600 === 0) return `${seconds / 3600} h`;
+    if (seconds % 60 === 0) return `${seconds / 60} min`;
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+/**
+ * Lit une durée tapée : « 90 » (minutes), « 1h », « 1h30 », « 1h 30 », « 1:30 » (m:ss),
+ * « 1:30:00 » (h:mm:ss). Renvoie les secondes, ou null si ce n'est pas une durée valable.
+ */
+export function parseTimerInput(text) {
+    const raw = String(text || '').trim().toLowerCase().replace(/\s+/g, '');
+    let seconds = null;
+    let match;
+    if ((match = raw.match(/^(\d{1,2}):(\d{1,2}):(\d{1,2})$/))) {
+        seconds = Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]);
+    } else if ((match = raw.match(/^(\d{1,3}):(\d{1,2})$/))) {
+        seconds = Number(match[1]) * 60 + Number(match[2]);
+    } else if ((match = raw.match(/^(\d{1,2})h(\d{1,2})?$/))) {
+        seconds = Number(match[1]) * 3600 + Number(match[2] || 0) * 60;
+    } else if ((match = raw.match(/^(\d{1,4})(min|m)?$/))) {
+        seconds = Number(match[1]) * 60;
+    }
+    if (seconds === null || seconds < 1 || seconds > MAX_TIMER_SECONDS) return null;
+    return seconds;
+}
 
 export const systemViews = {
     renderStats(stats) {
@@ -87,7 +124,7 @@ export const systemViews = {
             </div>
             <div style="display: flex; gap: 10px;">
                 <button class="island-action-btn menu-btn" onclick="event.stopPropagation(); window.island.setMode('menu')" title="Menu des modules">
-                    <i class="ph ph-squares-four"></i>
+                    <i class="ph-bold ph-squares-four"></i>
                 </button>
             </div>
         </div>
@@ -163,7 +200,7 @@ export const systemViews = {
                         <i class="ph ph-globe-stand"></i> Pulse Réseau
                     </div>
                     <button class="island-action-btn menu-btn" onclick="event.stopPropagation(); window.island.setMode('menu')" title="Menu des modules">
-                        <i class="ph ph-squares-four"></i>
+                        <i class="ph-bold ph-squares-four"></i>
                     </button>
                 </div>
 
@@ -204,8 +241,10 @@ export const systemViews = {
         const status = this.isTimerRunning ? 'En cours' : (this.timerValue > 0 ? 'En pause' : 'Prêt');
         // Minuteur au repos, vide ou sur sa durée : on propose les durées à la place du statut.
         const showPresets = isCountdown && !this.isTimerRunning && (this.timerValue === 0 || this.timerValue === this.timerPreset);
-        const presetsHtml = TIMER_PRESETS.map((p) => `
-                    <button class="timer-preset ${this.timerPreset === p.seconds ? 'on' : ''}" onclick="event.stopPropagation(); window.island.setTimerPreset(${p.seconds})" title="Minuteur : ${p.label}">${p.label}</button>`).join('');
+        const presets = loadTimerPresets();
+        // Clic : durée. Clic droit : la changer (saisie d'une nouvelle durée).
+        const presetsHtml = presets.map((seconds, index) => `
+                    <button class="timer-preset ${this.timerPreset === seconds ? 'on' : ''}" data-preset="${index}" onclick="event.stopPropagation(); window.island.setTimerPreset(${seconds})" oncontextmenu="event.preventDefault(); event.stopPropagation(); window.island.editTimerPreset(${index})" title="Minuteur : ${formatTimerPreset(seconds)} (clic droit pour la changer)">${formatTimerPreset(seconds)}</button>`).join('');
 
         this.content.innerHTML = `
         <div class="island-timer-container">
@@ -215,7 +254,7 @@ export const systemViews = {
                     <button class="${isCountdown ? 'on' : ''}" role="radio" aria-checked="${isCountdown}" onclick="event.stopPropagation(); window.island.setTimerMode('countdown')">Minuteur</button>
                 </div>
                 <button class="island-action-btn menu-btn" onclick="event.stopPropagation(); window.island.setMode('menu')" title="Menu des modules">
-                    <i class="ph ph-squares-four"></i>
+                    <i class="ph-bold ph-squares-four"></i>
                 </button>
             </div>
             <div class="timer-stage">
@@ -247,6 +286,46 @@ export const systemViews = {
         this.timerValue = this.timerStore[mode];
         this.isTimerRunning = false;
         this.renderTimer();
+    },
+
+    /**
+     * Clic droit sur une durée rapide : un champ s'ouvre à sa place. Entrée valide, Échap
+     * ou perte du focus annule. Une durée invalide garde l'ancienne valeur.
+     */
+    editTimerPreset(index) {
+        const button = this.content.querySelector(`.timer-preset[data-preset="${index}"]`);
+        if (!button || button.querySelector('input')) return;
+        const presets = loadTimerPresets();
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'timer-preset-input';
+        input.value = formatTimerPreset(presets[index]);
+        input.placeholder = '90 · 1h30 · 1:30:00';
+        input.setAttribute('aria-label', 'Nouvelle durée');
+        button.textContent = '';
+        button.appendChild(input);
+        input.focus();
+        input.select();
+
+        let done = false;
+        const finish = (save) => {
+            if (done) return;
+            done = true;
+            const seconds = save ? parseTimerInput(input.value) : null;
+            if (seconds !== null) {
+                presets[index] = seconds;
+                try { localStorage.setItem(TIMER_PRESETS_KEY, JSON.stringify(presets)); } catch (e) { /* stockage plein : valeur gardée pour cette session */ }
+                if (this.timerPreset === presets[index]) this.timerPreset = seconds;
+            }
+            this.renderTimer();
+        };
+        input.addEventListener('keydown', (e) => {
+            e.stopPropagation(); // les touches ne doivent pas déclencher les raccourcis de l'Island
+            if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+            else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+        });
+        input.addEventListener('blur', () => finish(true));
+        input.addEventListener('click', (e) => e.stopPropagation());
     },
 
     /** Choisit une durée du minuteur, prête à démarrer. */

@@ -162,3 +162,20 @@
 .timer-control-btn.primary i {
     font-size: 18px;
 }
+
+/* Saisie d'une durée rapide (clic droit sur le bouton) : le champ prend la place du texte. */
+.timer-preset-input {
+    width: 84px;
+    height: 100%;
+    min-width: 0;
+    padding: 0 6px;
+    box-sizing: border-box;
+    border: 0;
+    outline: 1px solid var(--neon-primary, #d49460);
+    border-radius: inherit;
+    background: rgba(0, 0, 0, 0.35);
+    color: #fff;
+    font: inherit;
+    font-size: 11px;
+    text-align: center;
+}

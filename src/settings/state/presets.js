@@ -67,7 +67,7 @@ export const VIZ_STYLE_OPTIONS = [
     { value: 'capsules', label: 'Gélules', icon: 'ph-waveform' },
     { value: 'bars', label: 'Égaliseur', icon: 'ph-chart-bar' },
     { value: 'wave', label: 'Onde', icon: 'ph-wave-sine' },
-    { value: 'dots', label: 'Points', icon: 'ph-dots-three' },
+    { value: 'dots', label: 'Points', icon: 'ph-dots-nine' },
 ];
 
 export const COVER_SHAPE_OPTIONS = [

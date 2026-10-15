@@ -33,19 +33,24 @@
     gap: 10px;
 }
 
-/* Pastille discrète : le titre « Retour micro » reste l'élément principal de l'en-tête. */
+/* Pastille : 30 px pour que le micro plein (16 px) tienne net, centré sur des pixels entiers. */
 .mic-badge {
     position: relative;
-    width: 26px;
-    height: 26px;
+    width: 30px;
+    height: 30px;
     flex-shrink: 0;
     border-radius: 50%;
     display: grid;
     place-items: center;
     background: rgba(255, 255, 255, 0.08);
     color: rgba(255, 255, 255, 0.7);
-    font-size: 13px;
+    font-size: 16px;
     transition: background 0.3s ease, color 0.3s ease;
+}
+
+.mic-badge i {
+    display: block;
+    line-height: 1;
 }
 
 .mic-view.is-running .mic-badge {
@@ -138,22 +143,28 @@
     opacity: 1;
 }
 
+/* Même hauteur et même fond que la piste de l'interrupteur à côté : les deux pèsent pareil. */
 .mic-icon-btn {
-    width: 30px;
-    height: 30px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     border: none;
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.75);
+    background: rgba(255, 255, 255, 0.14);
+    color: rgba(255, 255, 255, 0.92);
     display: grid;
     place-items: center;
-    font-size: 15px;
+    font-size: 16px;
     cursor: pointer;
     transition: background 0.2s ease, transform 0.2s ease;
 }
 
+.mic-icon-btn i {
+    display: block;
+    line-height: 1;
+}
+
 .mic-icon-btn:hover {
-    background: rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.22);
     transform: scale(1.06);
 }
 
@@ -357,7 +368,7 @@
 }
 
 .mic-volume > i {
-    font-size: 15px;
+    font-size: 14px;
     opacity: 0.6;
 }
 
@@ -509,10 +520,19 @@
     transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
 }
 
-/* Icônes de la vue : graisse « bold » et taille commune, pour rester lisibles à 11 px. */
+/* Icônes de la vue : graisse « bold » et taille commune, pour rester lisibles à 11 px.
+ * Corrections optiques : les dessins n'ont pas la même hauteur d'encre à taille égale. */
 .mic-chip i {
     font-size: 14px;
     line-height: 1;
+}
+
+.mic-chip .ph-waveform-slash {
+    font-size: 15px;
+}
+
+.mic-chip .ph-wave-sine {
+    font-size: 16px;
 }
 
 .mic-chip:hover {
@@ -550,6 +570,15 @@
     font-size: 11px;
     font-weight: 600;
     opacity: 0.6;
+}
+
+/* Icônes posées à côté d'un libellé en minuscules : le texte paraît 1 px plus bas que le centre de sa ligne,
+ * on descend donc l'icône du même cran (chips, latence, périphériques). */
+.mic-latency > span i,
+.mic-chip i,
+.mic-device > i:first-child {
+    position: relative;
+    top: 1px;
 }
 
 .mic-latency > span i {
@@ -621,8 +650,15 @@
 
 .mic-device i {
     font-size: 14px;
+    line-height: 1;
     opacity: 0.7;
     flex-shrink: 0;
+}
+
+/* Flèche de sélection : discrète, plus petite que l'icône du périphérique. */
+.mic-device > i:last-child {
+    font-size: 11px;
+    opacity: 0.4;
 }
 
 .mic-device.warn {

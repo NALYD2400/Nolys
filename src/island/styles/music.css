@@ -69,6 +69,14 @@
     border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+/* Bouton d'ouverture du menu : graisse « bold » et icône plus grande que ses voisins de la pilule
+ * (la règle de la grappe, plus précise, la remet à 14 px sinon). */
+.island-action-btn.menu-btn i,
+.music-action-cluster .island-action-btn.menu-btn i {
+    font-size: 16px;
+    color: #fff;
+}
+
 .island-action-btn.menu-btn:hover {
     background: rgba(var(--neon-secondary-rgb), 0.15);
     border-color: rgba(var(--neon-secondary-rgb), 0.4);

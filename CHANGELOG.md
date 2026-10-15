@@ -1,5 +1,11 @@
 # Historique
 
+## 2.2.1 — 15 octobre 2026
+
+- Pochette : après un précédent ou suivant, l'ancienne pochette (ou le logo du navigateur) ne reste plus si rien n'est trouvé.
+- Minuteur et chrono dans une bulle à gauche de la pilule ; placement, titres et réglages retouchés.
+- Icônes harmonisées dans l'Island et les Réglages.
+
 ## 2.2.0 — 15 octobre 2026
 
 ### Raccourcis clavier (nouvelle section « Raccourcis » des Réglages)
@@ -21,6 +27,7 @@
 
 ### Corrections
 
+- Pochette après précédent/suivant : l'ancienne pochette (ou le logo Chrome) ne reste plus quand la recherche ne trouve rien pour le nouveau morceau.
 - Fond d'écran pochette : une pochette encore en attente pouvait revenir juste après la désactivation ; elle est maintenant annulée, et l'option est revérifiée avant d'appliquer.
 - Réglages : l'en-tête est en verre dépoli, et les cartes ne réapparaissent plus derrière le titre quand on fait défiler.
 - Menus déroulants des Réglages : le bouton reste visible quand le menu est ouvert (le menu s'en détache au lieu de le remplacer).

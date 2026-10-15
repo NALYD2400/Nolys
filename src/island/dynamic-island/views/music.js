@@ -62,7 +62,7 @@ export const musicView = {
 
         const menuBtn = `
           <button class="island-action-btn menu-btn" onclick="event.stopPropagation(); window.island.setMode('menu')" title="Menu des modules">
-            <i class="ph ph-squares-four"></i>
+            <i class="ph-bold ph-squares-four"></i>
           </button>`;
 
         const favoriteBtn = `

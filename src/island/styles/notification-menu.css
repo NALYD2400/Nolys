@@ -127,10 +127,13 @@
     opacity: 1;
 }
 
+/* Case de chaque module : même taille et même arrondi pour toutes les tuiles. */
 .menu-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
     background: rgba(255, 255, 255, 0.1);
     display: flex;
     align-items: center;
@@ -139,6 +142,19 @@
     color: #fff;
     transition: all 0.2s;
     border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Tailles optiques : le trait de chaque dessin n'occupe pas la même place dans sa case. */
+.menu-icon .ph-timer {
+    font-size: 20px;
+}
+
+.menu-icon .ph-sliders-horizontal {
+    font-size: 26px;
+}
+
+.menu-icon .ph-microphone {
+    font-size: 20px;
 }
 
 .island-menu-item:hover .menu-icon {
