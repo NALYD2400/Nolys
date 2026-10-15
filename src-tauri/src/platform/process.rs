@@ -13,8 +13,8 @@ use windows::Win32::System::Threading::{
     OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    EnumWindows, GetClassNameW, GetForegroundWindow, GetWindow, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
-    GetWindowThreadProcessId, IsWindowVisible, GW_OWNER,
+    EnumWindows, GetClassNameW, GetForegroundWindow, GetWindow, GetWindowLongPtrW, GetWindowRect, GetWindowTextLengthW,
+    GetWindowTextW, GetWindowThreadProcessId, IsWindowVisible, IsZoomed, GWL_STYLE, GW_OWNER, WS_THICKFRAME,
 };
 
 /// Chemin complet de l'exécutable d'un processus.
@@ -171,6 +171,15 @@ pub fn foreground_window() -> Option<ForegroundInfo> {
                     && (rect.right - m.right).abs() <= TOLERANCE
                     && (rect.bottom - m.bottom).abs() <= TOLERANCE;
             }
+        }
+        // Une fenêtre agrandie à bord redimensionnable n'est pas un plein écran. Sur un écran
+        // sans barre des tâches, les applis à barre de titre maison (ChatGPT, VS Code…)
+        // couvrent alors l'écran pile, comme un plein écran : l'Island se masquait dès qu'on
+        // en agrandissait une, ou qu'on la collait en haut de l'écran en la déplaçant.
+        // Un vrai plein écran (vidéo, jeu, F11) n'est pas agrandi et n'a pas ce bord.
+        if is_fullscreen && IsZoomed(hwnd).as_bool() {
+            let style = GetWindowLongPtrW(hwnd, GWL_STYLE) as u32;
+            is_fullscreen = style & WS_THICKFRAME.0 == 0;
         }
 
         Some(ForegroundInfo { pid, name, title, class_name, monitor: monitor.0 as isize, is_fullscreen })
