@@ -1,10 +1,13 @@
 # Historique
 
-## 2.2.1 — 15 octobre 2026
+## 2.2.2 — 15 octobre 2026
 
 - Performance : le halo qui respire pendant la lecture avance 24 fois par seconde au lieu de suivre le rafraîchissement de l'écran (jusqu'à 360 Hz), et les bulles cachées sous la pilule ne pulsent plus. Rendu identique, processeur divisé par 2,5 environ pendant la lecture.
 - Nouveau réglage « Images par seconde » (Apparence) : plafond des animations continues qui se redessinent, 60 par défaut, jusqu'à 240 ou la fréquence de l'écran.
 - Performance : quand l'Island est masquée (plein écran, raccourci), ses animations se mettent en pause et reprennent au même point quand elle revient.
+
+## 2.2.1 — 15 octobre 2026
+
 - Pochette : après un précédent ou suivant, l'ancienne pochette (ou le logo du navigateur) ne reste plus si rien n'est trouvé.
 - Minuteur et chrono dans une bulle à gauche de la pilule ; placement, titres et réglages retouchés.
 - Icônes harmonisées dans l'Island et les Réglages.
