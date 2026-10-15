@@ -34,6 +34,8 @@ pub struct AppState {
     pub click_through: AtomicBool,
     /// Ignore les événements `Moved` provoqués par nos propres repositionnements.
     pub suppress_move_sync: AtomicBool,
+    /// Dernière visibilité de la fenêtre annoncée à l'Island (voir `island::notify_visibility`).
+    pub window_visible: AtomicBool,
 }
 
 impl AppState {
@@ -52,6 +54,7 @@ impl AppState {
             layout_edit_mode: AtomicBool::new(false),
             click_through: AtomicBool::new(true),
             suppress_move_sync: AtomicBool::new(false),
+            window_visible: AtomicBool::new(true),
         }
     }
 }

@@ -28,33 +28,44 @@
     animation: albumArtFlip 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
-/* 2. Slow Breathing Aura Glow Pulse */
-@keyframes islandGlowPulse {
-    0% {
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15),
-                    0 8px 24px rgba(0, 0, 0, 0.4),
-                    0 0 calc(var(--island-glow-size, 20px) * 0.8) rgba(var(--island-glow-rgb, 0, 243, 255), calc(0.38 * var(--island-glow-opacity, 1))),
-                    0 0 calc(var(--island-glow-size, 20px) * 1.8) rgba(var(--island-glow-rgb, 0, 243, 255), calc(0.18 * var(--island-glow-opacity, 1))),
-                    0 0 0 1px rgba(var(--island-glow-rgb, 0, 243, 255), calc(0.22 * var(--island-glow-opacity, 1)));
-    }
-    50% {
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15),
-                    0 8px 24px rgba(0, 0, 0, 0.4),
-                    0 0 calc(var(--island-glow-size, 20px) * 1.2) rgba(var(--island-glow-rgb, 0, 243, 255), calc(0.58 * var(--island-glow-opacity, 1))),
-                    0 0 calc(var(--island-glow-size, 20px) * 2.5) rgba(var(--island-glow-rgb, 0, 243, 255), calc(0.3 * var(--island-glow-opacity, 1))),
-                    0 0 0 1px rgba(var(--island-glow-rgb, 0, 243, 255), calc(0.3 * var(--island-glow-opacity, 1)));
-    }
-    100% {
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15),
-                    0 8px 24px rgba(0, 0, 0, 0.4),
-                    0 0 calc(var(--island-glow-size, 20px) * 0.8) rgba(var(--island-glow-rgb, 0, 243, 255), calc(0.38 * var(--island-glow-opacity, 1))),
-                    0 0 calc(var(--island-glow-size, 20px) * 1.8) rgba(var(--island-glow-rgb, 0, 243, 255), calc(0.18 * var(--island-glow-opacity, 1))),
-                    0 0 0 1px rgba(var(--island-glow-rgb, 0, 243, 255), calc(0.22 * var(--island-glow-opacity, 1)));
-    }
+/* Halo de la pilule, sur une couche à part (#island-halo, placée par features/glow-halo.js).
+ * --glow-breath (0 au repos, 1 au pic) y est avancée 24 fois par seconde avec la même courbe que
+ * l'ancienne animation : le halo est recalculé exactement comme elle le faisait. Une animation CSS
+ * suivait le rafraîchissement de l'écran (jusqu'à 360 Hz) et faisait recomposer la fenêtre à
+ * chaque fois ; entre deux images à 24 i/s, le halo ne change que d'un niveau de couleur. */
+#island-halo {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 0;
+    height: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s ease;
 }
 
-#dynamic-island.playing-music-glow {
-    animation: islandGlowPulse 4s infinite ease-in-out;
+#island-halo::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    box-shadow:
+        0 0 calc(var(--island-glow-size, 20px) * (0.8 + 0.4 * var(--glow-breath, 0))) rgba(var(--island-glow-rgb, 0, 243, 255), calc((0.38 + 0.2 * var(--glow-breath, 0)) * var(--island-glow-opacity, 1))),
+        0 0 calc(var(--island-glow-size, 20px) * (1.8 + 0.7 * var(--glow-breath, 0))) rgba(var(--island-glow-rgb, 0, 243, 255), calc((0.18 + 0.12 * var(--glow-breath, 0)) * var(--island-glow-opacity, 1))),
+        0 0 0 1px rgba(var(--island-glow-rgb, 0, 243, 255), calc((0.22 + 0.08 * var(--glow-breath, 0)) * var(--island-glow-opacity, 1)));
+}
+
+/* Le halo ne prend le relais que s'il respire (pas en mode sobre, ni avec « Halo qui respire »
+ * coupé) : sinon la pilule garde son propre halo fixe, comme avant. */
+#island-halo.is-breathing {
+    opacity: 1;
+}
+
+/* Pendant ce temps, la pilule ne porte plus que son bord et son ombre portée. */
+#dynamic-island.glow-breathing {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 8px 24px rgba(0, 0, 0, 0.4) !important;
 }
 
 /* 3. Apple Weather Widget Card */

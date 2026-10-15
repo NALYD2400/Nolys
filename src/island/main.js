@@ -154,6 +154,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (config.ecoMode !== undefined && String(config.ecoMode) !== localStorage.getItem('liquid_eco_mode')) {
             window.dispatchEvent(new CustomEvent('liquid-eco-mode-changed', { detail: Boolean(config.ecoMode) }));
         }
+        if (config.maxFps !== undefined) {
+            localStorage.setItem('liquid_max_fps', config.maxFps);
+            if (window.island) window.island.setMaxFps(Number(config.maxFps));
+        }
         if (config.idleCompactMode !== undefined) {
             localStorage.setItem('liquid_idle_compact_mode', config.idleCompactMode);
             if (window.island) window.island._vizCanvas = null;
@@ -262,6 +266,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!window.island || !layout) return;
         localStorage.setItem('liquid_layout_config', JSON.stringify(layout));
         window.island.applyLayoutConfig(layout);
+    });
+
+    // Fenêtre masquée (plein écran, raccourci) : animations en pause tant que rien n'est visible.
+    ipcRenderer.on('island-visibility-changed', (event, visible) => {
+        if (window.island) window.island.setWindowHidden(!visible);
     });
 
     ipcRenderer.on('layout-edit-mode-changed', (event, enabled) => {

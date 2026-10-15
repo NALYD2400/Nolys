@@ -38,6 +38,16 @@ export const MOTION_OPTIONS = [
     { value: 'vivid', label: 'Vivante' },
 ];
 
+/** Plafond d'images par seconde des animations continues ('0' : cadence de l'écran). */
+export const FPS_OPTIONS = [
+    { value: '30', label: '30' },
+    { value: '60', label: '60' },
+    { value: '120', label: '120' },
+    { value: '144', label: '144' },
+    { value: '240', label: '240' },
+    { value: '0', label: 'Écran' },
+];
+
 export const MATERIAL_OPTIONS = [
     { value: 'glass', label: 'Verre', icon: 'ph-drop' },
     { value: 'metal', label: 'Métal', icon: 'ph-circle-half' },

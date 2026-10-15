@@ -40,6 +40,8 @@ export function loadSettings() {
         notifications: flag('liquid_notifications_enabled'),
         soundEffects: flag('liquid_sound_effects_enabled'),
         ecoMode: optIn('liquid_eco_mode'),
+        // Plafond des animations continues : 60 par défaut, '0' pour la cadence de l'écran.
+        maxFps: read('liquid_max_fps', '60'),
         hotkeys: readHotkeys(),
         activeProfile: read('liquid_active_profile', 'custom'),
 
@@ -108,6 +110,7 @@ export function buildConfig(s) {
         motion: s.motion,
         notifications: s.notifications,
         ecoMode: s.ecoMode,
+        maxFps: s.maxFps,
         idleCompactMode: s.idleCompactMode,
         isCoverSync: s.coverSync,
         isIdleCoverBg: s.idleCoverBg,
@@ -178,6 +181,7 @@ export function saveSettings(s) {
         liquid_island_control_enabled: s.controlEnabled,
         liquid_game_detection_enabled: s.gameDetection,
         liquid_sound_effects_enabled: s.soundEffects,
+        liquid_max_fps: s.maxFps,
         liquid_island_persistent: s.persistent,
         liquid_cover_color_sync: s.coverSync,
         liquid_island_idle_cover_bg: s.idleCoverBg,
@@ -232,6 +236,7 @@ export function toSnapshot(s, layout) {
         shortcuts: s.shortcuts,
         player: config.player,
         ecoMode: s.ecoMode,
+        maxFps: s.maxFps,
         idleCompactMode: s.idleCompactMode,
         ...(layout ? { layout } : {}),
     };
@@ -307,6 +312,7 @@ export function fromSnapshot(current, snapshot = {}) {
         wheelAppVolume: player.wheelAppVolume ?? current.wheelAppVolume,
         ecoMode: pick(snapshot.ecoMode ?? snapshot.eco, current.ecoMode),
         idleCompactMode: pick(snapshot.idleCompactMode, current.idleCompactMode),
+        maxFps: pick(snapshot.maxFps, current.maxFps),
     };
 }
 

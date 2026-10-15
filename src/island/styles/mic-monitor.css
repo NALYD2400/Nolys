@@ -828,13 +828,16 @@
     transform: translateX(var(--satellite-to, 112px)) scale(1);
 }
 
-/* Même halo qui respire que la pilule quand la musique joue. */
-.island-satellite.is-glowing {
-    animation: islandGlowPulse 3s infinite ease-in-out;
-}
-
-body.motion-sober .island-satellite.is-glowing {
-    animation: none;
+/* Même halo qui respire que la pilule quand la musique joue. --glow-breath (0 au repos, 1 au pic)
+ * est avancée 24 fois par seconde par features/glow-halo.js, seulement quand la bulle est visible :
+ * l'ancienne animation tournait au rythme de l'écran, même bulle cachée sous la pilule. */
+body:not(.motion-sober):not(.no-glow-breath) .island-satellite.is-glowing {
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.15),
+        0 8px 24px rgba(0, 0, 0, 0.4),
+        0 0 calc(var(--island-glow-size, 20px) * (0.8 + 0.4 * var(--glow-breath, 0))) rgba(var(--island-glow-rgb, 212, 148, 96), calc((0.38 + 0.2 * var(--glow-breath, 0)) * var(--island-glow-opacity, 1))),
+        0 0 calc(var(--island-glow-size, 20px) * (1.8 + 0.7 * var(--glow-breath, 0))) rgba(var(--island-glow-rgb, 212, 148, 96), calc((0.18 + 0.12 * var(--glow-breath, 0)) * var(--island-glow-opacity, 1))),
+        0 0 0 1px rgba(var(--island-glow-rgb, 212, 148, 96), calc((0.22 + 0.08 * var(--glow-breath, 0)) * var(--island-glow-opacity, 1)));
 }
 
 /* Pochette floutée, recopiée depuis la pilule. */

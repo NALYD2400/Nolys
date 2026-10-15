@@ -70,7 +70,7 @@ const INVOKE_CHANNELS = {
 const EVENT_CHANNELS = new Set([
     'config-changed', 'trigger-notif', 'layout-config-changed',
     'layout-edit-mode-changed', 'update-status-changed', 'cover-color-changed',
-    'mic-monitor-changed', 'shortcut-open-mode',
+    'mic-monitor-changed', 'shortcut-open-mode', 'island-visibility-changed',
     // Canaux historiques sans émetteur natif, conservés pour compatibilité.
     'app-go-background', 'app-go-foreground', 'open-search',
 ]);

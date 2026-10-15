@@ -410,7 +410,6 @@ body.layout-edit-mode #layout-edit-toolbar.is-settling {
 .island-active-music {
     width: 200px;
     height: 35px;
-    animation: islandGlowPulse 3s infinite ease-in-out;
 }
 
 body.motion-sober #dynamic-island {
@@ -419,11 +418,6 @@ body.motion-sober #dynamic-island {
         border-radius 0.22s ease,
         background-color 0.2s ease,
         box-shadow 0.2s ease;
-}
-
-body.motion-sober #dynamic-island.playing-music-glow,
-body.motion-sober .island-active-music {
-    animation: none;
 }
 
 body.motion-sober .island-settings-container,
@@ -444,37 +438,10 @@ body.motion-vivid #dynamic-island {
         box-shadow 0.28s ease;
 }
 
-body.motion-vivid #dynamic-island.playing-music-glow,
-body.motion-vivid .island-active-music {
-    animation-duration: 2.4s;
-}
-
 body.motion-vivid .island-action-btn:hover,
 body.motion-vivid .music-history-action:hover,
 body.motion-vivid .inner-action-btn:hover {
     transform: translateY(-2px) scale(1.05);
-}
-
-@keyframes island-pulse {
-
-    0%,
-    100% {
-        box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.15),
-            0 8px 24px rgba(0, 0, 0, 0.4),
-            0 0 calc(var(--island-glow-size, 20px) * 0.8) rgba(var(--island-glow-rgb, 0, 243, 255), calc(0.38 * var(--island-glow-opacity, 1))),
-            0 0 calc(var(--island-glow-size, 20px) * 1.8) rgba(var(--island-glow-rgb, 0, 243, 255), calc(0.18 * var(--island-glow-opacity, 1))),
-            0 0 0 1px rgba(var(--island-glow-rgb, 0, 243, 255), calc(0.22 * var(--island-glow-opacity, 1)));
-    }
-
-    50% {
-        box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.15),
-            0 8px 24px rgba(0, 0, 0, 0.4),
-            0 0 calc(var(--island-glow-size, 20px) * 1.2) rgba(var(--island-glow-rgb, 0, 243, 255), calc(0.58 * var(--island-glow-opacity, 1))),
-            0 0 calc(var(--island-glow-size, 20px) * 2.5) rgba(var(--island-glow-rgb, 0, 243, 255), calc(0.3 * var(--island-glow-opacity, 1))),
-            0 0 0 1px rgba(var(--island-glow-rgb, 0, 243, 255), calc(0.3 * var(--island-glow-opacity, 1)));
-    }
 }
 
 .island-expanded {

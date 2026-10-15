@@ -1,5 +1,5 @@
 import { Card, ChoiceGrid, ColorSwatch, Reveal, Row, Segmented, SliderRow, Toggle } from '../components/controls.jsx';
-import { GLOW_COLOR_OPTIONS, GRAIN_OPTIONS, MATERIAL_OPTIONS, MOTION_OPTIONS } from '../state/presets.js';
+import { FPS_OPTIONS, GLOW_COLOR_OPTIONS, GRAIN_OPTIONS, MATERIAL_OPTIONS, MOTION_OPTIONS } from '../state/presets.js';
 
 export default function Appearance({ store }) {
     const { settings, update } = store;
@@ -26,6 +26,13 @@ export default function Appearance({ store }) {
                 />
                 <Segmented label="Grain" value={settings.grainEffect} options={GRAIN_OPTIONS} onChange={(grainEffect) => update({ grainEffect })} />
                 <Segmented label="Animations" value={settings.motion} options={MOTION_OPTIONS} onChange={(motion) => update({ motion })} />
+                <Segmented
+                    label="Images par seconde"
+                    description="Plafond des animations continues qui se redessinent à chaque image (matières animées, effets lumineux…). Plus haut : plus fluide sur un écran rapide, mais plus de processeur. « Écran » suit sa fréquence."
+                    value={String(settings.maxFps)}
+                    options={FPS_OPTIONS}
+                    onChange={(maxFps) => update({ maxFps })}
+                />
                 <Toggle
                     label="Boutons en verre dans le lecteur"
                     description="Effet Liquid Glass sur les commandes de lecture. Désactivé en mode Éco."

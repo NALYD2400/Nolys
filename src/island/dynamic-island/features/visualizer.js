@@ -25,7 +25,11 @@ export const visualizerMethods = {
             for (let i = 0; i < 5; i++) {
                 this._vizBands[i] = this._vizBands[i] * (1 - alpha) + (data.bands[i] || 0) * alpha;
             }
+            // Fenêtre masquée : les niveaux restent à jour, mais rien n'est dessiné.
+            if (this._windowHidden) return;
             this._updateVizCanvas();
+            // Le halo avance dans la même image que les barres (features/glow-halo.js).
+            this.shareGlowBreathFrame();
         });
 
         this.syncVisualizerActivity();

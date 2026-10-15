@@ -8,3 +8,4 @@ pub const UPDATE_STATUS_CHANGED: &str = "update-status-changed";
 pub const COVER_COLOR_CHANGED: &str = "cover-color-changed";
 pub const MIC_MONITOR_CHANGED: &str = "mic-monitor-changed";
 pub const SHORTCUT_OPEN_MODE: &str = "shortcut-open-mode";
+pub const ISLAND_VISIBILITY_CHANGED: &str = "island-visibility-changed";

@@ -39,11 +39,12 @@ body:not(.motion-sober) #dynamic-island.island-idle:active {
     transform: scale(0.96, 0.92);
 }
 
-/* Réglage « Halo qui respire » désactivé : halo fixe pendant la lecture. */
-body.no-glow-breath .island-active-music,
-body.no-glow-breath #dynamic-island.playing-music-glow,
-body.no-glow-breath .island-satellite.is-glowing {
-    animation: none;
+/* Fenêtre masquée (plein écran, raccourci) : rien n'est visible, les animations attendent
+ * en pause et reprennent là où elles en étaient (features/glow-halo.js, setWindowHidden). */
+body.island-window-hidden *,
+body.island-window-hidden *::before,
+body.island-window-hidden *::after {
+    animation-play-state: paused !important;
 }
 
 /* ---------------------------------------------------------------- Entrée du contenu */

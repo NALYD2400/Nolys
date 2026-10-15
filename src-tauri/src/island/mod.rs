@@ -171,6 +171,18 @@ fn sync_native_state(app: &AppHandle) {
     if state.hidden_by_user.load(Ordering::SeqCst) || state.hidden_by_fullscreen.load(Ordering::SeqCst) {
         win::hide(hwnd);
     }
+    notify_visibility(app);
+}
+
+/// Prévient l'Island quand sa fenêtre est masquée ou réaffichée. La fenêtre est masquée en
+/// Win32 : WebView2 ne le sait pas et continuait d'animer (halo, titre, visualiseur) une page
+/// que personne ne voit. L'Island met alors ses animations en pause et les reprend au retour.
+fn notify_visibility(app: &AppHandle) {
+    let Some(hwnd) = window(app).and_then(|w| w.hwnd().ok()) else { return };
+    let visible = win::is_visible(hwnd);
+    if app.state::<AppState>().window_visible.swap(visible, Ordering::SeqCst) != visible {
+        let _ = app.emit(events::ISLAND_VISIBILITY_CHANGED, visible);
+    }
 }
 
 /// Réaffirme le premier plan si un plein écran ou l'explorateur l'a fait perdre.
@@ -198,6 +210,7 @@ pub fn enforce_topmost(app: &AppHandle, reason: &str) {
     if changed || matches!(reason, "startup" | "show" | "unexpected-hide") {
         win::raise_topmost(hwnd);
     }
+    notify_visibility(app);
 }
 
 fn schedule_enforce(app: &AppHandle, reason: &'static str, delay_ms: u64) {
@@ -221,6 +234,7 @@ pub fn start_watchdog(app: AppHandle) {
                 on_displays_changed(&app);
             }
             update_fullscreen_autohide(&app);
+            notify_visibility(&app);
             let state = app.state::<AppState>();
             let paused = !state.persistent.load(Ordering::SeqCst)
                 || state.layout_edit_mode.load(Ordering::SeqCst)
@@ -255,6 +269,7 @@ fn update_fullscreen_autohide(app: &AppHandle) {
         win::show_inactive(hwnd);
         enforce_topmost(app, "fullscreen-exit");
     }
+    notify_visibility(app);
 }
 
 pub fn set_fullscreen_autohide(app: &AppHandle, enabled: bool) {
@@ -290,6 +305,7 @@ pub fn toggle_visibility(app: &AppHandle, reason: &str) {
         win::show_inactive(hwnd);
         enforce_topmost(app, reason);
     }
+    notify_visibility(app);
 }
 
 pub fn set_layout_edit_mode(app: &AppHandle, enabled: bool) {

@@ -29,6 +29,8 @@ import { menuView } from './views/menu.js';
 import { notificationView } from './views/notification.js';
 import { systemViews } from './views/system.js';
 import { micMonitorView } from './views/mic-monitor.js';
+import { glowHaloMethods } from './features/glow-halo.js';
+import { framePacerMethods } from './features/frame-pacer.js';
 
 export class DynamicIsland {
     constructor() {
@@ -97,6 +99,8 @@ export class DynamicIsland {
         this.renderIdle();
         this.applyLayoutConfig(this._layoutConfig);
         this.initEvents();
+        this.initGlowHalo();
+        this.initFramePacer();
         this.startMainLoop();
         this.startProgressSmoothLoop();
         this.syncPersistentSetting();
@@ -126,6 +130,8 @@ export class DynamicIsland {
 }
 
 const METHOD_GROUPS = [
+    glowHaloMethods,
+    framePacerMethods,
     visualizerMethods,
     preferenceMethods,
     coverThemeMethods,
