@@ -1,5 +1,9 @@
 # Historique
 
+## 2.2.3 — 15 octobre 2026
+
+- Correction : l'Island ne disparaît plus quand on agrandit une fenêtre (ou qu'on la colle en haut de l'écran) sur un écran sans barre des tâches. Une appli à barre de titre maison (ChatGPT, VS Code…) passait alors pour un plein écran. Vidéo, jeu et F11 masquent toujours l'Island.
+
 ## 2.2.2 — 15 octobre 2026
 
 - Performance : le halo qui respire pendant la lecture avance 24 fois par seconde au lieu de suivre le rafraîchissement de l'écran (jusqu'à 360 Hz), et les bulles cachées sous la pilule ne pulsent plus. Rendu identique, processeur divisé par 2,5 environ pendant la lecture.
