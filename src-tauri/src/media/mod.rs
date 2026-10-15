@@ -259,9 +259,9 @@ impl MediaTracker {
         if cover.is_empty() && title != "Sans titre" && artist != "Artiste inconnu" {
             match cover_lookup::cached(&cover_lookup::cache_key(&title, &artist)) {
                 Some(hit) => {
-                    if !hit.is_empty() {
-                        transient_cover.clear();
-                    }
+                    // La recherche est terminée : l'ancienne pochette ne doit plus rester,
+                    // même si rien n'a été trouvé (sinon celle du morceau précédent reste).
+                    transient_cover.clear();
                     cover = hit;
                 }
                 None => cover_lookup = Some((title.clone(), artist.clone(), key.clone())),
