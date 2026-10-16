@@ -1,72 +1,33 @@
-import { native } from '../../../shared/ipc.js';
-import { themeLook } from '../../../shared/theme-look.js';
 import { mountLibrary } from '../../../library/controller.js';
 
-/** Une vue interne : la collection et le lecteur survivent aux changements de mode. */
+/** Bibliothèque : un mode de l’Island comme les autres. Le son vit dans `localPlayer`. */
 export const libraryView = {
-    async openLibrary() {
-        if (this._layoutEditMode || this._libraryOpening || (this.mode === 'library' && this.isExpanded)) return;
-        this._libraryOpening = true;
-        clearTimeout(this._libraryCloseTimer);
-        this._libraryCloseTimer = null;
-        try {
-            await native.invoke('library_workspace', { expanded: true });
-            this._libraryWorkspace = true;
-            this.openExpandedMode('library');
-        } catch (error) {
-            this.showNotification('Bibliothèque', String(error), 'ph-warning-circle');
-        } finally {
-            this._libraryOpening = false;
-        }
-    },
-
-    syncLibraryTheme() {
-        if (!this._libraryHost) return;
-        const cover = localStorage.getItem('liquid_cover_color_sync') !== 'false' ? this._coverColors?.primary : '';
-        const look = themeLook(this._islandConfig, cover);
-        this._libraryHost.style.setProperty('--library-accent', look.accent);
-        this._libraryHost.style.setProperty('--library-accent-rgb', look.accentRgb);
+    openLibrary() {
+        if (this._layoutEditMode || (this.mode === 'library' && this.isExpanded)) return;
+        this.openExpandedMode('library');
     },
 
     renderLibrary() {
-        clearTimeout(this._libraryCloseTimer);
-        this._libraryCloseTimer = null;
-        if (this._libraryHost?.isConnected) {
-            this.syncLibraryTheme();
-            return;
-        }
+        if (this._libraryHost?.isConnected) return;
+        // Le contenu a été vidé pendant une transition : on repart d’une vue propre.
+        this.leaveLibrary();
         const host = document.createElement('div');
         host.className = 'island-library-view';
-        host.tabIndex = -1;
         this.content.replaceChildren(host);
         this._libraryHost = host;
-        this.syncLibraryTheme();
         this._libraryController = mountLibrary(host, {
-            savedState: this._libraryState,
-            onMenu: () => this.setMode('menu'),
-            onCollapse: () => this.collapseIsland(),
+            player: this.localPlayer,
+            savedState: this._librarySavedState,
+            onBack: () => this.setMode('menu'),
+            onClose: () => this.collapseIsland(),
         });
-        host.focus({ preventScroll: true });
-        this._libraryThemeObserver = new MutationObserver(() => this.syncLibraryTheme());
-        this._libraryThemeObserver.observe(this.el, { attributes: true, attributeFilter: ['style'] });
     },
 
     leaveLibrary() {
-        if (this._libraryController) {
-            this._libraryState = this._libraryController.state;
-            this._libraryController.destroy();
-            this._libraryController = null;
-            this._libraryHost = null;
-            this._libraryThemeObserver?.disconnect();
-        }
-        if (!this._libraryWorkspace || this._libraryCloseTimer) return;
-        // Laisser finir le rétrécissement avant de rendre la fenêtre native à sa taille normale.
-        this._libraryCloseTimer = setTimeout(() => {
-            this._libraryCloseTimer = null;
-            if (this.mode === 'library' && this.isExpanded) return;
-            native.invoke('library_workspace', { expanded: false }).then(() => {
-                if (this.mode !== 'library' && !this._libraryOpening) this._libraryWorkspace = false;
-            }).catch(error => console.warn('[Library] Restore workspace:', error));
-        }, 650);
+        if (!this._libraryController) return;
+        this._librarySavedState = this._libraryController.savedState;
+        this._libraryController.destroy();
+        this._libraryController = null;
+        this._libraryHost = null;
     },
 };

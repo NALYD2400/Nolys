@@ -134,7 +134,7 @@ export const musicHistoryMethods = {
     openHistoryTrack(item, mode = 'search') {
         if (item.localTrackId) {
             if (mode === 'search') this.setMode('library');
-            else native.invoke('library_control', { action: { type: 'play', id: item.localTrackId } }).catch(error => this.showNotification('Bibliothèque', String(error)));
+            else this.localPlayer?.control({ type: 'play', id: item.localTrackId }).catch(error => this.showNotification('Bibliothèque', String(error?.message || error), 'ph-warning-circle'));
             return;
         }
         const query = this.getHistoryQuery(item);

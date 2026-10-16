@@ -1,8 +1,5 @@
-use super::{
-    authorize, collect, mutate, path_key, read_track, Library, Mutation, Playback, Store, CHANGED,
-    CONTROL, EXTENSIONS, PLAYBACK,
-};
-use std::{collections::HashSet, path::Path};
+use super::{authorize, collect, mutate, path_key, read_track, Library, Mutation, Store, CHANGED, EXTENSIONS};
+use std::{collections::HashSet, path::Path, sync::atomic::Ordering};
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 
 fn audio_dialog(app: &AppHandle, title: &str) -> rfd::FileDialog {
@@ -15,25 +12,13 @@ fn audio_dialog(app: &AppHandle, title: &str) -> rfd::FileDialog {
     dialog
 }
 
-#[tauri::command]
-pub async fn library_open(app: AppHandle) -> Result<(), String> {
-    super::open(&app).map_err(|error| {
-        crate::logger::log(&format!("[Library] Failed to open window: {error}"));
-        format!("Impossible d’ouvrir la bibliothèque. Relance Nolys puis réessaie. Détail : {error}")
-    })
-}
-
-#[tauri::command]
-pub async fn library_workspace(app: AppHandle, expanded: bool) -> Result<(), String> {
-    use std::sync::atomic::Ordering;
-    let window = crate::island::window(&app).ok_or("Island introuvable.")?;
-    app.state::<crate::state::AppState>().library_expanded.store(expanded, Ordering::SeqCst);
-    crate::island::apply_layout(&app);
-    if expanded {
-        window.set_ignore_cursor_events(false).map_err(|e| e.to_string())?;
-        window.set_focus().map_err(|e| e.to_string())?;
-    }
-    Ok(())
+/// Ouvre le sélecteur sur un thread neuf. Les threads du pool bloquant sont souvent déjà
+/// initialisés en COM MTA (média, audio) : rfd y échoue (RPC_E_CHANGED_MODE) et renvoyait
+/// `None`, pris pour une annulation — « Importer » ne faisait alors rien.
+fn pick<T: Send + 'static>(job: impl FnOnce() -> Option<T> + Send + 'static) -> Result<Option<T>, String> {
+    std::thread::spawn(job)
+        .join()
+        .map_err(|_| "Le sélecteur de fichiers s’est fermé de façon inattendue.".to_string())
 }
 
 #[tauri::command]
@@ -69,8 +54,8 @@ pub async fn library_import(app: AppHandle, kind: String) -> Result<ImportResult
         let previous = store.read()?;
         let dialog = audio_dialog(&handle, "Ajouter de la musique à Nolys");
         let paths = match kind.as_str() {
-            "files" => dialog.pick_files(),
-            "folder" => dialog.pick_folder().map(|p| vec![p]),
+            "files" => pick(move || dialog.pick_files())?,
+            "folder" => pick(move || dialog.pick_folder().map(|p| vec![p]))?,
             _ => return Err("Type d’import inconnu.".into()),
         };
         let Some(paths) = paths else {
@@ -146,7 +131,8 @@ pub async fn library_relink(app: AppHandle, id: String) -> Result<Library, Strin
         if !library.tracks.iter().any(|t| t.id == id) {
             return Err("Morceau introuvable.".into());
         }
-        let Some(path) = audio_dialog(&app, "Retrouver ce morceau").pick_file() else {
+        let dialog = audio_dialog(&app, "Retrouver ce morceau");
+        let Some(path) = pick(move || dialog.pick_file())? else {
             return authorize(&app, library);
         };
         if !super::supported(&path) {
@@ -182,41 +168,14 @@ pub async fn library_relink(app: AppHandle, id: String) -> Result<Library, Strin
     .map_err(|e| e.to_string())?
 }
 
+/// Le lecteur de l’Island signale qu’il prend (ou rend) la main sur les raccourcis média.
 #[tauri::command]
-pub fn library_get_playback(app: AppHandle) -> Playback {
-    app.state::<Store>().playback.lock().clone()
-}
-
-#[tauri::command]
-pub fn library_control(app: AppHandle, action: serde_json::Value) -> Result<(), String> {
-    app.emit_to(crate::island::LABEL, CONTROL, action)
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn library_set_playback(
-    app: AppHandle,
-    window: WebviewWindow,
-    mut playback: Playback,
-) -> Result<(), String> {
+pub fn library_player_active(app: AppHandle, window: WebviewWindow, active: bool) -> Result<(), String> {
     if window.label() != crate::island::LABEL {
         return Err("Le lecteur appartient à l’Island.".into());
     }
-    for value in [
-        &mut playback.progress,
-        &mut playback.duration,
-        &mut playback.volume,
-    ] {
-        if !value.is_finite() {
-            *value = 0.0;
-        }
-    }
-    playback.volume = playback.volume.clamp(0.0, 1.0);
-    playback.progress = playback.progress.max(0.0);
-    playback.duration = playback.duration.max(0.0);
-    *app.state::<Store>().playback.lock() = playback.clone();
-    app.emit(PLAYBACK, &playback)
-        .map_err(|e| e.to_string())
+    app.state::<Store>().player_active.store(active, Ordering::SeqCst);
+    Ok(())
 }
 
 #[tauri::command]

@@ -39,13 +39,6 @@ export const eventMethods = {
         });
 
         this.el.addEventListener('keydown', (e) => {
-            if (this.mode === 'library' && !this._layoutEditMode) {
-                if (e.key === 'Escape' && !e.defaultPrevented) {
-                    e.preventDefault();
-                    this.collapseIsland();
-                }
-                return;
-            }
             if (this.mode !== 'notification' || this._layoutEditMode) return;
             if (e.key === 'Escape') {
                 e.preventDefault();

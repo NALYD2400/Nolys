@@ -30,8 +30,6 @@ pub struct AppState {
     pub hidden_by_fullscreen: AtomicBool,
     /// Mode « déplacer l'Island » ouvert depuis les réglages.
     pub layout_edit_mode: AtomicBool,
-    /// Vue Bibliothèque ouverte dans la fenêtre de l’Island (taille temporaire).
-    pub library_expanded: AtomicBool,
     /// La fenêtre laisse passer les clics (aucun survol de la pilule).
     pub click_through: AtomicBool,
     /// Ignore les événements `Moved` provoqués par nos propres repositionnements.
@@ -54,7 +52,6 @@ impl AppState {
             hide_in_fullscreen: AtomicBool::new(true),
             hidden_by_fullscreen: AtomicBool::new(false),
             layout_edit_mode: AtomicBool::new(false),
-            library_expanded: AtomicBool::new(false),
             click_through: AtomicBool::new(true),
             suppress_move_sync: AtomicBool::new(false),
             window_visible: AtomicBool::new(true),

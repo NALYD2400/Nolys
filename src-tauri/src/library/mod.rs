@@ -12,13 +12,14 @@ use std::{
     fs,
     io::Write,
     path::{Path, PathBuf},
+    sync::atomic::AtomicBool,
     time::{SystemTime, UNIX_EPOCH},
 };
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 
 pub const CHANGED: &str = "local-library-changed";
-pub const CONTROL: &str = "local-library-control";
-pub const PLAYBACK: &str = "local-library-playback";
+/// Commande média (raccourcis clavier) destinée au lecteur local de l’Island.
+pub const CONTROL: &str = "local-library-media";
 pub const EXTENSIONS: &[&str] = &["mp3", "flac", "wav", "m4a", "aac", "ogg", "opus"];
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -52,42 +53,11 @@ pub struct Library {
     pub playlists: Vec<Playlist>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase", default)]
-pub struct Playback {
-    pub active: bool,
-    pub track_id: String,
-    pub is_playing: bool,
-    pub progress: f64,
-    pub duration: f64,
-    pub volume: f64,
-    pub shuffle: bool,
-    pub repeat: String,
-    pub queue: Vec<String>,
-    pub error: String,
-}
-
-impl Default for Playback {
-    fn default() -> Self {
-        Self {
-            active: false,
-            track_id: String::new(),
-            is_playing: false,
-            progress: 0.0,
-            duration: 0.0,
-            volume: 0.8,
-            shuffle: false,
-            repeat: "off".into(),
-            queue: vec![],
-            error: String::new(),
-        }
-    }
-}
-
 pub struct Store {
     root: PathBuf,
     data: Mutex<Result<Library, String>>,
-    pub playback: Mutex<Playback>,
+    /// La lecture locale a la main : les raccourcis média lui sont envoyés.
+    pub player_active: AtomicBool,
     pub importing: Mutex<bool>,
 }
 
@@ -102,7 +72,7 @@ impl Store {
         Self {
             root,
             data: Mutex::new(data),
-            playback: Mutex::new(Playback::default()),
+            player_active: AtomicBool::new(false),
             importing: Mutex::new(false),
         }
     }
@@ -359,14 +329,6 @@ fn remove_tracks(library: &mut Library, ids: HashSet<String>) {
     for playlist in &mut library.playlists {
         playlist.track_ids.retain(|track| !ids.contains(track));
     }
-}
-
-pub fn open(app: &AppHandle) -> Result<(), String> {
-    let window = crate::island::window(app).ok_or("Island introuvable.")?;
-    window.show().map_err(|e| e.to_string())?;
-    window.set_focus().map_err(|e| e.to_string())?;
-    app.emit_to(crate::island::LABEL, "local-library-open", ())
-        .map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

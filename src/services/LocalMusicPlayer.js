@@ -11,6 +11,8 @@ export class LocalMusicPlayer {
         this.repeat = 'off';
         this.playToken = 0;
         this.shufflePlayed = new Set();
+        this.listeners = new Set();
+        this.reportedActive = false;
         try {
             const prefs = JSON.parse(storage.getItem('nolys_library_player') || '{}');
             audio.volume = Number.isFinite(prefs.volume) ? Math.max(0, Math.min(1, prefs.volume)) : 0.8;
@@ -27,7 +29,8 @@ export class LocalMusicPlayer {
     }
 
     async init() {
-        await this.listen('local-library-control', action => this.control(action).catch(error => this.fail(error)));
+        // Raccourcis média globaux, routés ici par le cœur natif pendant une lecture locale.
+        await this.listen('local-library-media', action => this.control({ type: 'media', action }).catch(error => this.fail(error)));
         await this.listen('local-library-changed', () => this.reload().catch(error => this.fail(error)));
         await this.reload();
         this.publish();
@@ -38,7 +41,13 @@ export class LocalMusicPlayer {
         const known = new Set(this.library.tracks.map(track => track.id));
         this.queue = this.queue.filter(id => known.has(id));
         if (this.currentId && !known.has(this.currentId)) this.stop();
-        else if (this.active) this.publish();
+        else this.publish();
+    }
+
+    /** La vue Bibliothèque suit la collection et la lecture sans aller-retour natif. */
+    subscribe(listener) {
+        this.listeners.add(listener);
+        return () => this.listeners.delete(listener);
     }
 
     get current() { return this.library.tracks.find(track => track.id === this.currentId); }
@@ -62,7 +71,12 @@ export class LocalMusicPlayer {
     publish() {
         this.lastPublish = Date.now();
         this.onMedia(this.media);
-        this.invoke('library_set_playback', { playback: this.snapshot }).catch(() => {});
+        const snapshot = this.snapshot;
+        for (const listener of this.listeners) listener(snapshot);
+        if (this.reportedActive !== this.active) {
+            this.reportedActive = this.active;
+            this.invoke('library_player_active', { active: this.active }).catch(() => {});
+        }
     }
 
     fail(error) {

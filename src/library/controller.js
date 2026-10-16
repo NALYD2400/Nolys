@@ -1,264 +1,535 @@
 import styles from './styles.css?inline';
-import { libraryMarkup } from './shell.js';
 import { native } from '../shared/ipc.js';
 import { escapeHtml as e } from '../island/dynamic-island/helpers/format.js';
-import { tracksFor, moveTrack } from './model.js';
-import { icon, renderNavigation, renderCollection, renderPlayback } from './view.js';
+import { time, tracksFor, moveTrack } from './model.js';
+import { shellMarkup, chipsMarkup, sectionMarkup, emptyMarkup, rowMarkup, selectionMarkup, menuItem, cover, icon, VIEW_NAMES } from './view.js';
 
-export function mountLibrary(host, { onMenu = () => {}, onCollapse = () => {}, savedState } = {}) {
-    const document = host.shadowRoot || host.attachShadow({ mode: 'open' });
-    document.innerHTML = '<link rel="stylesheet" href="/assets/icons/phosphor.css"><style>' + styles + '</style>' + libraryMarkup;
+const PAGE = 150;
+const SORTS = { title: 'Titre', artist: 'Artiste', album: 'Album', recent: 'Ajout récent' };
+const VIEWS = ['all', 'favorites', 'queue'];
+
+/**
+ * Vue Bibliothèque montée dans l’Island (shadow DOM : ses styles ne débordent pas).
+ * La collection et la lecture viennent directement du lecteur local de l’Island.
+ */
+export function mountLibrary(host, { player, savedState = {}, onBack = () => {}, onClose = () => {} }) {
+    const root = host.shadowRoot || host.attachShadow({ mode: 'open' });
+    root.innerHTML = `<link rel="stylesheet" href="/assets/icons/phosphor.css"><style>${styles}</style>${shellMarkup}`;
+    const $ = selector => root.querySelector(selector);
     const abort = new AbortController();
-    const unlisteners = [];
-    let disposed = false;
-    const on = (target, name, callback) => target.addEventListener(name, callback, { signal: abort.signal });
-    const state = {
-        library: { tracks: [], playlists: [] }, playback: { queue: [], volume: 0.8, repeat: 'off' },
-        view: 'all', query: '', sort: 'title', page: 0, selection: new Set(), importing: false, seeking: false, ...savedState, root: document,
-    };
-    const dialog = document.querySelector('#dialog');
-    const menu = document.querySelector('#track-menu');
-    let statusTimer;
+    const on = (target, name, callback, options = {}) => target.addEventListener(name, callback, { ...options, signal: abort.signal });
 
-    function status(message, error = false, persistent = false) {
+    const state = {
+        view: 'all', query: '', sort: 'title', ...savedState,
+        limit: PAGE, selecting: false, selection: new Set(), busy: false,
+    };
+    let library = null;
+    let queueKey = '';
+    let lastError = '';
+    let toastTimer;
+    let menuAnchor = null;
+    let sheetReturnFocus = null;
+    let disposed = false;
+
+    const playback = () => player.snapshot;
+    const playlist = () => player.library.playlists.find(p => p.id === state.view);
+    const visibleTracks = () => tracksFor(player.library, state.view, playback(), state.query, state.sort);
+    const playableIds = tracks => tracks.filter(t => !t.missing).map(t => t.id);
+    const errorText = error => String(error?.message || error);
+
+    function toast(message, error = false) {
         if (disposed) return;
-        clearTimeout(statusTimer);
-        const element = document.querySelector('#status');
-        element.hidden = !message;
-        element.classList.toggle('error', error);
+        const element = $('#toast');
+        clearTimeout(toastTimer);
         element.textContent = message;
-        if (message && !persistent) statusTimer = setTimeout(() => { element.hidden = true; }, error ? 12000 : 5000);
+        element.classList.toggle('is-error', error);
+        element.hidden = !message;
+        if (message) toastTimer = setTimeout(() => { element.hidden = true; }, error ? 7000 : 3200);
     }
+
+    // ------------------------------------------------------------------ Rendu
 
     function render() {
         if (disposed) return;
-        if (!['all', 'favorites', 'queue'].includes(state.view) && !state.library.playlists.some(p => p.id === state.view)) state.view = 'all';
-        const known = new Set(state.library.tracks.map(track => track.id));
-        state.selection = new Set([...state.selection].filter(id => known.has(id)));
-        renderNavigation(state);
-        renderCollection(state);
-        renderPlayback(state);
+        library = player.library;
+        if (!VIEWS.includes(state.view) && !playlist()) state.view = 'all';
+        const known = new Set(library.tracks.map(t => t.id));
+        for (const id of state.selection) if (!known.has(id)) state.selection.delete(id);
+
+        const tracks = visibleTracks();
+        const current = playlist();
+        $('#summary').textContent = `${library.tracks.length} titre${library.tracks.length > 1 ? 's' : ''}${library.playlists.length ? ` · ${library.playlists.length} playlist${library.playlists.length > 1 ? 's' : ''}` : ''}`;
+        $('#chips').innerHTML = chipsMarkup({ library, view: state.view, queueLength: playback().queue.length });
+        $('#section').innerHTML = sectionMarkup({ title: current?.name || VIEW_NAMES[state.view], tracks, playlist: current, view: state.view, selecting: state.selecting, sortLabel: SORTS[state.sort] });
+        $('#section').hidden = !tracks.length && !current;
+        renderList(tracks);
+        renderSelection(tracks);
+        renderPlayer();
+        $('#chips .chip.is-active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
 
-    async function refresh() {
-        state.library = await native.invoke('library_get');
-        render();
+    function renderList(tracks = visibleTracks()) {
+        const list = $('#list');
+        const focusedKey = root.activeElement?.closest?.('[data-track]')?.dataset.track;
+        const focusedAction = root.activeElement?.dataset?.action;
+        const scroll = list.scrollTop;
+        if (!tracks.length) {
+            list.innerHTML = emptyMarkup({ query: state.query.trim(), playlist: playlist(), view: state.view });
+            return;
+        }
+        const { trackId, isPlaying } = playback();
+        list.innerHTML = tracks.slice(0, state.limit).map((track, index) => rowMarkup(track, {
+            index, current: track.id === trackId, playing: isPlaying, selecting: state.selecting, selected: state.selection.has(track.id),
+        })).join('') + (tracks.length > state.limit ? `<button type="button" class="pill-btn more" data-action="more">Afficher ${Math.min(PAGE, tracks.length - state.limit)} titres de plus</button>` : '');
+        list.scrollTop = scroll;
+        if (focusedKey) list.querySelector(`[data-track="${CSS.escape(focusedKey)}"] [data-action="${CSS.escape(focusedAction || 'play')}"]`)?.focus({ preventScroll: true });
     }
+
+    function renderSelection(tracks = visibleTracks()) {
+        const bar = $('#selection');
+        bar.hidden = !state.selecting;
+        $('#player').hidden = state.selecting;
+        if (!state.selecting) return;
+        const ids = tracks.slice(0, state.limit).map(t => t.id);
+        bar.innerHTML = selectionMarkup(state.selection.size, ids.length > 0 && ids.every(id => state.selection.has(id)));
+    }
+
+    function setIcon(button, name, weight) {
+        const glyph = `${weight} ph-${name}`;
+        if (button.dataset.glyph !== glyph) {
+            button.dataset.glyph = glyph;
+            button.innerHTML = icon(name, weight);
+        }
+    }
+
+    function renderPlayer() {
+        const snap = playback();
+        const track = player.library.tracks.find(t => t.id === snap.trackId);
+        const panel = $('#player');
+        panel.classList.toggle('is-idle', !snap.active);
+        if (panel.dataset.track !== (track?.id || '')) {
+            panel.dataset.track = track?.id || '';
+            $('#p-cover').innerHTML = cover(track);
+            $('#p-title').textContent = track?.title || 'Aucun morceau';
+            $('#p-artist').textContent = track ? track.artist || 'Artiste inconnu' : 'Choisissez un titre pour l’écouter';
+        }
+        const toggle = panel.querySelector('[data-action="toggle"]');
+        setIcon(toggle, snap.isPlaying ? 'pause' : 'play', 'ph-fill');
+        toggle.setAttribute('aria-label', snap.isPlaying ? 'Pause' : 'Lecture');
+        for (const button of panel.querySelectorAll('[data-action="toggle"], [data-action="prev"], [data-action="next"], [data-action="stop"]')) button.disabled = !snap.active;
+
+        const shuffle = panel.querySelector('[data-action="shuffle"]');
+        shuffle.classList.toggle('is-on', snap.shuffle);
+        shuffle.setAttribute('aria-pressed', String(snap.shuffle));
+        const repeat = panel.querySelector('[data-action="repeat"]');
+        const repeatMode = snap.repeat || 'off';
+        repeat.classList.toggle('is-on', repeatMode !== 'off');
+        repeat.setAttribute('aria-pressed', String(repeatMode !== 'off'));
+        repeat.setAttribute('aria-label', `Répétition : ${{ all: 'toute la file', one: 'un seul titre', off: 'désactivée' }[repeatMode]}`);
+        setIcon(repeat, repeatMode === 'one' ? 'repeat-once' : 'repeat', 'ph-bold');
+
+        const seek = $('#seek');
+        seek.max = String(Math.max(1, Math.round(snap.duration || 0)));
+        seek.disabled = !snap.active;
+        if (!seek.matches(':active')) seek.value = String(snap.progress || 0);
+        paintSlider(seek);
+        $('#p-elapsed').textContent = time(Number(seek.value));
+        $('#p-duration').textContent = time(snap.duration);
+        const volume = $('#volume');
+        if (!volume.matches(':active')) volume.value = String(snap.volume ?? 0.8);
+        paintSlider(volume);
+
+        for (const row of root.querySelectorAll('.row')) {
+            const current = row.dataset.track === snap.trackId;
+            if (row.classList.contains('is-current') !== current) { renderList(); break; }
+            row.querySelector('.cover-state')?.classList.toggle('is-playing', current && snap.isPlaying);
+        }
+    }
+
+    function paintSlider(input) {
+        const max = Number(input.max) || 1;
+        input.style.setProperty('--pct', `${Math.max(0, Math.min(100, (Number(input.value) - Number(input.min || 0)) / (max - Number(input.min || 0)) * 100))}%`);
+    }
+
+    // --------------------------------------------------------- Menus et feuilles
+
+    function openMenu(anchor, html, point) {
+        const menu = $('#menu');
+        menu.innerHTML = html;
+        menu.hidden = false;
+        menuAnchor = anchor;
+        anchor?.setAttribute('aria-expanded', 'true');
+        const box = $('.lib').getBoundingClientRect();
+        const rect = point ? { left: point.x, right: point.x, top: point.y, bottom: point.y } : anchor.getBoundingClientRect();
+        const width = menu.offsetWidth;
+        const height = menu.offsetHeight;
+        const below = rect.bottom - box.top + 6;
+        const top = below + height > box.height - 8 ? rect.top - box.top - height - 6 : below;
+        const left = (point ? rect.left : rect.right - width) - box.left;
+        menu.style.left = `${Math.max(8, Math.min(left, box.width - width - 8))}px`;
+        menu.style.top = `${Math.max(8, top)}px`;
+        menu.style.transformOrigin = `${point ? 'left' : 'right'} ${top < below ? 'bottom' : 'top'}`;
+        menu.querySelector('button:not(:disabled)')?.focus({ preventScroll: true });
+    }
+
+    function closeMenu({ restoreFocus = false } = {}) {
+        const menu = $('#menu');
+        if (menu.hidden) return false;
+        menu.hidden = true;
+        menuAnchor?.removeAttribute('aria-expanded');
+        if (restoreFocus) menuAnchor?.focus({ preventScroll: true });
+        menuAnchor = null;
+        return true;
+    }
+
+    function trackMenu(id, anchor, point) {
+        const track = player.library.tracks.find(t => t.id === id);
+        if (!track) return;
+        const list = playlist();
+        const index = list?.trackIds.indexOf(id) ?? -1;
+        openMenu(anchor, menuItem('add-to-playlist', 'Ajouter à une playlist', 'playlist', { id })
+            + menuItem('enqueue', 'Lire ensuite', 'queue', { id, disabled: track.missing })
+            + (list ? menuItem('move-up', 'Monter', 'arrow-up', { id, disabled: index <= 0 }) + menuItem('move-down', 'Descendre', 'arrow-down', { id, disabled: index === list.trackIds.length - 1 }) : '')
+            + menuItem('relink', 'Retrouver le fichier', 'folder-open', { id })
+            + '<span class="menu-divider" role="separator"></span>'
+            + menuItem('remove', list ? 'Retirer de la playlist' : 'Retirer de la bibliothèque', 'minus-circle', { id, danger: true }), point);
+    }
+
+    function openSheet({ title, body, confirm = 'Enregistrer', danger = false, submit }) {
+        closeMenu();
+        const sheet = $('#sheet');
+        const form = $('#sheet-form');
+        sheetReturnFocus = root.activeElement;
+        form.innerHTML = `<h2 id="sheet-title">${e(title)}</h2>${body}<p class="sheet-error" role="alert" hidden></p>
+            <div class="sheet-actions"><button type="button" class="pill-btn" data-action="close-sheet">Annuler</button><button type="submit" class="pill-btn ${danger ? 'is-danger-solid' : 'is-accent'}">${e(confirm)}</button></div>`;
+        form.onsubmit = async event => {
+            event.preventDefault();
+            const buttons = [...form.querySelectorAll('button')];
+            buttons.forEach(button => { button.disabled = true; });
+            try {
+                await submit(Object.fromEntries(new FormData(form)));
+                closeSheet();
+            } catch (error) {
+                const message = form.querySelector('.sheet-error');
+                message.hidden = false;
+                message.textContent = errorText(error);
+            } finally { buttons.forEach(button => { button.disabled = false; }); }
+        };
+        sheet.hidden = false;
+        (form.querySelector('input, select') || form.querySelector('[type="submit"]'))?.focus({ preventScroll: true });
+    }
+
+    function closeSheet() {
+        const sheet = $('#sheet');
+        if (sheet.hidden) return false;
+        sheet.hidden = true;
+        $('#sheet-form').onsubmit = null;
+        if (sheetReturnFocus?.isConnected) sheetReturnFocus.focus({ preventScroll: true });
+        sheetReturnFocus = null;
+        return true;
+    }
+
+    // ------------------------------------------------------------------ Actions
 
     async function mutate(mutation) {
-        state.library = await native.invoke('library_mutate', { mutation });
+        player.library = await native.invoke('library_mutate', { mutation });
         render();
+        return player.library;
     }
 
-    async function control(action) { await native.invoke('library_control', { action }); }
-
-    function openDialog({ title, body, confirm = 'Enregistrer', destructive = false, submit }) {
-        if (dialog.open) dialog.close();
-        document.querySelector('#dialog-content').innerHTML = `<h2 id="dialog-title">${e(title)}</h2>${body}<p id="dialog-error" role="alert" hidden></p><div class="dialog-actions"><button type="button" class="button" data-action="close-dialog">Annuler</button><button type="submit" class="button ${destructive ? 'danger' : 'primary'}">${e(confirm)}</button></div>`;
-        dialog.setAttribute('aria-labelledby', 'dialog-title');
-        document.querySelector('#dialog-form').onsubmit = async event => {
-            event.preventDefault();
-            const values = Object.fromEntries(new FormData(event.target));
-            const buttons = [...event.target.querySelectorAll('button')];
-            buttons.forEach(button => { button.disabled = true; });
-            try { await submit(values); dialog.close(); }
-            catch (error) { const message = document.querySelector('#dialog-error'); message.hidden = false; message.textContent = String(error?.message || error); }
-            finally { buttons.forEach(button => { button.disabled = false; }); }
-        };
-        dialog.showModal();
+    async function createPlaylist(name) {
+        const before = new Set(player.library.playlists.map(p => p.id));
+        const next = await mutate({ type: 'createPlaylist', name });
+        return next.playlists.find(p => !before.has(p.id));
     }
 
-    function createPlaylist() {
-        openDialog({ title: 'Nouvelle playlist', body: '<label class="field">Nom de la playlist<input name="name" maxlength="80" placeholder="Par exemple : Sur la route" required autofocus></label>', confirm: 'Créer la playlist', submit: async ({ name }) => {
-            const previous = new Set(state.library.playlists.map(p => p.id));
-            await mutate({ type: 'createPlaylist', name });
-            state.view = state.library.playlists.find(p => !previous.has(p.id))?.id || 'all';
-            state.selection.clear(); render();
+    function askNewPlaylist() {
+        openSheet({ title: 'Nouvelle playlist', confirm: 'Créer', body: '<label class="field"><span>Nom</span><input name="name" maxlength="80" placeholder="Sur la route" required autocomplete="off"></label>', submit: async ({ name }) => {
+            const created = await createPlaylist(name);
+            if (created) setView(created.id);
         } });
     }
 
     function addToPlaylist(ids) {
         if (!ids.length) return;
-        const existing = state.library.playlists.length;
-        openDialog({ title: 'Ajouter à une playlist', confirm: 'Ajouter les morceaux',
-            body: existing ? `<label class="field">Playlist<select name="playlist">${state.library.playlists.map(p => `<option value="${e(p.id)}">${e(p.name)}</option>`).join('')}</select></label><p>${ids.length} morceau${ids.length > 1 ? 'x' : ''} · les doublons seront ignorés.</p>` : '<p>Créez une première playlist pour ces morceaux.</p><label class="field">Nom de la playlist<input name="name" maxlength="80" required autofocus></label>',
+        const playlists = player.library.playlists;
+        const count = `${ids.length} titre${ids.length > 1 ? 's' : ''}`;
+        openSheet({ title: 'Ajouter à une playlist', confirm: 'Ajouter',
+            body: playlists.length
+                ? `<label class="field"><span>Playlist</span><select name="playlist">${playlists.map(p => `<option value="${e(p.id)}" ${p.id === state.view ? 'selected' : ''}>${e(p.name)}</option>`).join('')}<option value="">Nouvelle playlist…</option></select></label><label class="field" data-new hidden><span>Nom de la nouvelle playlist</span><input name="name" maxlength="80" autocomplete="off"></label><p class="sheet-note">${count} · les doublons sont ignorés.</p>`
+                : `<label class="field"><span>Nom de la nouvelle playlist</span><input name="name" maxlength="80" placeholder="Sur la route" required autocomplete="off"></label><p class="sheet-note">${count}</p>`,
             submit: async values => {
-                let playlist = state.library.playlists.find(p => p.id === values.playlist);
-                if (!existing) {
-                    const before = new Set(state.library.playlists.map(p => p.id));
-                    await mutate({ type: 'createPlaylist', name: values.name });
-                    playlist = state.library.playlists.find(p => !before.has(p.id));
-                }
-                if (!playlist) throw new Error('Cette playlist n’existe plus.');
-                await mutate({ type: 'setPlaylistTracks', id: playlist.id, trackIds: [...new Set([...playlist.trackIds, ...ids])] });
-                state.selection.clear(); render(); status('Morceaux ajoutés à la playlist.');
-            },
+                const target = values.playlist ? player.library.playlists.find(p => p.id === values.playlist) : await createPlaylist(values.name || '');
+                if (!target) throw new Error('Cette playlist n’existe plus.');
+                await mutate({ type: 'setPlaylistTracks', id: target.id, trackIds: [...target.trackIds, ...ids] });
+                exitSelection();
+                toast(`Ajouté à « ${target.name} ».`);
+            } });
+        const select = root.querySelector('#sheet-form select');
+        select?.addEventListener('change', () => {
+            const field = root.querySelector('#sheet-form [data-new]');
+            field.hidden = select.value !== '';
+            field.querySelector('input').required = select.value === '';
+            if (select.value === '') field.querySelector('input').focus();
         });
     }
 
     function removeTracks(ids) {
-        const playlist = state.library.playlists.find(p => p.id === state.view);
-        if (playlist) {
-            return mutate({ type: 'setPlaylistTracks', id: playlist.id, trackIds: playlist.trackIds.filter(id => !ids.includes(id)) }).then(() => { state.selection.clear(); render(); });
+        if (!ids.length) return;
+        const list = playlist();
+        if (list) {
+            return mutate({ type: 'setPlaylistTracks', id: list.id, trackIds: list.trackIds.filter(id => !ids.includes(id)) }).then(exitSelection);
         }
-        openDialog({ title: 'Retirer de la bibliothèque ?', confirm: 'Retirer', destructive: true,
-            body: `<p>${ids.length} morceau${ids.length > 1 ? 'x seront retirés' : ' sera retiré'} de Nolys et de ses playlists. Les fichiers sur votre PC seront conservés.</p>`,
-            submit: async () => { await mutate({ type: 'removeTracks', ids }); state.selection.clear(); render(); },
-        });
+        openSheet({ title: 'Retirer de la bibliothèque ?', confirm: 'Retirer', danger: true,
+            body: `<p class="sheet-note">${ids.length > 1 ? `${ids.length} titres seront retirés` : '1 titre sera retiré'} de Nolys et de vos playlists. Les fichiers restent sur votre PC.</p>`,
+            submit: async () => { await mutate({ type: 'removeTracks', ids }); exitSelection(); } });
     }
 
     async function importMusic(kind) {
-        if (state.importing) return;
-        document.querySelector('.import-menu').open = false;
-        state.importing = true;
-        document.querySelectorAll('[data-import]').forEach(button => { button.disabled = true; });
-        document.querySelector('.import-menu summary').setAttribute('aria-disabled', 'true');
-        status('Choisissez votre musique. L’import des informations peut prendre un moment…', false, true);
+        if (state.busy) return;
+        closeMenu();
+        state.busy = true;
+        host.toggleAttribute('data-busy', true);
+        setIcon($('[data-action="import"]'), 'circle-notch', 'ph-bold');
+        toast('Choisissez votre musique dans la fenêtre Windows…');
         try {
             const result = await native.invoke('library_import', { kind });
-            state.library = result.library;
+            player.library = result.library;
+            if (result.cancelled) { toast(''); render(); return; }
+            if (result.added) { state.view = 'all'; state.query = ''; $('#search').value = ''; syncClearButton(); }
             render();
-            status(result.cancelled ? '' : `${result.added} morceau${result.added > 1 ? 'x' : ''} ajouté${result.added > 1 ? 's' : ''}${result.duplicates ? ` · ${result.duplicates} déjà présent${result.duplicates > 1 ? 's' : ''}` : ''}${result.skipped ? ` · ${result.skipped} élément${result.skipped > 1 ? 's' : ''} inaccessible${result.skipped > 1 ? 's' : ''}` : ''}.`);
+            const details = [result.duplicates && `${result.duplicates} déjà présent${result.duplicates > 1 ? 's' : ''}`, result.skipped && `${result.skipped} illisible${result.skipped > 1 ? 's' : ''}`].filter(Boolean);
+            toast(result.added
+                ? `${result.added} titre${result.added > 1 ? 's' : ''} ajouté${result.added > 1 ? 's' : ''}${details.length ? ` · ${details.join(' · ')}` : ''}.`
+                : `Aucun nouveau titre${details.length ? ` · ${details.join(' · ')}` : ' : aucun fichier audio pris en charge'}.`, !result.added && !result.duplicates);
+        } catch (error) {
+            toast(errorText(error), true);
         } finally {
-            state.importing = false;
-            document.querySelectorAll('[data-import]').forEach(button => { button.disabled = false; });
-            document.querySelector('.import-menu summary').removeAttribute('aria-disabled');
+            state.busy = false;
+            host.toggleAttribute('data-busy', false);
+            setIcon($('[data-action="import"]'), 'plus', 'ph-bold');
         }
     }
 
-    function trackMenu(id, anchor) {
-        const track = state.library.tracks.find(track => track.id === id);
-        if (!track) return;
-        const playlist = state.library.playlists.find(p => p.id === state.view);
-        const position = playlist?.trackIds.indexOf(id) ?? -1;
-        const item = (action, label, glyph, disabled = false) => `<button role="menuitem" data-track-action="${action}" data-id="${e(id)}" ${disabled ? 'disabled' : ''}>${icon(glyph)}${label}</button>`;
-        menu.innerHTML = item('add', 'Ajouter à une playlist', 'playlist') + item('enqueue', 'Ajouter à la file', 'queue')
-            + (playlist ? item('up', 'Monter', 'arrow-up', position <= 0) + item('down', 'Descendre', 'arrow-down', position === playlist.trackIds.length - 1) + item('remove', 'Retirer de la playlist', 'minus-circle') : item('remove', 'Retirer de la bibliothèque', 'minus-circle'))
-            + item('relink', 'Retrouver le fichier', 'folder-open');
-        menu.hidden = false;
-        const bounds = host.getBoundingClientRect();
-        menu.style.left = Math.max(8, Math.min(anchor.right - bounds.left - 228, bounds.width - 236)) + 'px';
-        menu.style.top = Math.max(8, Math.min(anchor.bottom - bounds.top + 4, bounds.height - menu.offsetHeight - 8)) + 'px';
-        menu.querySelector('button')?.focus();
+    async function relink(id) {
+        if (state.busy) return;
+        state.busy = true;
+        try {
+            player.library = await native.invoke('library_relink', { id });
+            render();
+        } finally { state.busy = false; }
     }
 
-    async function act(action) {
-        const playlist = state.library.playlists.find(p => p.id === state.view);
+    async function play(id) {
+        const track = player.library.tracks.find(t => t.id === id);
+        if (!track || track.missing) return;
+        await player.control({ type: 'play', id, queue: playableIds(visibleTracks()) });
+    }
+
+    function setView(view) {
+        state.view = view;
+        state.limit = PAGE;
+        state.query = '';
+        $('#search').value = '';
+        syncClearButton();
+        exitSelection(false);
+        render();
+        $('#list').scrollTop = 0;
+    }
+
+    function exitSelection(redraw = true) {
+        state.selecting = false;
+        state.selection.clear();
+        if (redraw) render();
+    }
+
+    function syncClearButton() {
+        $('[data-action="clear-search"]').hidden = !$('#search').value;
+    }
+
+    async function act(action, button) {
+        const id = button.dataset.id;
         switch (action) {
-            case 'back-menu': onMenu(); break;
-            case 'collapse': onCollapse(); break;
-            case 'previous-page': state.page = Math.max(0, state.page - 1); renderCollection(state); break;
-            case 'next-page': state.page += 1; renderCollection(state); break;
-            case 'create-playlist': createPlaylist(); break;
-            case 'close-dialog': dialog.close(); break;
-            case 'add-selected': addToPlaylist([...state.selection]); break;
-            case 'remove-selected': await removeTracks([...state.selection]); break;
-            case 'play-collection': {
-                const tracks = tracksFor(state.library, state.view, state.playback, state.query, state.sort).filter(t => !t.missing);
-                if (tracks.length) await control({ type: 'play', id: tracks[0].id, queue: tracks.map(t => t.id) });
+            case 'back': onBack(); break;
+            case 'import': openMenu(button, menuItem('import-folder', 'Un dossier', 'folder-open') + menuItem('import-files', 'Des fichiers', 'file-audio')); break;
+            case 'import-folder': await importMusic('folder'); break;
+            case 'import-files': await importMusic('files'); break;
+            case 'clear-search': $('#search').value = ''; state.query = ''; syncClearButton(); render(); $('#search').focus(); break;
+            case 'new-playlist': askNewPlaylist(); break;
+            case 'rename-playlist': {
+                const list = playlist();
+                if (list) openSheet({ title: 'Renommer la playlist', body: `<label class="field"><span>Nom</span><input name="name" value="${e(list.name)}" maxlength="80" required autocomplete="off"></label>`, submit: ({ name }) => mutate({ type: 'renamePlaylist', id: list.id, name }) });
                 break;
             }
-            case 'rename-playlist': if (playlist) openDialog({ title: 'Renommer la playlist', body: `<label class="field">Nom<input name="name" value="${e(playlist.name)}" maxlength="80" required autofocus></label>`, submit: values => mutate({ type: 'renamePlaylist', id: playlist.id, name: values.name }) }); break;
-            case 'delete-playlist': if (playlist) openDialog({ title: 'Supprimer cette playlist ?', body: `<p>La playlist « ${e(playlist.name)} » sera supprimée. Vos morceaux resteront dans la bibliothèque.</p>`, confirm: 'Supprimer la playlist', destructive: true, submit: () => mutate({ type: 'deletePlaylist', id: playlist.id }) }); break;
-        }
-    }
-
-    on(document, 'click', async event => {
-        const button = event.target.closest('button');
-        if (!button) { if (!event.target.closest('#track-menu')) menu.hidden = true; return; }
-        try {
-        
-            if (button.dataset.menu) return trackMenu(button.dataset.menu, button.getBoundingClientRect());
-            menu.hidden = true;
-            if (button.dataset.view) {
-                state.view = button.dataset.view; state.page = 0; state.selection.clear(); state.query = ''; document.querySelector('#search').value = ''; render();
-            } else if (button.dataset.import) await importMusic(button.dataset.import);
-            else if (button.dataset.action) await act(button.dataset.action);
-            else if (button.dataset.play) {
-                await control({ type: 'play', id: button.dataset.play, queue: tracksFor(state.library, state.view, state.playback, state.query, state.sort).filter(t => !t.missing).map(t => t.id) });
-            } else if (button.dataset.favorite) {
-                const track = state.library.tracks.find(t => t.id === button.dataset.favorite);
-                if (track) await mutate({ type: 'favorite', id: track.id, value: !track.favorite });
-            } else if (button.dataset.media) await control({ type: 'media', action: button.dataset.media });
-            else if (button.dataset.control) await control({ type: button.dataset.control });
-            else if (button.dataset.trackAction) {
-                const id = button.dataset.id;
-                const playlist = state.library.playlists.find(p => p.id === state.view);
-                switch (button.dataset.trackAction) {
-                    case 'add': addToPlaylist([id]); break;
-                    case 'enqueue': await control({ type: 'queue', ids: [...state.playback.queue, id] }); status('Morceau ajouté à la file.'); break;
-                    case 'remove': await removeTracks([id]); break;
-                    case 'relink':
-                        state.relinking = true;
-                        try { state.library = await native.invoke('library_relink', { id }); render(); }
-                        finally { state.relinking = false; }
-                        break;
-                    case 'up': case 'down': if (playlist) await mutate({ type: 'setPlaylistTracks', id: playlist.id, trackIds: moveTrack(playlist.trackIds, id, button.dataset.trackAction === 'up' ? -1 : 1) }); break;
-                }
+            case 'delete-playlist': {
+                const list = playlist();
+                if (list) openSheet({ title: 'Supprimer la playlist ?', confirm: 'Supprimer', danger: true, body: `<p class="sheet-note">« ${e(list.name)} » sera supprimée. Les titres restent dans votre bibliothèque.</p>`, submit: async () => { await mutate({ type: 'deletePlaylist', id: list.id }); setView('all'); } });
+                break;
             }
-        } catch (error) { status(String(error?.message || error), true); }
+            case 'sort': openMenu(button, Object.entries(SORTS).map(([value, label]) => menuItem('set-sort', label, { title: 'text-aa', artist: 'user', album: 'vinyl-record', recent: 'clock' }[value], { value, checked: state.sort === value })).join('')); break;
+            case 'set-sort': state.sort = button.dataset.value; state.limit = PAGE; closeMenu(); render(); break;
+            case 'play-all': {
+                const ids = playableIds(visibleTracks());
+                if (ids.length) await player.control({ type: 'play', id: player.shuffle ? ids[Math.floor(Math.random() * ids.length)] : ids[0], queue: ids });
+                break;
+            }
+            case 'select-mode': state.selecting = !state.selecting; state.selection.clear(); render(); break;
+            case 'toggle-select': state.selection.has(id) ? state.selection.delete(id) : state.selection.add(id); renderList(); renderSelection(); break;
+            case 'select-all': {
+                const ids = visibleTracks().slice(0, state.limit).map(t => t.id);
+                const all = ids.every(trackId => state.selection.has(trackId));
+                ids.forEach(trackId => (all ? state.selection.delete(trackId) : state.selection.add(trackId)));
+                renderList(); renderSelection(); break;
+            }
+            case 'cancel-select': exitSelection(); break;
+            case 'add-selected': addToPlaylist([...state.selection]); break;
+            case 'remove-selected': await removeTracks([...state.selection]); break;
+            case 'more': state.limit += PAGE; renderList(); break;
+            case 'play': await play(id); break;
+            case 'favorite': {
+                const track = player.library.tracks.find(t => t.id === id);
+                if (track) await mutate({ type: 'favorite', id, value: !track.favorite });
+                break;
+            }
+            case 'track-menu': trackMenu(id, button); break;
+            case 'add-to-playlist': closeMenu(); addToPlaylist([id]); break;
+            case 'enqueue': {
+                closeMenu();
+                const snap = playback();
+                if (!snap.active) { await play(id); break; }
+                const queue = snap.queue.filter(q => q !== id);
+                queue.splice(queue.indexOf(snap.trackId) + 1, 0, id);
+                await player.control({ type: 'queue', ids: queue });
+                toast('Ce titre sera lu ensuite.');
+                break;
+            }
+            case 'move-up': case 'move-down': {
+                closeMenu();
+                const list = playlist();
+                if (list) await mutate({ type: 'setPlaylistTracks', id: list.id, trackIds: moveTrack(list.trackIds, id, action === 'move-up' ? -1 : 1) });
+                break;
+            }
+            case 'relink': closeMenu(); await relink(id); break;
+            case 'remove': closeMenu(); await removeTracks([id]); break;
+            case 'close-sheet': closeSheet(); break;
+            case 'toggle': case 'prev': case 'next': await player.control({ type: 'media', action: action === 'toggle' ? 'toggle' : action }); break;
+            case 'shuffle': case 'repeat': case 'stop': await player.control({ type: action }); break;
+        }
+    }
+
+    // --------------------------------------------------------------- Événements
+
+    on(root, 'click', async event => {
+        const target = event.target.closest('[data-action], [data-view]');
+        if (!$('#menu').hidden && !event.target.closest('#menu')) {
+            // Un second clic sur le bouton qui a ouvert le menu le referme simplement.
+            const sameAnchor = target && target === menuAnchor;
+            closeMenu();
+            if (sameAnchor) return;
+        }
+        if (event.target === $('#sheet')) { closeSheet(); return; }
+        if (!target || target.disabled || target.getAttribute('aria-disabled') === 'true') return;
+        try {
+            if (target.dataset.view) setView(target.dataset.view);
+            else await act(target.dataset.action, target);
+        } catch (error) { toast(errorText(error), true); }
     });
 
-    on(document.querySelector('#search'), 'input', event => { state.query = event.target.value; state.page = 0; renderCollection(state); renderPlayback(state); });
-    on(document, 'change', event => {
-        const target = event.target;
-        if (target.id === 'sort') { state.sort = target.value; state.page = 0; renderCollection(state); }
-        if (target.dataset.select) { target.checked ? state.selection.add(target.dataset.select) : state.selection.delete(target.dataset.select); renderCollection(state); }
-        if (target.id === 'select-all') {
-            for (const track of tracksFor(state.library, state.view, state.playback, state.query, state.sort).slice(state.page * 100, (state.page + 1) * 100)) target.checked ? state.selection.add(track.id) : state.selection.delete(track.id);
-            renderCollection(state);
-        }
+    on(root, 'contextmenu', event => {
+        event.preventDefault();
+        const row = event.target.closest('.row[data-track]');
+        if (row && !state.selecting) trackMenu(row.dataset.track, row.querySelector('[data-action="track-menu"]'), { x: event.clientX, y: event.clientY });
     });
-    on(document.querySelector('#seek'), 'input', () => { state.seeking = true; });
-    on(document.querySelector('#seek'), 'change', event => { state.seeking = false; control({ type: 'seek', value: Number(event.target.value) }).catch(error => status(String(error), true)); });
-    on(document.querySelector('#volume'), 'input', event => control({ type: 'volume', value: Number(event.target.value) }).catch(error => status(String(error), true)));
-    on(document, 'keydown', event => {
-        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') { event.preventDefault(); document.querySelector('#search').focus(); }
-        if (event.key === 'Escape') {
-            if (dialog.open) { event.stopPropagation(); return; }
-            event.preventDefault(); event.stopPropagation();
-            if (!menu.hidden) menu.hidden = true;
-            else if (document.querySelector('.import-menu').open) document.querySelector('.import-menu').open = false;
-            else onCollapse();
-        }
-        if (!menu.hidden && ['ArrowDown', 'ArrowUp'].includes(event.key)) {
+
+    on($('#search'), 'input', event => {
+        state.query = event.target.value;
+        state.limit = PAGE;
+        syncClearButton();
+        render();
+    });
+
+    on($('#chips'), 'wheel', event => {
+        if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+        event.preventDefault();
+        event.currentTarget.scrollLeft += event.deltaY;
+    }, { passive: false });
+
+    on($('#seek'), 'input', event => { paintSlider(event.target); $('#p-elapsed').textContent = time(Number(event.target.value)); });
+    on($('#seek'), 'change', event => player.control({ type: 'seek', value: Number(event.target.value) }).catch(error => toast(errorText(error), true)));
+    on($('#volume'), 'input', event => { paintSlider(event.target); player.control({ type: 'volume', value: Number(event.target.value) }).catch(() => {}); });
+
+    on(root, 'keydown', event => {
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
             event.preventDefault();
-            const buttons = [...menu.querySelectorAll('button:not(:disabled)')];
-            const index = buttons.indexOf(document.activeElement);
-            buttons[(index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length]?.focus();
+            $('#search').focus();
+            $('#search').select();
+            return;
         }
+        const menu = $('#menu');
+        if (!menu.hidden && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+            event.preventDefault();
+            const items = [...menu.querySelectorAll('button:not(:disabled)')];
+            const index = items.indexOf(root.activeElement);
+            const next = { ArrowDown: index + 1, ArrowUp: index - 1, Home: 0, End: items.length - 1 }[event.key];
+            items[(next + items.length) % items.length]?.focus();
+            return;
+        }
+        if (event.key === 'Tab' && !$('#sheet').hidden) {
+            const focusable = [...$('#sheet-form').querySelectorAll('input:not([hidden]), select, button:not(:disabled)')].filter(el => !el.closest('[hidden]'));
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && root.activeElement === first) { event.preventDefault(); last.focus(); }
+            else if (!event.shiftKey && root.activeElement === last) { event.preventDefault(); first.focus(); }
+            return;
+        }
+        if (event.key !== 'Escape') return;
+        // Échap remonte d’un niveau à la fois ; l’Island ne se replie qu’en dernier.
+        event.preventDefault();
+        event.stopPropagation();
+        if (closeMenu({ restoreFocus: true }) || closeSheet()) return;
+        if (state.selecting) { exitSelection(); return; }
+        if (root.activeElement === $('#search') && $('#search').value) { act('clear-search', $('#search')); return; }
+        onClose();
     });
-    on(document, 'contextmenu', event => {
-        event.preventDefault(); event.stopPropagation();
-        const row = event.target.closest('tr[data-track]');
-        if (row) { event.preventDefault(); trackMenu(row.dataset.track, { right: event.clientX + 228, bottom: event.clientY }); }
+
+    const unsubscribe = player.subscribe(snapshot => {
+        if (disposed) return;
+        const nextQueue = snapshot.queue.join('|');
+        const queueChanged = nextQueue !== queueKey;
+        queueKey = nextQueue;
+        if (player.library !== library || (queueChanged && state.view === 'queue')) render();
+        else {
+            if (queueChanged) $('#chips').innerHTML = chipsMarkup({ library, view: state.view, queueLength: snapshot.queue.length });
+            renderPlayer();
+        }
+        if (snapshot.error && snapshot.error !== lastError) toast(snapshot.error, true);
+        lastError = snapshot.error;
     });
-    async function listen(channel, callback) {
-        const off = await native.listen(channel, payload => { if (!disposed) callback(payload); });
-        if (disposed) off(); else unlisteners.push(off);
-    }
-    async function init() {
-        await listen('local-library-changed', () => refresh().catch(error => status(String(error), true)));
-        await listen('local-library-playback', playback => {
-            const previous = state.playback;
-            state.playback = playback;
-            if (state.view === 'queue' && JSON.stringify(previous.queue) !== JSON.stringify(playback.queue)) render();
-            else { renderPlayback(state); if (previous.queue?.length !== playback.queue?.length) renderNavigation(state); }
-            if (playback.error && playback.error !== previous.error) status(playback.error, true);
-        });
-        const [library, playback] = await Promise.all([native.invoke('library_get'), native.invoke('library_get_playback')]);
-        state.library = library; state.playback = playback; render();
-    }
-    document.querySelector('#search').value = state.query;
-    init().catch(error => { render(); status(`Impossible d’ouvrir la bibliothèque : ${error}`, true, true); });
+
+    $('#search').value = state.query;
+    syncClearButton();
+    // Cascade d'entrée des lignes : seulement à l'ouverture, pas à chaque mise à jour.
+    host.setAttribute('data-intro', '');
+    const introTimer = setTimeout(() => host.removeAttribute('data-intro'), 900);
+    queueKey = playback().queue.join('|');
+    lastError = playback().error;
+    render();
+    // Le clavier (Échap, Ctrl+F) agit dès l'ouverture, sans clic préalable dans la vue.
+    $('.lib').focus({ preventScroll: true });
+    if (!player.library.tracks.length) player.reload().catch(error => toast(`Impossible d’ouvrir la bibliothèque : ${errorText(error)}`, true));
+
     return {
-        state,
-        get importing() { return state.importing || state.relinking; },
-        notify: message => status(message),
+        /** Ce qui survit à une fermeture : vue, recherche et tri. */
+        get savedState() { return { view: state.view, query: state.query, sort: state.sort }; },
+        /** Un sélecteur Windows est ouvert : l’Island ne doit pas se replier. */
+        get busy() { return state.busy; },
+        notify: message => toast(message),
         destroy() {
-            disposed = true; clearTimeout(statusTimer); abort.abort();
-            for (const off of unlisteners) off();
-            if (dialog.open) dialog.close();
+            disposed = true;
+            clearTimeout(toastTimer);
+            clearTimeout(introTimer);
+            abort.abort();
+            unsubscribe();
         },
     };
 }

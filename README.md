@@ -13,7 +13,7 @@ Le cœur Tauri 2 / Rust remplace l’ancien assemblage Electron, .NET et PowerSh
 ## Au quotidien
 
 - Lecteur musical : suivi des sessions Windows, pochette, progression, volume et historique.
-- [Bibliothèque personnelle](docs/bibliotheque.md) : import de fichiers ou de dossiers sans copie, playlists, favoris et lecture locale dans l’Island, même après fermeture de la fenêtre Bibliothèque.
+- [Bibliothèque personnelle](docs/bibliotheque.md) : import de fichiers ou de dossiers sans copie, playlists, favoris et lecture locale qui continue quand l’Island se replie.
 - Mixeur audio par application, périphériques de sortie et d’entrée.
 - Retour micro : ta voix dans le casque en direct, avec anti-bruit RNNoise, porte de bruit, coupe-bas et latence réglable.
 - Centre de contrôle : commandes Windows, raccourcis, météo et mesures système.

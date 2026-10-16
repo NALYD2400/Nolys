@@ -525,18 +525,19 @@ body.motion-vivid .inner-action-btn:hover {
     border-radius: 38px;
 }
 
-/* Même capsule, en taille de travail ; la matière, la pochette et le halo restent ceux de l’Island. */
-#dynamic-island.island-mode-library {
-    width: calc(100vw - 64px);
-    height: calc(100vh - 82px);
-    border-radius: 38px;
+/* La plus grande forme de la capsule, toujours dans la fenêtre de l'Island (620 × 600)
+ * pour garder le même ressort que les autres modes. */
+.island-mode-library {
+    width: 560px;
+    height: 496px;
+    border-radius: 40px;
     cursor: default;
 }
 
 .island-library-view {
     display: block;
-    height: 100%;
     width: 100%;
+    height: 100%;
 }
 
 .island-bg-layer {

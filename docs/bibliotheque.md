@@ -1,45 +1,37 @@
 # Bibliothèque musicale Nolys
 
-La bibliothèque ouvre votre collection audio personnelle directement dans l’Island agrandie, comme un grand mode Chrono. Elle reprend sa matière, ses couleurs, son fond ou sa pochette et son halo configurés. Sa taille de travail approche 1060 × 720 px et s’adapte à la zone de travail de l’écran et au zoom de l’Island.
+La Bibliothèque est un mode de l’Island, comme le Lecteur ou le Mélangeur : ouvrez le menu de l’Island puis **Bibliothèque**. La capsule prend sa plus grande forme avec le même ressort que les autres modes, garde sa matière, son halo et sa couleur d’accent (thème ou pochette), et reste dans la fenêtre de l’Island.
 
-En haut à droite, **Replier l’Island** retrouve la capsule compacte ; **Menu de l’Island** donne accès aux autres modes. La lecture continue pendant ces changements et la position enregistrée de la petite Island est conservée. Quitter Nolys arrête la lecture locale. Les réglages gardent leur interface actuelle ; leur intégration dans l’Island reste une évolution future.
+- **‹** (en haut à gauche) revient au menu de l’Island.
+- **Échap** remonte d’un niveau : menu ouvert, puis feuille de dialogue, puis sélection, puis recherche ; ensuite il replie l’Island.
+- Cliquer hors de l’Island la replie aussi. La lecture continue dans tous les cas.
 
 ## Importer sa musique
 
-Ouvrez **Bibliothèque** dans le menu de l’Island, puis **Importer → Des fichiers** ou **Un dossier**. Le choix d’un dossier parcourt aussi ses sous-dossiers. Les extensions reconnues sont **MP3, FLAC, WAV, M4A, AAC, OGG et OPUS** ; la lecture dépend aussi du décodage disponible dans le moteur audio de Windows.
+Le bouton **+** en haut à droite propose **Un dossier** ou **Des fichiers** (les sous-dossiers sont parcourus). Formats reconnus : **MP3, FLAC, WAV, M4A, AAC, OGG et OPUS**.
 
-Les fichiers restent à leur emplacement d’origine : Nolys enregistre leurs chemins, sans copier les fichiers audio ni modifier leurs tags. Un même chemin déjà importé est ignoré. L’import est ponctuel : aucun dossier n’est surveillé pour ajouter automatiquement les nouveaux fichiers. Relancez un import pour les ajouter.
-
-Titre, artiste, album, durée et pochette sont lus dans les métadonnées disponibles. Sans titre renseigné, Nolys affiche le nom du fichier sans extension ; sans artiste, **Artiste inconnu** ; sans album ou durée, un tiret. Une icône de disque remplace la pochette absente.
+Les fichiers restent à leur place : Nolys enregistre leurs chemins, sans copier l’audio ni modifier les tags. Un fichier déjà importé est ignoré. Aucun dossier n’est surveillé : relancez un import pour ajouter de nouveaux fichiers. Titre, artiste, album, durée et pochette sont lus dans les métadonnées ; sans titre, le nom du fichier est utilisé.
 
 ## Retrouver et écouter
 
-La recherche porte sur les titres, artistes et albums. **Ctrl+F** donne le focus à la recherche. Vous pouvez trier la collection et les favoris ; les grandes listes sont paginées par 100 morceaux. Sur un petit écran, la liste et le lecteur se resserrent et certaines colonnes ou commandes secondaires sont masquées. La liste et les playlists restent défilables.
+Les pastilles sous l’en-tête passent de **Tous** à **Favoris**, à la **File** d’attente et à vos playlists (la molette fait défiler les pastilles). La recherche porte sur le titre, l’artiste et l’album, sans tenir compte des accents ; **Ctrl+F** y place le curseur. Le bouton de tri propose titre, artiste, album ou ajout récent. Les grandes collections s’affichent par tranches de 150 titres.
 
-Cliquez sur un titre ou sur **Écouter** pour lancer la collection affichée. Le lecteur inférieur et l’Island pilotent la même lecture : pause, précédent/suivant, position, volume, aléatoire et répétition. **File de lecture** montre les titres en attente ; le menu d’un morceau permet de l’y ajouter. L’action **Revenir aux lecteurs externes** arrête la lecture locale et rend la main aux lecteurs externes suivis par l’Island.
+Un clic sur un titre lance la collection affichée à partir de lui ; **Lire** la lance depuis le début (ou au hasard si l’aléatoire est actif). Le mini-lecteur en bas et l’Island pilotent la même lecture : pause, précédent/suivant, position, volume, aléatoire et répétition. Les raccourcis média globaux visent aussi la lecture locale tant qu’elle est active. Le bouton **⏏** arrête la lecture locale et rend la main aux autres lecteurs suivis par l’Island.
 
 ## Favoris et playlists
 
-Le cœur d’un titre l’ajoute aux **Favoris**. Le bouton **+** à côté de **Mes playlists** crée une playlist. Ajoutez un morceau depuis son menu, ou cochez plusieurs titres puis choisissez **Ajouter à une playlist**. La case de l’en-tête sélectionne les morceaux de la page affichée.
+Le cœur d’une ligne (visible au survol) ajoute le titre aux favoris. **+ Playlist** crée une playlist. Le menu **⋯** d’un titre (ou un clic droit) permet de l’ajouter à une playlist, de le lire ensuite, de le monter ou descendre dans une playlist, de retrouver son fichier ou de le retirer.
 
-**Échap** ferme le dialogue ouvert sans quitter la bibliothèque. En dehors d’un dialogue, la touche ferme d’abord un menu ouvert ; sinon elle replie l’Island.
+**Choisir** active la sélection : touchez plusieurs titres, puis **Ajouter à…** ou **Retirer**. Retirer d’une playlist laisse le titre dans la bibliothèque ; retirer de la bibliothèque le retire aussi des playlists, après confirmation. Les fichiers originaux ne sont jamais supprimés.
 
-Dans une playlist, les actions **Monter** et **Descendre** du menu d’un morceau changent son ordre. Vous pouvez renommer ou supprimer une playlist. Retirer un morceau d’une playlist le laisse dans la bibliothèque ; retirer un morceau de la bibliothèque le retire aussi des playlists, après confirmation. Les fichiers originaux sont conservés dans tous ces cas.
+## Fichier déplacé
 
-## Fichier déplacé ou indisponible
-
-Un fichier absent apparaît avec **Fichier introuvable** et ne peut pas être lancé. Dans son menu, choisissez **Retrouver le fichier**, puis sélectionnez son nouvel emplacement. Nolys actualise ses informations en conservant son identité dans les playlists et son état favori. Un disque externe doit être accessible au moment de la lecture.
+Un fichier absent est grisé avec **Fichier introuvable** et un bouton **Retrouver** : choisissez son nouvel emplacement, le titre garde ses playlists et son état favori.
 
 ## Sauvegarde locale
 
-Collection, chemins, favoris et playlists sont sauvegardés dans **`music-library.json`**, dans le répertoire de données de l’application fourni par Tauri. Les miniatures extraites des pochettes sont stockées dans **`music-covers`**, au même endroit. Ces données sont distinctes des fichiers audio originaux ; conserver seulement ce JSON ne sauvegarde pas votre musique. Les changements de collection sont enregistrés par remplacement atomique du fichier JSON.
+Collection, favoris et playlists sont enregistrés dans **`music-library.json`** (remplacement atomique), les miniatures de pochettes dans **`music-covers`**, tous deux dans le dossier de données de Nolys. Ce fichier ne contient pas votre musique.
 
-## Vérification et limites
+## Vérification
 
-Dans l’application Windows locale, la bibliothèque a été ouverte dans la même fenêtre native que l’Island : zone transparente mesurée à 1124 × 802 px et capsule visible à environ 1062 × 722 px. Le retour au menu a restauré la fenêtre de 620 × 600 px ; la réouverture et la fermeture d’un dialogue de création par Échap ont été vérifiées. Il n’y a plus de fenêtre native Bibliothèque séparée.
-
-Les parcours d’interface ont aussi été vérifiés dans un navigateur avec une **passerelle Tauri simulée** et des **titres synthétiques** : import simulé, playlists, ordre, favoris, changement de mode/réouverture, nettoyage des écouteurs et tailles compactes. Échap a été exercé dans les dialogues de création, de renommage et de suppression. La lecture a utilisé un véritable élément **HTMLAudio** dans ce navigateur, avec pause, position, volume et aléatoire.
-
-Dans le WebView Windows compilé, un WAV synthétique fourni par une URL Blob a continué de jouer, en sourdine, pendant le passage de la bibliothèque au menu de l’Island : sa position est passée d’environ 0,10 s à 0,90 s sans mise en pause, avec la passerelle native d’événements de lecture. Ce contrôle isolé remplaçait temporairement la source de fichier, sa vérification de disponibilité et la commande de pause des lecteurs externes ; les remplacements ont été restaurés et aucun titre de test n’a été sauvegardé. Il valide la continuité du moteur audio et des événements dans ce parcours, sans valider l’import natif ni la lecture d’un fichier réel par son chemin autorisé.
-
-Les tests Rust natifs du parcours de fichiers, des métadonnées, des transactions de sauvegarde et du placement de la grande Island passent. Les boîtes de dialogue Windows de choix de fichiers et dossiers n’ont pas été exercées manuellement. Les captures `.impeccable/review/18-bibliotheque-vide.png` à `21-bibliotheque-compacte.png` illustrent les états de navigateur ; leurs titres musicaux sont des données synthétiques de test. `native-library.png` montre l’état vide dans l’application Windows locale. Cette documentation ne vaut pas annonce de publication, de version installée ou de distribution.
+`tools/tests/local-music.test.mjs` couvre le lecteur (file, aléatoire, répétition, fichiers absents). `tools/tests/library.browser.cjs` parcourt la vraie interface dans Edge avec un pont Tauri simulé, des titres synthétiques et un véritable élément audio ; il produit les captures `docs/screenshots/18` à `20`. Les sélecteurs de fichiers Windows se vérifient dans l’application.

@@ -20,7 +20,6 @@ export default defineConfig({
             input: {
                 island: resolve(import.meta.dirname, 'src/island/index.html'),
                 settings: resolve(import.meta.dirname, 'src/settings/index.html'),
-                library: resolve(import.meta.dirname, 'src/library/index.html'),
             },
         },
     },

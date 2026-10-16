@@ -66,7 +66,8 @@ export const navigationMethods = {
 
     collapseIsland() {
         if (!this.isExpanded) return;
-        if (this.mode === 'library' && this._libraryController?.importing) return;
+        // Sélecteur de fichiers Windows ouvert : la perte de focus ne doit pas fermer la vue.
+        if (this.mode === 'library' && this._libraryController?.busy) return;
         if (this.mode === 'notification') {
             this.dismissNotification();
             return;

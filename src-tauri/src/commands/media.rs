@@ -75,9 +75,10 @@ fn parse_command(action: &str) -> Option<(Command, &'static str)> {
 
 #[tauri::command]
 pub fn media_control(app: AppHandle, action: String) {
-    if app.state::<crate::library::Store>().playback.lock().active {
+    // Raccourcis clavier pendant la lecture d’un fichier local : c’est l’Island qui joue.
+    if app.state::<crate::library::Store>().player_active.load(std::sync::atomic::Ordering::SeqCst) {
         use tauri::Emitter;
-        let _ = app.emit_to(crate::island::LABEL, crate::library::CONTROL, serde_json::json!({ "type": "media", "action": action }));
+        let _ = app.emit_to(crate::island::LABEL, crate::library::CONTROL, action);
         return;
     }
     let Some((command, name)) = parse_command(&action) else { return };

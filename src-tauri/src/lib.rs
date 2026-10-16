@@ -39,15 +39,11 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            library::commands::library_open,
-            library::commands::library_workspace,
             library::commands::library_get,
             library::commands::library_import,
             library::commands::library_mutate,
             library::commands::library_relink,
-            library::commands::library_get_playback,
-            library::commands::library_control,
-            library::commands::library_set_playback,
+            library::commands::library_player_active,
             library::commands::library_check_track,
             commands::media::get_media_info,
             commands::media::media_control,

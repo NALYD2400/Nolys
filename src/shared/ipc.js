@@ -33,7 +33,6 @@ const SEND_CHANNELS = {
 
 /** Canaux avec réponse : canal -> (arguments) => [commande, paramètres]. */
 const INVOKE_CHANNELS = {
-    'open-library': () => ['library_open'],
     'get-layout-state': () => ['get_layout_state'],
     'get-displays': () => ['get_displays'],
     'get-audio-meter': () => ['get_audio_meter'],

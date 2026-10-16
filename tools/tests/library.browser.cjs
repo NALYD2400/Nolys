@@ -1,11 +1,10 @@
-/* Parcours navigateur : vrais composants et HTMLAudio, pont natif simulé. */
+/* Parcours navigateur : vraie Island, vraie Bibliothèque et HTMLAudio, pont natif simulé.
+ * Lancer `npm run dev:ui`, puis `node tools/tests/library.browser.cjs`. */
 const { chromium } = require(process.env.NOLYS_PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
 const base = process.env.NOLYS_UI_URL || 'http://127.0.0.1:1420';
-const screenshots = path.join(process.cwd(), '.impeccable', 'review');
-fs.mkdirSync(screenshots, { recursive: true });
+const screenshots = path.join(process.cwd(), 'docs', 'screenshots');
 
 function wavFixture() {
     const samples = 8000 * 30;
@@ -20,11 +19,11 @@ function wavFixture() {
 (async () => {
     const browser = await chromium.launch({ headless: true, channel: 'msedge', args: ['--mute-audio', '--autoplay-policy=no-user-gesture-required'] });
     try {
-        const context = await browser.newContext({ viewport: { width: 1060, height: 720 } });
+        // Même taille CSS que la fenêtre native de l'Island (620 × 600).
+        const context = await browser.newContext({ viewport: { width: 620, height: 600 } });
         const library = { tracks: [], playlists: [] };
-        let playback = { active: false, queue: [], volume: .8, repeat: 'off' };
+        let playerActive = false;
         let sequence = 0;
-        let libraryOpens = 0;
         const errors = [];
         const titles = ['Lumière', 'Été', 'Après la pluie', 'Nocturne', 'Panorama', 'Horizon', 'Résonance', 'Dérive', 'Matin calme', 'Les heures bleues', 'Traversée', 'Dernier regard'];
         const fixture = titles.map((title, index) => ({ id: `t${index}`, title, artist: ['Atlas', 'Nacre', 'Ligne Claire'][index % 3], album: ['Contours', 'Lointain', 'Clair de nuit'][index % 3], path: `/test/${index}.wav`, cover: '', duration: 30000, favorite: false, addedAt: index, missing: false }));
@@ -39,20 +38,16 @@ function wavFixture() {
             const end = range[2] ? Math.min(Number(range[2]), audioBytes.length - 1) : audioBytes.length - 1;
             return route.fulfill({ status: 206, contentType: 'audio/wav', headers: { 'accept-ranges': 'bytes', 'content-range': `bytes ${start}-${end}/${audioBytes.length}` }, body: audioBytes.subarray(start, end + 1) });
         });
-        await context.exposeBinding('__invoke', async ({ page }, command, args = {}) => {
+        await context.exposeBinding('__invoke', async (_source, command, args = {}) => {
             switch (command) {
                 case 'library_get': return structuredClone(library);
-                case 'library_open': await emit('local-library-open', null); return;
-                case 'library_workspace': if (args.expanded) libraryOpens += 1; await page.setViewportSize(args.expanded ? { width: 1124, height: 802 } : { width: 620, height: 600 }); return;
                 case 'library_relink': {
                     const track = library.tracks.find(t => t.id === args.id);
                     track.path = `/test/relocated-${track.id}.wav`; track.missing = false;
                     await emit('local-library-changed', null);
                     return structuredClone(library);
                 }
-                case 'library_get_playback': return structuredClone(playback);
-                case 'library_set_playback': playback = args.playback; await emit('local-library-playback', playback); return;
-                case 'library_control': await emit('local-library-control', args.action); return;
+                case 'library_player_active': playerActive = args.active; return;
                 case 'library_check_track': if (!library.tracks.some(t => t.id === args.id && !t.missing)) throw new Error('Fichier introuvable.'); return;
                 case 'library_import': {
                     const added = library.tracks.length ? 0 : fixture.length;
@@ -67,7 +62,6 @@ function wavFixture() {
                     if (m.type === 'deletePlaylist') library.playlists.splice(library.playlists.findIndex(p => p.id === m.id), 1);
                     if (m.type === 'setPlaylistTracks') library.playlists.find(p => p.id === m.id).trackIds = [...new Set(m.trackIds)];
                     if (m.type === 'favorite') library.tracks.find(t => t.id === m.id).favorite = m.value;
-                    if (m.type === 'removeTrack') { library.tracks.splice(library.tracks.findIndex(t => t.id === m.id), 1); for (const p of library.playlists) p.trackIds = p.trackIds.filter(id => id !== m.id); }
                     if (m.type === 'removeTracks') { library.tracks = library.tracks.filter(t => !m.ids.includes(t.id)); for (const p of library.playlists) p.trackIds = p.trackIds.filter(id => !m.ids.includes(id)); }
                     await emit('local-library-changed', null);
                     return structuredClone(library);
@@ -92,114 +86,127 @@ function wavFixture() {
                 }, startDragging: async () => {} }) },
             };
         });
-        function pageErrors(page) { page.on('pageerror', error => errors.push(error.message)); }
-        const island = await context.newPage(); pageErrors(island);
-        await island.goto(`${base}/island/index.html`);
-        await island.waitForFunction(() => window.island?.localPlayer?.library);
-        await island.evaluate(() => window.island.openExpandedMode('menu'));
-        await island.waitForFunction(() => !window.island._transitionInProgress && document.querySelectorAll('.island-menu-item').length === 8);
-        await island.locator('.island-menu-item').filter({ hasText: /Bibliothèque/ }).click();
-        const page = island;
-        await page.getByRole('heading', { name: 'Faites entrer votre musique' }).waitFor();
-        assert.equal(libraryOpens, 1);
-        assert.equal(context.pages().length, 1);
-        await page.addStyleTag({content: 'html { background: #14131a !important; }'});
-        await page.getByRole('heading', { name: 'Faites entrer votre musique' }).waitFor();
-        await page.waitForFunction(() => !window.island._transitionInProgress);
+
+        const page = await context.newPage();
+        page.on('pageerror', error => errors.push(error.message));
+        await page.goto(`${base}/island/index.html`);
+        await page.addStyleTag({ content: 'html { background: #14131a !important; }' });
+        await page.waitForFunction(() => window.island?.localPlayer?.library);
+        const settled = () => page.waitForFunction(() => !window.island._transitionInProgress);
+        const inLibrary = fn => page.waitForFunction(fn);
+        const rows = () => page.locator('.row');
+        const shot = async name => { await settled(); await page.waitForTimeout(1000); await page.screenshot({ path: path.join(screenshots, name), animations: 'disabled' }); };
+
+        await page.evaluate(() => window.island.openExpandedMode('menu'));
+        await page.waitForFunction(() => !window.island._transitionInProgress && document.querySelectorAll('.island-menu-item').length === 8);
+        await page.locator('.island-menu-item').filter({ hasText: /Bibliothèque/ }).click();
+        await page.getByText('Votre musique, ici').waitFor();
         await page.evaluate(() => document.fonts.ready);
-        await page.screenshot({ path: path.join(screenshots, '18-bibliotheque-vide.png'), animations: 'disabled' });
+        await shot('18-bibliotheque-vide.png');
+        const box = await page.evaluate(() => { const r = window.island.el.getBoundingClientRect(); return { left: r.left, right: r.right, bottom: r.bottom, width: innerWidth, height: innerHeight }; });
+        assert.ok(box.left >= 0 && box.right <= box.width && box.bottom <= box.height, `la capsule tient dans la fenêtre : ${JSON.stringify(box)}`);
+
         await page.getByRole('button', { name: 'Importer un dossier', exact: true }).click();
-        await page.waitForFunction(() => window.island._libraryController.state.root.querySelectorAll('tbody tr').length === 12);
+        await inLibrary(() => window.island._libraryHost.shadowRoot.querySelectorAll('.row').length === 12);
+        await page.getByRole('status').filter({ hasText: '12 titres ajoutés' }).waitFor();
         await page.locator('#search').fill('ete');
-        assert.equal(await page.locator('tbody tr').count(), 1);
-        await page.locator('#search').fill('');
-        await page.locator('#select-t0').check();
-        await page.locator('#select-t1').check();
-        await page.getByRole('button', { name: 'Ajouter à une playlist', exact: true }).click();
-        await page.locator('dialog input[name="name"]').fill('Sur la route');
-        await page.getByRole('button', { name: 'Ajouter les morceaux', exact: true }).click();
-        await page.waitForFunction(() => !window.island._libraryController.state.root.querySelector('dialog').open);
+        assert.equal(await rows().count(), 1);
+        await page.getByRole('button', { name: 'Effacer la recherche' }).click();
+        assert.equal(await rows().count(), 12);
+
+        await page.getByRole('button', { name: 'Choisir', exact: true }).click();
+        await page.locator('[data-action="toggle-select"][data-id="t0"]').click();
+        await page.locator('[data-action="toggle-select"][data-id="t1"]').click();
+        await page.getByRole('button', { name: 'Ajouter à…', exact: true }).click();
+        await page.locator('#sheet-form input[name="name"]').fill('Sur la route');
+        await page.locator('#sheet-form').getByRole('button', { name: 'Ajouter', exact: true }).click();
+        await page.locator('#sheet').waitFor({ state: 'hidden' });
         assert.deepEqual(library.playlists[0].trackIds, ['t0', 't1']);
-        await page.getByRole('button', { name: /Sur la route/ }).click();
+        assert.equal(await page.locator('#selection').isVisible(), false);
+
+        await page.locator('.chip', { hasText: 'Sur la route' }).click();
         await page.getByRole('button', { name: 'Options pour Été', exact: true }).click();
         await page.getByRole('menuitem', { name: 'Monter', exact: true }).click();
-        await page.waitForFunction(() => window.island._libraryController.state.root.querySelector('tbody tr').dataset.track === 't1');
+        await inLibrary(() => window.island._libraryHost.shadowRoot.querySelector('.row').dataset.track === 't1');
         assert.deepEqual(library.playlists[0].trackIds, ['t1', 't0']);
-        await page.getByRole('button', { name: 'Écouter', exact: true }).click();
-        await island.waitForFunction(() => window.island.localPlayer.active && !window.island.localPlayer.audio.paused && window.island.localPlayer.audio.currentTime > .1);
-        assert.equal(await island.evaluate(() => window.island.musicData.source), 'local');
-        await page.screenshot({ path: path.join(screenshots, '20-bibliotheque-playlist.png'), animations: 'disabled' });
-        await page.getByRole('button', { name: 'Replier l’Island', exact: true }).click();
-        await island.waitForFunction(() => window.island.localPlayer.audio.currentTime > .3);
-        assert.equal(await island.evaluate(() => window.island.localPlayer.audio.paused), false);
-        await page.waitForFunction(() => !window.island.isExpanded && !window.island._libraryWorkspace);
-        await island.evaluate(() => window.island.openLibrary());
-        await page.getByRole('button', { name: /Sur la route/ }).waitFor();
-        await page.locator('.nav-item[data-view=all]').click();
-        await page.waitForFunction(() => window.island._libraryController.state.root.querySelector('#playing-title').textContent === 'Été');
+        await page.getByRole('button', { name: 'Lire', exact: true }).click();
+        await page.waitForFunction(() => window.island.localPlayer.active && !window.island.localPlayer.audio.paused && window.island.localPlayer.audio.currentTime > .1);
+        assert.equal(await page.evaluate(() => window.island.musicData.source), 'local');
+        assert.equal(playerActive, true);
+        await shot('20-bibliotheque-playlist.png');
+
+        // Échap replie l'Island ; la musique continue.
+        await page.keyboard.press('Escape');
+        await page.waitForFunction(() => !window.island.isExpanded && !window.island._libraryController);
+        await page.waitForFunction(() => window.island.localPlayer.audio.currentTime > .3);
+        assert.equal(await page.evaluate(() => window.island.localPlayer.audio.paused), false);
+        await settled();
+        await page.evaluate(() => window.island.openLibrary());
+        await page.locator('.chip.is-active', { hasText: 'Sur la route' }).waitFor();
+        await page.locator('.chip[data-view=all]').click();
+        await inLibrary(() => window.island._libraryHost.shadowRoot.querySelector('#p-title').textContent === 'Été');
         await page.getByRole('button', { name: 'Pause', exact: true }).click();
-        await island.waitForFunction(() => window.island.localPlayer.audio.paused);
+        await page.waitForFunction(() => window.island.localPlayer.audio.paused);
         await page.locator('#volume').evaluate(el => { el.value = '.31'; el.dispatchEvent(new Event('input', { bubbles: true })); });
-        await island.waitForFunction(() => Math.abs(window.island.localPlayer.audio.volume - .31) < .001);
+        await page.waitForFunction(() => Math.abs(window.island.localPlayer.audio.volume - .31) < .001);
         await page.locator('#seek').evaluate(el => { el.value = '10000'; el.dispatchEvent(new Event('change', { bubbles: true })); });
-        await island.waitForFunction(() => Math.abs(window.island.localPlayer.audio.currentTime - 10) < .1).catch(async error => { console.error(await island.evaluate(() => ({ state: window.island.localPlayer.snapshot, seekable: window.island.localPlayer.audio.seekable.length }))); throw error; });
+        await page.waitForFunction(() => Math.abs(window.island.localPlayer.audio.currentTime - 10) < .1);
         await page.getByRole('button', { name: 'Lecture aléatoire', exact: true }).click();
-        await island.waitForFunction(() => window.island.localPlayer.shuffle);
+        await page.waitForFunction(() => window.island.localPlayer.shuffle);
         await page.getByRole('button', { name: 'Ajouter Lumière aux favoris', exact: true }).click();
+        await inLibrary(() => window.island._libraryHost.shadowRoot.querySelector('.chip[data-view=favorites] small').textContent === '1');
         assert.equal(library.tracks[0].favorite, true);
-        await island.evaluate(() => { window.__dispatch('config-changed', {glow: {...window.island._islandConfig, glowColor: '#668dff', glowColorMode: 'fixed'}}); });
-        await page.waitForFunction(() => getComputedStyle(window.island._libraryHost).getPropertyValue('--library-accent').trim() === '#668dff');
-        await page.screenshot({ path: path.join(screenshots, '19-bibliotheque.png'), animations: 'disabled' });
-        await page.setViewportSize({ width: 780, height: 540 });
-        await page.waitForFunction(() => window.island._libraryController.state.root.querySelector('#player').getBoundingClientRect().bottom <= innerHeight);
-        const bounds = await page.evaluate(() => ({ horizontalOverflow: document.body.scrollWidth > innerWidth, playerBottom: window.island._libraryController.state.root.querySelector('#player').getBoundingClientRect().bottom, height: innerHeight }));
-        assert.equal(bounds.horizontalOverflow, false); assert.ok(bounds.playerBottom <= bounds.height);
-        const noteVisible = await page.locator('.sidebar-note').isVisible();
-        assert.equal(noteVisible, false);
-        await page.screenshot({ path: path.join(screenshots, '21-bibliotheque-compacte.png'), animations: 'disabled' });
-        await page.setViewportSize({ width: 1124, height: 802 });
-        await page.waitForFunction(() => window.island.el.getBoundingClientRect().width > 1000);
+        // L'accent suit celui de l'Island (thème ou pochette), sans copie propre à la vue.
+        const accent = await page.evaluate(() => [getComputedStyle(window.island._libraryHost.shadowRoot.querySelector('.lib')).getPropertyValue('--accent-rgb').trim(), getComputedStyle(document.documentElement).getPropertyValue('--neon-primary-rgb').trim()]);
+        assert.equal(accent[0], accent[1] || '212, 148, 96');
+        await page.getByRole('button', { name: 'Lecture', exact: true }).click();
+        await shot('19-bibliotheque.png');
+
         library.tracks.find(t => t.id === 't1').missing = true;
         await emit('local-library-changed', null);
-        await page.waitForFunction(() => window.island._libraryController.state.root.querySelector('tr[data-track="t1"]')?.classList.contains('missing'));
-        await page.getByRole('button', { name: 'Options pour Été', exact: true }).click();
-        await page.getByRole('menuitem', { name: 'Retrouver le fichier', exact: true }).click();
-        await page.waitForFunction(() => !window.island._libraryController.state.root.querySelector('tr[data-track="t1"]')?.classList.contains('missing'));
-        await page.locator('[data-play="t1"]').click();
-        await island.waitForFunction(() => window.island.localPlayer.currentSource.includes('relocated') && !window.island.localPlayer.audio.paused);
-        await page.getByRole('button', { name: 'Arrêter la musique locale et revenir aux lecteurs externes', exact: true }).click();
-        await island.waitForFunction(() => !window.island.localPlayer.active);
-        await page.locator('#select-t0').check();
-        await page.locator('#select-t1').check();
-        await page.getByRole('button', { name: 'Retirer la sélection', exact: true }).click();
-        await page.locator('dialog').getByRole('button', { name: 'Retirer', exact: true }).click();
-        await page.waitForFunction(() => window.island._libraryController.state.root.querySelectorAll('tbody tr').length === 10);
+        await inLibrary(() => window.island._libraryHost.shadowRoot.querySelector('.row[data-track="t1"]')?.classList.contains('is-missing'));
+        await page.locator('.row[data-track="t1"]').getByRole('button', { name: 'Retrouver', exact: true }).click();
+        await inLibrary(() => !window.island._libraryHost.shadowRoot.querySelector('.row[data-track="t1"]')?.classList.contains('is-missing'));
+        await page.locator('[data-action="play"][data-id="t1"]').click();
+        await page.waitForFunction(() => window.island.localPlayer.currentSource.includes('relocated') && !window.island.localPlayer.audio.paused);
+        await page.getByRole('button', { name: 'Arrêter et revenir aux autres lecteurs', exact: true }).click();
+        await page.waitForFunction(() => !window.island.localPlayer.active);
+        assert.equal(playerActive, false);
+
+        await page.getByRole('button', { name: 'Choisir', exact: true }).click();
+        await page.locator('[data-action="toggle-select"][data-id="t0"]').click();
+        await page.locator('[data-action="toggle-select"][data-id="t1"]').click();
+        await page.locator('#selection').getByRole('button', { name: 'Retirer', exact: true }).click();
+        await page.locator('#sheet-form').getByRole('button', { name: 'Retirer', exact: true }).click();
+        await inLibrary(() => window.island._libraryHost.shadowRoot.querySelectorAll('.row').length === 10);
         assert.equal(library.playlists[0].trackIds.length, 0);
+
+        // Échap ferme la feuille, pas l'Island.
         for (const label of ['Créer une playlist', 'Renommer la playlist', 'Supprimer la playlist']) {
-            if (label !== 'Créer une playlist') await page.getByRole('button', { name: /Sur la route/ }).click();
+            if (label !== 'Créer une playlist') await page.locator('.chip', { hasText: 'Sur la route' }).click();
             await page.getByRole('button', { name: label, exact: true }).click();
-            await page.locator('dialog').waitFor({ state: 'visible' });
+            await page.locator('#sheet').waitFor({ state: 'visible' });
             await page.keyboard.press('Escape');
-            await page.locator('dialog').waitFor({ state: 'hidden' });
+            await page.locator('#sheet').waitFor({ state: 'hidden' });
             assert.equal(await page.evaluate(() => window.island.mode), 'library');
             assert.equal(await page.evaluate(() => window.island.isExpanded), true);
         }
-        await page.locator('.nav-item[data-view=all]').click();
+
+        await page.locator('.chip[data-view=all]').click();
         await page.locator('#search').fill('Nocturne');
         await page.getByRole('button', { name: 'Revenir au menu de l’Island', exact: true }).click();
-        await page.waitForFunction(() => window.island.mode === 'menu' && !window.island._transitionInProgress && !window.island._libraryWorkspace);
+        await page.waitForFunction(() => window.island.mode === 'menu' && !window.island._transitionInProgress && !window.island._libraryController);
         await page.locator('.island-menu-item').filter({ hasText: /Bibliothèque/ }).click();
-        await page.getByRole('heading', { name: 'Votre bibliothèque' }).waitFor();
+        await page.getByText('Tous les titres').waitFor();
         assert.equal(await page.locator('#search').inputValue(), 'Nocturne');
-        assert.equal(await page.locator('tbody tr').count(), 1);
-        await island.evaluate(() => window.island.showNotification('Test', 'La collection reste ouverte'));
-        assert.equal(await island.evaluate(() => window.island.mode), 'library');
-        await page.getByRole('status').filter({hasText:'La collection reste ouverte'}).waitFor();
+        assert.equal(await rows().count(), 1);
+        await page.evaluate(() => window.island.showNotification('Test', 'La collection reste ouverte'));
+        assert.equal(await page.evaluate(() => window.island.mode), 'library');
+        await page.getByRole('status').filter({ hasText: 'La collection reste ouverte' }).waitFor();
         const counts = await page.evaluate(() => window.__listenerCounts());
-        assert.equal(counts['local-library-playback'], 1);
-        assert.equal(counts['local-library-changed'], 2);
-        assert.equal(context.pages().length, 1);
+        assert.equal(counts['local-library-changed'], 1);
+        assert.equal(counts['local-library-media'], 1);
         assert.equal(errors.length, 0, JSON.stringify(errors));
-        console.log(JSON.stringify({ passed: ['entrée menu', 'import', 'recherche sans accents', 'playlist', 'ordre', 'audio réel', 'fermeture et réouverture', 'pause', 'position', 'volume', 'aléatoire', 'favoris', 'petite fenêtre', 'fichier déplacé', 'retour lecteurs externes', 'retrait groupé'], errors }));
+        console.log(JSON.stringify({ passed: ['entrée menu', 'taille de la capsule', 'import', 'recherche sans accents', 'sélection', 'playlist', 'ordre', 'audio réel', 'Échap et réouverture', 'pause', 'position', 'volume', 'aléatoire', 'favoris', 'accent du thème', 'fichier déplacé', 'retour aux autres lecteurs', 'retrait groupé', 'feuilles et Échap', 'état conservé', 'notification'] }));
     } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

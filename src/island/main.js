@@ -79,7 +79,6 @@ document.addEventListener('DOMContentLoaded', () => {
         onError: message => island.showNotification('Bibliothèque', message, 'ph-warning-circle'),
     });
     island.localPlayer.init().catch(error => console.warn('[Library]', error));
-    native.listen('local-library-open', () => island.openLibrary()).catch(error => console.warn('[Library]', error));
 
     // Première fois seulement : Windows range l'icône de la barre dans la zone masquée (flèche ^).
     // Une indication dans l'Island évite de croire que l'app n'a pas démarré.
