@@ -161,6 +161,10 @@ export const navigationMethods = {
     },
 
     setMode(mode) {
+        if (mode === 'library') {
+            ipcRenderer.invoke('open-library').catch(error => this.showNotification('Bibliothèque', String(error), 'ph-warning-circle'));
+            return;
+        }
         this.isAudioDeviceDropdownOpen = false;
         this.isMicDeviceDropdownOpen = false;
         if (mode === 'settings') {

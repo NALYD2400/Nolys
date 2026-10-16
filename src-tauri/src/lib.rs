@@ -4,6 +4,7 @@ mod commands;
 mod events;
 mod island;
 mod logger;
+mod library;
 mod media;
 mod migration;
 mod platform;
@@ -38,6 +39,16 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            library::commands::library_open,
+            library::commands::library_window,
+            library::commands::library_get,
+            library::commands::library_import,
+            library::commands::library_mutate,
+            library::commands::library_relink,
+            library::commands::library_get_playback,
+            library::commands::library_control,
+            library::commands::library_set_playback,
+            library::commands::library_check_track,
             commands::media::get_media_info,
             commands::media::media_control,
             commands::audio::get_audio_meter,
@@ -98,6 +109,7 @@ fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let data_dir = app.path().app_data_dir()?;
     std::fs::create_dir_all(&data_dir)?;
     logger::init(data_dir.clone());
+    app.manage(library::Store::new(data_dir.clone()));
     logger::log(&format!("[App] Starting Nolys {}", app.package_info().version));
     migration::import_legacy_files(&data_dir);
     platform::mic_monitor::init(&data_dir);

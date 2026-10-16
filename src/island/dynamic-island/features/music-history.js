@@ -1,5 +1,6 @@
 /** Historique et favoris musicaux. */
 import { SoundService } from '../../../services/SoundService.js';
+import { native } from '../../../shared/ipc.js';
 import { escapeHtml, formatHistoryTime } from '../helpers/format.js';
 import { APP_LOGO_ART, getEffectiveMediaArt } from '../helpers/media-art.js';
 import { getCurrentTrackSearchQuery, getMusicHistoryKey, getMusicSearchProvider, isHistoryTrack } from '../helpers/music-search.js';
@@ -77,6 +78,7 @@ export const musicHistoryMethods = {
             artist: data.artist || 'Artiste inconnu',
             cover: compressedArt,
             appId: data.appId || '',
+            localTrackId: data.localTrackId || '',
             providerKey: provider.key,
             providerLabel: provider.label,
             providerIcon: provider.icon,
@@ -130,6 +132,11 @@ export const musicHistoryMethods = {
     },
 
     openHistoryTrack(item, mode = 'search') {
+        if (item.localTrackId) {
+            if (mode === 'search') this.setMode('library');
+            else native.invoke('library_control', { action: { type: 'play', id: item.localTrackId } }).catch(error => this.showNotification('Bibliothèque', String(error)));
+            return;
+        }
         const query = this.getHistoryQuery(item);
         const provider = this.getProviderFromHistoryItem(item);
 
@@ -169,6 +176,7 @@ export const musicHistoryMethods = {
 
     isCurrentMusicFavorite() {
         const data = this.musicData || {};
+        if (data.localTrackId) return this.localPlayer?.current?.favorite === true;
         if (!isHistoryTrack(data)) return false;
 
         const key = getMusicHistoryKey(data);
@@ -177,6 +185,14 @@ export const musicHistoryMethods = {
 
     async toggleCurrentMusicFavorite() {
         const data = this.musicData || {};
+        if (data.localTrackId && this.localPlayer) {
+            try {
+                await native.invoke('library_mutate', { mutation: { type: 'favorite', id: data.localTrackId, value: !this.isCurrentMusicFavorite() } });
+                await this.localPlayer.reload();
+                if (this.isExpanded && this.mode === 'music') this.renderMusic();
+            } catch (error) { this.showNotification('Bibliothèque', String(error)); }
+            return;
+        }
         if (!isHistoryTrack(data)) {
             this.showIslandFeedback('Aucun morceau à ajouter aux favoris', 'ph-star');
             return;

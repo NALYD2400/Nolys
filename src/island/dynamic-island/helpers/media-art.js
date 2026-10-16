@@ -39,6 +39,7 @@ export function isDedicatedPlayerApp(appId) {
 }
 
 export function getFallbackIcon(appId, title, artist = '', windowTitle = '') {
+    if (appId === 'nolys-local') return APP_LOGO_ART;
     const id = appId ? appId.toLowerCase().replace('.exe', '') : '';
     const t = `${title || ''} ${artist || ''} ${windowTitle || ''}`.toLowerCase();
 

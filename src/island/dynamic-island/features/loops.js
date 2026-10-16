@@ -165,12 +165,18 @@ export const loopMethods = {
     },
 
     async updateMediaState() {
+        if (this.localPlayer?.active) {
+            const media = this.localPlayer.media;
+            if (media) this.updateMusic(media);
+            return;
+        }
         try {
             if (this._mediaStateRequestInFlight) return;
             if (!ipcRenderer) return;
             this._mediaStateRequestInFlight = true;
 
             const mediaInfo = await ipcRenderer.invoke('get-media-info');
+            if (this.localPlayer?.active) return;
             if (mediaInfo) {
                 this.updateMusic({
                     title: mediaInfo.title || "Aucune lecture",

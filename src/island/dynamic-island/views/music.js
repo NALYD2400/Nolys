@@ -70,7 +70,8 @@ export const musicView = {
             <i class="${isFavorite ? 'ph-fill' : 'ph'} ph-star"></i>
           </button>`;
 
-        const historyBtn = `
+        const historyBtn = data.source === 'local' ? `
+          <button class="island-action-btn music-history-btn" onclick="event.stopPropagation(); window.island.setMode('library')" title="Bibliothèque musicale" aria-label="Bibliothèque musicale"><i class="ph ph-vinyl-record"></i></button>` : `
           <button class="island-action-btn music-history-btn" onclick="event.stopPropagation(); window.island.setMode('music-history')" title="Historique musique">
             <i class="ph ph-clock-counter-clockwise"></i>
           </button>`;

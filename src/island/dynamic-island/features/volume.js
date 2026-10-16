@@ -307,6 +307,12 @@ export const volumeMethods = {
     },
 
     async adjustCurrentMediaVolume(delta) {
+        if (this.localPlayer?.active) {
+            const volume = Math.max(0, Math.min(1, this.localPlayer.audio.volume + delta / 100));
+            await this.localPlayer.control({ type: 'volume', value: volume });
+            this.showAppVolumeIndicator('Bibliothèque Nolys', Math.round(volume * 100));
+            return;
+        }
         let group = this.getCurrentMediaSessionGroup();
         if (!group) {
             group = await this.refreshCurrentMediaVolumeSession();

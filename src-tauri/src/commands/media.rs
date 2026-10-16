@@ -75,6 +75,11 @@ fn parse_command(action: &str) -> Option<(Command, &'static str)> {
 
 #[tauri::command]
 pub fn media_control(app: AppHandle, action: String) {
+    if app.state::<crate::library::Store>().playback.lock().active {
+        use tauri::Emitter;
+        let _ = app.emit_to(crate::island::LABEL, crate::library::CONTROL, serde_json::json!({ "type": "media", "action": action }));
+        return;
+    }
     let Some((command, name)) = parse_command(&action) else { return };
     app.state::<AppState>().media.lock().note_command(name);
     tauri::async_runtime::spawn_blocking(move || smtc::send(command));

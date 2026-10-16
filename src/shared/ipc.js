@@ -33,6 +33,7 @@ const SEND_CHANNELS = {
 
 /** Canaux avec réponse : canal -> (arguments) => [commande, paramètres]. */
 const INVOKE_CHANNELS = {
+    'open-library': () => ['library_open'],
     'get-layout-state': () => ['get_layout_state'],
     'get-displays': () => ['get_displays'],
     'get-audio-meter': () => ['get_audio_meter'],
@@ -118,5 +119,7 @@ export const ipcRenderer = {
 /** Commandes natives propres à la version Tauri (sans équivalent Electron). */
 export const native = {
     invoke: (command, params) => tauri.core.invoke(command, params),
+    listen: (channel, callback) => currentWindow.listen(channel, event => callback(event.payload)),
+    fileSrc: (path) => path ? tauri.core.convertFileSrc(path) : '',
     startDragging: () => currentWindow.startDragging(),
 };

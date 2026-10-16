@@ -13,6 +13,7 @@ Le cœur Tauri 2 / Rust remplace l’ancien assemblage Electron, .NET et PowerSh
 ## Au quotidien
 
 - Lecteur musical : suivi des sessions Windows, pochette, progression, volume et historique.
+- [Bibliothèque personnelle](docs/bibliotheque.md) : import de fichiers ou de dossiers sans copie, playlists, favoris et lecture locale dans l’Island, même après fermeture de la fenêtre Bibliothèque.
 - Mixeur audio par application, périphériques de sortie et d’entrée.
 - Retour micro : ta voix dans le casque en direct, avec anti-bruit RNNoise, porte de bruit, coupe-bas et latence réglable.
 - Centre de contrôle : commandes Windows, raccourcis, météo et mesures système.
@@ -27,6 +28,10 @@ Le dépôt GitHub et l’identifiant `com.nalyd.liquid-dynamic-island` sont cons
 
 ## Aperçu de la nouvelle identité
 
+La Bibliothèque est accessible depuis le menu des modules. Capture de développement avec des morceaux de test et un pont natif simulé :
+
+![Bibliothèque musicale Nolys](docs/screenshots/19-bibliotheque.png)
+
 Captures du code source 2.0.2, rendues avec un pont Tauri de démonstration. Musique, météo et données Windows sont simulées ; la matière, les contrôles et le logo viennent de l’interface réelle.
 
 | Lecteur musical | Centre de contrôle |
@@ -39,7 +44,7 @@ Captures du code source 2.0.2, rendues avec un pont Tauri de démonstration. Mus
 
 ## Prérequis
 
-- [Rust](https://rustup.rs) (stable, MSVC)
+- [Rust](https://rustup.rs) (1.89 ou plus récent, MSVC)
 - Node.js 22.12+ ou 24 LTS (Vite et CLI Tauri)
 - WebView2 (déjà présent sur Windows 10/11)
 

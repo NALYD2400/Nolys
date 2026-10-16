@@ -9,3 +9,6 @@ keys/updater.key
 # Journaux
 *.log
 dist/
+
+# Cache local du contrôle visuel
+.impeccable/hook.cache.json

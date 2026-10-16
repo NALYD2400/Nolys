@@ -167,7 +167,7 @@
 /* Apps Menu */
 .island-menu-grid {
     display: grid;
-    /* 4 par rangée : les 7 modules tiennent sur deux rangées, sans défilement. */
+    /* 4 par rangée : les 8 modules tiennent sur deux rangées, sans défilement. */
     grid-template-columns: repeat(4, 1fr);
     gap: 14px 6px;
     /* Le centrage des icônes dans les colonnes complète ce retrait :

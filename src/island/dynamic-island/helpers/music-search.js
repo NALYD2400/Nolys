@@ -2,6 +2,7 @@
 import { isDedicatedPlayerApp } from './media-art.js';
 
 export function getMusicSearchProvider(data = {}) {
+    if (data.appId === 'nolys-local') return { key: 'local', label: 'Bibliothèque Nolys', icon: 'ph-vinyl-record' };
     const appId = (data.appId || '').toLowerCase();
     const title = (data.title || '').toLowerCase();
     const artist = (data.artist || '').toLowerCase();

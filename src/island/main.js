@@ -2,7 +2,8 @@
  * Point d'entrée de la fenêtre de l'Island : services, API globales historiques
  * (`window.island`, `window.spotifyControl`…) et écoute des réglages.
  */
-import { ipcRenderer } from '../shared/ipc.js';
+import { ipcRenderer, native } from '../shared/ipc.js';
+import { LocalMusicPlayer } from '../services/LocalMusicPlayer.js';
 import { disableNativeContextMenu } from '../shared/context-menu.js';
 import { enableWindowDragging } from '../shared/window-drag.js';
 import { ThemeService } from '../services/ThemeService.js';
@@ -28,6 +29,10 @@ window.wm = {
 
 window.spotifyControl = async (action) => {
     try {
+        if (window.island?.localPlayer?.active) {
+            await window.island.localPlayer.control({ type: 'media', action });
+            return;
+        }
         const cleanAction = String(action || '').trim().toLowerCase();
         let actionToSend = action;
         const isPlaybackAction = ['toggle', 'play', 'pause'].includes(cleanAction);
@@ -68,6 +73,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Create the exact original DynamicIsland class
     const island = new DynamicIsland();
     window.island = island;
+    island.localPlayer = new LocalMusicPlayer({
+        ...native,
+        onMedia: media => { if (media) island.updateMusic(media); else island.updateMediaState(); },
+        onError: message => island.showNotification('Bibliothèque', message, 'ph-warning-circle'),
+    });
+    island.localPlayer.init().catch(error => console.warn('[Library]', error));
 
     // Première fois seulement : Windows range l'icône de la barre dans la zone masquée (flèche ^).
     // Une indication dans l'Island évite de croire que l'app n'a pas démarré.

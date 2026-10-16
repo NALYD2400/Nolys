@@ -4,7 +4,7 @@ version = "2.2.3"
 description = "Nolys — widget Dynamic Island pour Windows"
 authors = ["NALYD2400"]
 edition = "2021"
-rust-version = "1.82"
+rust-version = "1.89"
 
 [lib]
 name = "liquid_island_lib"
@@ -14,7 +14,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon", "image-ico"] }
+tauri = { version = "2", features = ["tray-icon", "image-ico", "protocol-asset"] }
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-autostart = "2"
 tauri-plugin-single-instance = "2"
@@ -25,6 +25,9 @@ base64 = "0.22"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "bmp", "gif"] }
 parking_lot = "0.12"
 rand = "0.9"
+lofty = "0.25.4"
+rfd = "0.17.2"
+tempfile = "3"
 tokio = { version = "1", features = ["time"] }
 rusty-leveldb = "4.0.1"
 # Réduction de bruit du retour micro (portage Rust de RNNoise, BSD-3).

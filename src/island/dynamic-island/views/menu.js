@@ -55,6 +55,12 @@ export const menuView = {
 
         // Réglages integration
         itemsHtml += `
+        <div class="island-menu-item" onclick="event.stopPropagation(); window.island.setMode('library')">
+            <div class="menu-icon"><i class="ph ph-vinyl-record"></i></div>
+            <span>Bibliothèque</span>
+        </div>`;
+
+        itemsHtml += `
         <div class="island-menu-item" onclick="event.stopPropagation(); window.island.setMode('settings')">
             <div class="menu-icon"><i class="ph ph-gear"></i></div>
             <span>Réglages</span>
