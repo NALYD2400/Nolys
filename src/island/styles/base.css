@@ -458,9 +458,9 @@ body.motion-vivid .inner-action-btn:hover {
 
 /* Nouvelle classe pour une notification temporaire allongée */
 .island-notifying {
-    width: 280px;
+    width: 300px;
     /* Taille intermédiaire pour une alerte */
-    height: 35px;
+    height: 40px;
     cursor: pointer;
 }
 
@@ -471,10 +471,10 @@ body.motion-vivid .inner-action-btn:hover {
     border-radius: 45px;
 }
 
-.island-mode-notification {
-    width: 330px;
-    height: 112px;
-    border-radius: 30px;
+#dynamic-island.island-mode-notification {
+    width: 380px;
+    height: 148px;
+    border-radius: 26px;
 }
 
 .island-mode-timer {

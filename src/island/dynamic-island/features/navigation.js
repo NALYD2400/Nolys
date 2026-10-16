@@ -297,7 +297,7 @@ export const navigationMethods = {
         this._lastRenderedTrack = null; // Force updateMusic to re-sync state on next poll
 
         // Essential: Clear ALL possible size/state classes before applying the new one.
-        // Une notification repliée garde sa taille compacte (280×35) pendant son délai.
+        // Une notification repliée garde sa taille compacte pendant son délai.
         const keepCompactNotification = !this.isExpanded && this.mode === 'notification';
         this.el.classList.remove(...this.getIslandSizeClasses());
 

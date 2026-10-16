@@ -17,8 +17,8 @@ export const notificationView = {
           <i class="ph ${safeIcon} notif-icon"></i>
         </div>
         <div class="notif-content">
-          <div class="notif-title" title="${safeTitle}">${isExpanded ? safeTitle : `<strong>${safeTitle} :</strong> ${safeMessage}`}</div>
-          ${isExpanded ? `<div class="notif-message">${safeMessage}</div>` : ''}
+          <div class="notif-title" title="${safeTitle}">${safeTitle}</div>
+          <div class="${isExpanded ? 'notif-message' : 'notif-preview'}">${safeMessage}</div>
         </div>
         ${isExpanded ? '<button type="button" class="notif-dismiss" aria-label="Fermer la notification" onclick="event.stopPropagation(); window.island.dismissNotification()"><i class="ph ph-x" aria-hidden="true"></i></button>' : ''}
       </div>
