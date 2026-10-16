@@ -1,5 +1,24 @@
 import { mountLibrary } from '../../../library/controller.js';
 
+/**
+ * Fin du ressort de la capsule. La taille est animée en mise en page : construire la liste
+ * pendant ce temps faisait accrocher la fin de l'ouverture.
+ */
+export function capsuleSettled(el) {
+    if (!el.classList.contains('animating')) return Promise.resolve();
+    return new Promise(resolve => {
+        const done = () => { el.removeEventListener('transitionend', onEnd); clearTimeout(timer); resolve(); };
+        const onEnd = event => { if (event.target === el && (event.propertyName === 'width' || event.propertyName === 'height')) done(); };
+        el.addEventListener('transitionend', onEnd);
+        const timer = setTimeout(done, 750);
+    });
+}
+
+/** Verre posé une fois la cascade des lignes jouée : sa première initialisation GPU est lourde. */
+export function afterIntro(callback) {
+    (window.requestIdleCallback || setTimeout)(callback, { timeout: 700 });
+}
+
 /** Bibliothèque : un mode de l’Island comme les autres. Le son vit dans `localPlayer`. */
 export const libraryView = {
     openLibrary() {
@@ -19,13 +38,15 @@ export const libraryView = {
         host.className = 'island-library-view';
         this.content.replaceChildren(host);
         this._libraryHost = host;
+        const settled = capsuleSettled(this.el);
         this._libraryController = mountLibrary(host, {
             player: this.localPlayer,
             savedState: this._librarySavedState,
+            ready: settled,
             onBack: () => this.setMode('menu'),
             onClose: () => this.collapseIsland(),
         });
-        this.syncGlassControls();
+        settled.then(() => afterIntro(() => { if (this._libraryHost === host) this.syncGlassControls(); }));
     },
 
     leaveLibrary() {

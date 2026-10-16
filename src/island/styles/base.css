@@ -422,7 +422,6 @@ body.motion-sober #dynamic-island {
 
 body.motion-sober .island-settings-container,
 body.motion-sober .music-player,
-body.motion-sober .music-history-panel,
 body.motion-sober .music-search-panel,
 body.motion-sober .island-control-container,
 body.motion-sober .island-menu-grid {
@@ -439,7 +438,6 @@ body.motion-vivid #dynamic-island {
 }
 
 body.motion-vivid .island-action-btn:hover,
-body.motion-vivid .music-history-action:hover,
 body.motion-vivid .inner-action-btn:hover {
     transform: translateY(-2px) scale(1.05);
 }
@@ -507,10 +505,11 @@ body.motion-vivid .inner-action-btn:hover {
     border-radius: 38px;
 }
 
+/* Même famille que la Bibliothèque, un peu plus compacte. */
 .island-mode-music-history {
-    width: 460px;
-    height: 300px;
-    border-radius: 38px;
+    width: 500px;
+    height: 452px;
+    border-radius: 40px;
 }
 
 .island-mode-control {
@@ -534,10 +533,23 @@ body.motion-vivid .inner-action-btn:hover {
     cursor: default;
 }
 
+/* Bibliothèque et Historique : la vue a d'emblée sa taille finale, centrée et isolée
+ * (contain: strict). Pendant le ressort, la capsule la dévoile depuis le centre sans que
+ * ses centaines de lignes soient remises en page à chaque image (le halo lit la taille de
+ * la capsule à chaque image, ce qui forçait cette mise en page : l'ouverture accrochait). */
 .island-library-view {
-    display: block;
-    width: 100%;
-    height: 100%;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: var(--panel-width, 560px);
+    height: var(--panel-height, 496px);
+    translate: -50% -50%;
+    contain: strict;
+}
+
+#dynamic-island.island-mode-music-history .island-library-view {
+    --panel-width: 500px;
+    --panel-height: 452px;
 }
 
 .island-bg-layer {

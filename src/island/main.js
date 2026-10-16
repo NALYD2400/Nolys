@@ -4,6 +4,7 @@
  */
 import { ipcRenderer, native } from '../shared/ipc.js';
 import { LocalMusicPlayer } from '../services/LocalMusicPlayer.js';
+import { warmLibrary } from '../library/controller.js';
 import { disableNativeContextMenu } from '../shared/context-menu.js';
 import { enableWindowDragging } from '../shared/window-drag.js';
 import { ThemeService } from '../services/ThemeService.js';
@@ -78,7 +79,9 @@ document.addEventListener('DOMContentLoaded', () => {
         onMedia: media => { if (media) island.updateMusic(media); else island.updateMediaState(); },
         onError: message => island.showNotification('Bibliothèque', message, 'ph-warning-circle'),
     });
-    island.localPlayer.init().catch(error => console.warn('[Library]', error));
+    island.localPlayer.init()
+        .then(() => (window.requestIdleCallback || setTimeout)(() => warmLibrary(island.localPlayer), { timeout: 4000 }))
+        .catch(error => console.warn('[Library]', error));
 
     // Première fois seulement : Windows range l'icône de la barre dans la zone masquée (flèche ^).
     // Une indication dans l'Island évite de croire que l'app n'a pas démarré.

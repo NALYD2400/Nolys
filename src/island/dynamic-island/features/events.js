@@ -9,7 +9,7 @@ export const eventMethods = {
     initEvents() {
         // Right-click context menu listener
         this.el.addEventListener('contextmenu', (e) => {
-            if (this.mode === 'library') return;
+            if (this.mode === 'library' || this.mode === 'music-history') return;
             e.preventDefault();
             e.stopPropagation();
             
@@ -154,7 +154,7 @@ export const eventMethods = {
 
         // Prevent click events on specific child elements from bubbling and collapsing the island
         this.content.addEventListener('click', (e) => {
-            if (e.target.closest('.progress-bar, .music-search-panel, .music-history-panel, .mixer-volume-slider, .ic-mixer-slider, .mixer-mute-btn, .ic-mixer-mute')) {
+            if (e.target.closest('.progress-bar, .music-search-panel, .mixer-volume-slider, .ic-mixer-slider, .mixer-mute-btn, .ic-mixer-mute')) {
                 e.stopPropagation();
                 e.preventDefault();
             }

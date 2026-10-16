@@ -42,8 +42,8 @@ function wavFixture() {
             switch (command) {
                 case 'library_get': return structuredClone(library);
                 case 'library_relink': {
-                    const track = library.tracks.find(t => t.id === args.id);
-                    track.path = `/test/relocated-${track.id}.wav`; track.missing = false;
+                    // Comme le cœur natif : les autres titres du dossier déplacé sont retrouvés avec lui.
+                    for (const track of library.tracks.filter(t => t.id === args.id || t.missing)) { track.path = `/test/relocated-${track.id}.wav`; track.missing = false; }
                     await emit('local-library-changed', null);
                     return structuredClone(library);
                 }
@@ -183,10 +183,13 @@ function wavFixture() {
         await shot('19-bibliotheque.png');
 
         library.tracks.find(t => t.id === 't1').missing = true;
+        library.tracks.find(t => t.id === 't2').missing = true;
         await emit('local-library-changed', null);
         await inLibrary(() => window.island._libraryHost.shadowRoot.querySelector('.row[data-track="t1"]')?.classList.contains('is-missing'));
         await page.locator('.row[data-track="t1"]').getByRole('button', { name: 'Retrouver', exact: true }).click();
         await inLibrary(() => !window.island._libraryHost.shadowRoot.querySelector('.row[data-track="t1"]')?.classList.contains('is-missing'));
+        await page.getByRole('status').filter({ hasText: '1 autre titre du même dossier retrouvé.' }).waitFor();
+        assert.equal(await page.locator('.row.is-missing').count(), 0);
         await page.locator('[data-action="play"][data-id="t1"]').click();
         await page.waitForFunction(() => window.island.localPlayer.currentSource.includes('relocated') && !window.island.localPlayer.audio.paused);
         await page.getByRole('button', { name: 'Arrêter et revenir aux autres lecteurs', exact: true }).click();
@@ -219,14 +222,61 @@ function wavFixture() {
         await page.locator('.island-menu-item').filter({ hasText: /Bibliothèque/ }).click();
         await page.getByText('Tous les titres').waitFor();
         assert.equal(await page.locator('#search').inputValue(), 'Nocturne');
+        // Les lignes arrivent une fois la capsule posée.
+        await rows().first().waitFor();
         assert.equal(await rows().count(), 1);
         await page.evaluate(() => window.island.showNotification('Test', 'La collection reste ouverte'));
         assert.equal(await page.evaluate(() => window.island.mode), 'library');
         await page.getByRole('status').filter({ hasText: 'La collection reste ouverte' }).waitFor();
+        // ------------------------------------------------------------ Historique
+        await page.evaluate(() => {
+            const now = Date.now();
+            localStorage.setItem('liquid_music_history', JSON.stringify([
+                { key: 'k1', title: 'Paris', artist: 'Nono La Grinta', providerKey: 'spotify', providerLabel: 'Spotify', providerIcon: 'ph-spotify-logo', timestamp: now - 120000, lastPlayedAt: now - 120000, playCount: 3, favorite: true },
+                { key: 'nocturne::atlas::nolys-local', title: 'Nocturne', artist: 'Atlas', localTrackId: 't3', appId: 'nolys-local', providerKey: 'local', providerLabel: 'Bibliothèque Nolys', providerIcon: 'ph-vinyl-record', timestamp: now - 3600000, lastPlayedAt: now - 3600000, playCount: 1, favorite: false },
+                { key: 'k3', title: 'LOVE YOU', artist: 'Nono La Grinta', providerKey: 'youtube', providerLabel: 'YouTube', providerIcon: 'ph-youtube-logo', timestamp: now - 172800000, lastPlayedAt: now - 172800000, playCount: 2, favorite: false },
+            ]));
+            window.island.openExpandedMode('music-history');
+        });
+        await page.waitForFunction(() => window.island._historyHost?.shadowRoot.querySelectorAll('.row').length === 3);
+        assert.equal(await page.evaluate(() => window.island._libraryController), null);
+        const historyRows = () => page.locator('.row[data-key]');
+        assert.deepEqual(await page.locator('.list-title').allTextContents(), ['Favoris', 'Récents']);
+        const historyBox = await page.evaluate(() => { const r = window.island.el.getBoundingClientRect(); return r.right <= innerWidth && r.bottom <= innerHeight && r.left >= 0; });
+        assert.ok(historyBox, 'l’Historique tient dans la fenêtre');
+        await shot('22-historique.png');
+        await page.locator('#search').fill('nono');
+        assert.equal(await historyRows().count(), 2);
+        await page.getByRole('button', { name: 'Effacer la recherche' }).click();
+        await page.locator('.chip[data-filter=favorites]').click();
+        assert.equal(await historyRows().count(), 1);
+        await page.locator('.chip[data-filter=all]').click();
+        // Un titre local partage son favori avec la Bibliothèque.
+        await page.getByRole('button', { name: 'Ajouter Nocturne aux favoris', exact: true }).click();
+        await page.waitForFunction(() => window.island._historyHost.shadowRoot.querySelector('.row[data-key="nocturne::atlas::nolys-local"] .fav').classList.contains('is-on'));
+        assert.equal(library.tracks.find(t => t.id === 't3').favorite, true);
+        await page.locator('[data-action="open"][data-key="nocturne::atlas::nolys-local"]').click();
+        await page.waitForFunction(() => window.island.localPlayer.currentId === 't3' && !window.island.localPlayer.audio.paused);
+        await page.waitForFunction(() => window.island._historyHost.shadowRoot.querySelector('.row.is-current')?.dataset.key === 'nocturne::atlas::nolys-local');
+        assert.equal(await page.evaluate(() => window.island.mode), 'music-history');
+        // Vider : deux appuis, les favoris restent.
+        await page.getByRole('button', { name: 'Vider l’historique', exact: true }).click();
+        assert.equal(await historyRows().count(), 3);
+        await page.getByRole('button', { name: 'Vider l’historique', exact: true }).click();
+        await page.waitForFunction(() => window.island._historyHost.shadowRoot.querySelectorAll('.row').length === 2);
+        await page.getByRole('button', { name: 'Options pour Paris', exact: true }).click();
+        await page.getByRole('menuitem', { name: 'Ouvrir dans Spotify', exact: true }).waitFor();
+        await page.getByRole('menuitem', { name: 'Retirer de l’historique', exact: true }).click();
+        await page.waitForFunction(() => window.island._historyHost.shadowRoot.querySelectorAll('.row').length === 1);
+        assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('liquid_music_history')).map(item => item.key)), ['nocturne::atlas::nolys-local']);
+        await page.keyboard.press('Escape');
+        await page.waitForFunction(() => !window.island.isExpanded && !window.island._historyController);
+        await page.evaluate(() => window.island.localPlayer.stop());
+
         const counts = await page.evaluate(() => window.__listenerCounts());
         assert.equal(counts['local-library-changed'], 1);
         assert.equal(counts['local-library-media'], 1);
         assert.equal(errors.length, 0, JSON.stringify(errors));
-        console.log(JSON.stringify({ passed: ['entrée menu', 'taille de la capsule', 'import', 'recherche sans accents', 'sélection', 'playlist', 'ordre', 'audio réel', 'Échap et réouverture', 'pause', 'position', 'volume', 'aléatoire', 'favoris', 'accent du thème', 'fichier déplacé', 'retour aux autres lecteurs', 'retrait groupé', 'feuilles et Échap', 'état conservé', 'notification'] }));
+        console.log(JSON.stringify({ passed: ['entrée menu', 'taille de la capsule', 'import', 'recherche sans accents', 'sélection', 'playlist', 'ordre', 'audio réel', 'Échap et réouverture', 'pause', 'position', 'volume', 'aléatoire', 'favoris', 'accent du thème', 'fichier déplacé', 'retour aux autres lecteurs', 'retrait groupé', 'feuilles et Échap', 'état conservé', 'notification', 'historique : sections, recherche, filtres, favori partagé, lecture locale, vider, retirer, Échap'] }));
     } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

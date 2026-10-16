@@ -241,6 +241,7 @@ export const navigationMethods = {
 
     renderContent() {
         if (this.mode !== 'library' || !this.isExpanded) this.leaveLibrary?.();
+        if (this.mode !== 'music-history' || !this.isExpanded) this.leaveMusicHistory?.();
         try { window.speechSynthesis.cancel(); } catch (e) {}
         // Une navigation manuelle annule aussi le retour automatique de l'ancienne alerte.
         if (this.mode !== 'notification' && this._notificationReturnState) this.clearNotification();
@@ -254,28 +255,6 @@ export const navigationMethods = {
                 const bodyTarget = count === 0 ? 120 : visible * 62;
                 let target = 15 + 20 + 26 + 12 + bodyTarget + 6; // padTop + padBottom + headerH + headerMb + bodyTarget + security
                 target = Math.max(260, Math.min(520, target));
-                this.el.style.height = `${Math.round(target)}px`;
-                this.el.style.width = '';
-            } else if (this.isExpanded && this.mode === 'music-history') {
-                this.musicHistory = this.loadMusicHistory ? this.loadMusicHistory() : (this.musicHistory || []);
-                const query = (this.musicHistoryQuery || '').trim().toLowerCase();
-                const historyFilter = this.getMusicHistoryFilter ? this.getMusicHistoryFilter() : 'all';
-                const matchesQuery = (item) => {
-                    if (!query) return true;
-                    return `${item.title || ''} ${item.artist || ''} ${item.providerLabel || ''} ${item.appId || ''}`.toLowerCase().includes(query);
-                };
-                const favorites = (this.musicHistory || []).filter(item => historyFilter !== 'recent' && item.favorite && matchesQuery(item));
-                const recent = (this.musicHistory || []).filter(item => historyFilter !== 'favorites' && !item.favorite && matchesQuery(item));
-
-                let listTarget = 120;
-                const totalCount = favorites.length + recent.length;
-                if (totalCount > 0) {
-                    const visibleRows = Math.min(totalCount, 5);
-                    const titleCount = (favorites.length > 0 ? 1 : 0) + (recent.length > 0 ? 1 : 0);
-                    listTarget = (visibleRows * 64) + (titleCount * 18) + 24;
-                }
-                let target = 14 + 16 + 32 + 30 + (12 * 2) + listTarget; // padTop + padBottom + headerH + searchFilterRowH + (gap * 2) + listTarget
-                target = Math.max(180, Math.min(520, target));
                 this.el.style.height = `${Math.round(target)}px`;
                 this.el.style.width = '';
             } else {

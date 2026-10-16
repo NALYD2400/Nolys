@@ -1,4 +1,4 @@
-use super::{authorize, collect, mutate, path_key, read_track, Library, Mutation, Store, CHANGED, EXTENSIONS, PROGRESS};
+use super::{authorize, collect, mutate, path_key, read_track, repair, Library, Mutation, Store, CHANGED, EXTENSIONS, PROGRESS};
 use std::{collections::HashSet, path::Path, sync::atomic::Ordering};
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 
@@ -23,9 +23,21 @@ fn pick<T: Send + 'static>(job: impl FnOnce() -> Option<T> + Send + 'static) -> 
 
 #[tauri::command]
 pub async fn library_get(app: AppHandle) -> Result<Library, String> {
-    tauri::async_runtime::spawn_blocking(move || authorize(&app, app.state::<Store>().read()?))
-        .await
-        .map_err(|e| e.to_string())?
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = app.state::<Store>();
+        let mut library = store.read()?;
+        // Doublons laissés par un dossier déplacé puis réimporté : réparés au chargement.
+        let exists = |path: &str| Path::new(path).is_file();
+        if repair::merge_moved(&mut library.clone(), exists) > 0 {
+            library = store.change(|data| {
+                repair::merge_moved(data, exists);
+                Ok(())
+            })?;
+        }
+        authorize(&app, library)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[derive(serde::Serialize)]
@@ -34,6 +46,8 @@ pub struct ImportResult {
     library: Library,
     added: usize,
     duplicates: usize,
+    /// Titres introuvables retrouvés dans les fichiers importés (dossier déplacé).
+    relinked: usize,
     skipped: usize,
     cancelled: bool,
 }
@@ -63,6 +77,7 @@ pub async fn library_import(app: AppHandle, kind: String) -> Result<ImportResult
                 library: authorize(&handle, previous)?,
                 added: 0,
                 duplicates: 0,
+                relinked: 0,
                 skipped: 0,
                 cancelled: true,
             });
@@ -91,6 +106,7 @@ pub async fn library_import(app: AppHandle, kind: String) -> Result<ImportResult
         }
         progress("save", files.len(), files.len());
         let mut added = 0;
+        let mut relinked = 0;
         let library = store.change(|library| {
             let mut known: HashSet<_> = library.tracks.iter().map(|t| path_key(&t.path)).collect();
             for track in tracks {
@@ -101,6 +117,9 @@ pub async fn library_import(app: AppHandle, kind: String) -> Result<ImportResult
                     duplicates += 1;
                 }
             }
+            // Un fichier importé qui est un titre introuvable déplacé reprend sa place.
+            relinked = repair::merge_moved(library, |path| Path::new(path).is_file());
+            added -= relinked.min(added);
             Ok(())
         })?;
         let _ = handle.emit(CHANGED, ());
@@ -108,6 +127,7 @@ pub async fn library_import(app: AppHandle, kind: String) -> Result<ImportResult
             library: authorize(&handle, library)?,
             added,
             duplicates,
+            relinked,
             skipped,
             cancelled: false,
         })
@@ -148,27 +168,9 @@ pub async fn library_relink(app: AppHandle, id: String) -> Result<Library, Strin
             return Err("Format audio non pris en charge.".into());
         }
         let path = path.canonicalize().map_err(|e| e.to_string())?;
-        let replacement = read_track(&path, &store.covers_dir());
+        let covers = store.covers_dir();
         let library = store.change(|data| {
-            if data
-                .tracks
-                .iter()
-                .any(|t| t.id != id && path_key(&t.path) == path_key(&replacement.path))
-            {
-                return Err("Ce fichier est déjà dans la bibliothèque.".into());
-            }
-            let track = data
-                .tracks
-                .iter_mut()
-                .find(|t| t.id == id)
-                .ok_or("Morceau introuvable.")?;
-            *track = super::Track {
-                id: track.id.clone(),
-                favorite: track.favorite,
-                added_at: track.added_at,
-                ..replacement
-            };
-            Ok(())
+            repair::relink(data, &id, &path, |file| Path::new(file).is_file(), |file| read_track(file, &covers)).map(|_| ())
         })?;
         let _ = app.emit(CHANGED, ());
         authorize(&app, library)

@@ -226,6 +226,10 @@ button:disabled, [aria-disabled="true"] { cursor: default; }
 
 .row {
     flex: 0 0 auto;
+    /* Les lignes hors champ ne sont ni mises en page ni peintes : avec des centaines de titres,
+     * l'ouverture figeait l'Island à la fin de son ressort. */
+    content-visibility: auto;
+    contain-intrinsic-size: auto 50px;
     display: flex;
     align-items: center;
     gap: 4px;
@@ -280,6 +284,17 @@ button:disabled, [aria-disabled="true"] { cursor: default; }
 .row .fav { opacity: 0; }
 .row .fav.is-on { opacity: 1; color: #ff6b81; }
 .row:hover .fav, .row:focus-within .fav { opacity: 1; }
+
+/* Historique : titres de section, source et ancienneté. */
+.list-title { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; margin: 6px 4px 1px; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.list-title:first-child { margin-top: 0; }
+.list-title i { color: var(--accent); font-size: 11px; }
+.row-sub { display: flex; align-items: center; gap: 5px; }
+.row-sub i { font-size: 10px; vertical-align: -1px; }
+.row-sub .dot { flex: 0 0 auto; width: 3px; height: 3px; border-radius: 50%; background: rgba(255, 255, 255, 0.28); }
+.row-ago { flex: 0 0 auto; padding: 0 4px; font-size: 10px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.row .fav.star.is-on { color: #ffd60a; }
+.round-btn.is-armed, :host-context(#dynamic-island.glass-controls) .round-btn.is-armed { color: #fff; background: rgba(255, 69, 58, 0.55); border-color: rgba(255, 69, 58, 0.7); }
 
 .check { flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; border: 1.5px solid rgba(255, 255, 255, 0.3); color: transparent; font-size: 11px; transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
 .row.is-selected .check { background: var(--accent); border-color: var(--accent); color: #101014; }
@@ -484,9 +499,11 @@ button:disabled, [aria-disabled="true"] { cursor: default; }
 .lib-chips { animation-delay: 35ms; }
 .lib-section { animation-delay: 70ms; }
 .lib-player { animation-delay: 140ms; }
-:host([data-intro]) .row { animation: lib-rise 0.5s var(--spring) backwards; animation-delay: calc(100ms + var(--i, 0) * 22ms); }
+/* Cascade limitée aux lignes visibles, sans flou (un filtre par ligne coûte cher). */
+:host([data-intro]) .row:nth-child(-n+10) { animation: lib-row-in 0.45s var(--spring) backwards; animation-delay: calc(100ms + var(--i, 0) * 22ms); }
 
-@keyframes lib-rise { from { opacity: 0; transform: translateY(8px) scale(0.98); filter: blur(5px); } }
+@keyframes lib-rise { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
+@keyframes lib-row-in { from { opacity: 0; transform: translateY(8px); } }
 @keyframes lib-pop { from { opacity: 0; transform: scale(0.92); } }
 @keyframes lib-fade { from { opacity: 0; } }
 @keyframes lib-toast { from { opacity: 0; transform: translate(-50%, 8px) scale(0.96); } }

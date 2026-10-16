@@ -1,5 +1,6 @@
 //! Bibliothèque personnelle : références aux originaux, tags, playlists et sauvegarde atomique.
 pub mod commands;
+pub mod repair;
 
 use lofty::{
     file::{AudioFile, TaggedFileExt},

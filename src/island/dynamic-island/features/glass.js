@@ -49,6 +49,9 @@ const SURFACES_BY_MODE = {
         { selector: '.player-controls .ctl-btn:not(.is-play)', options: { material: 'clear', radius: 'circle', interactive: true }, hoverOnly: true },
         { selector: '.player-controls .ctl-btn.is-play', options: (_, coverTint) => ({ material: 'regular', radius: 'circle', interactive: true, tint: legibleTint(coverTint) }) },
     ],
+    'music-history': [
+        { selector: '.lib-header .round-btn', options: { material: 'clear', radius: 'circle', interactive: true } },
+    ],
 };
 
 /** Une pochette très sombre teinterait le verre en noir sur fond noir : on l'éclaircit. */
@@ -124,8 +127,8 @@ export const glassMethods = {
                 };
             };
 
-            // La Bibliothèque vit dans un shadow DOM : ses boutons y sont cherchés directement.
-            const surfaceRoot = mode === 'library' ? this._libraryHost?.shadowRoot : this.content;
+            // Bibliothèque et Historique vivent dans un shadow DOM : leurs boutons y sont cherchés.
+            const surfaceRoot = { library: this._libraryHost, 'music-history': this._historyHost }[mode]?.shadowRoot ?? this.content;
             if (!surfaceRoot) return;
             for (const { selector, options, hoverOnly } of SURFACES_BY_MODE[mode]) {
                 for (const element of surfaceRoot.querySelectorAll(selector)) {

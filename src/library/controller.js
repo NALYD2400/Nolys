@@ -1,8 +1,8 @@
-import styles from './styles.css?inline';
 import { native } from '../shared/ipc.js';
 import { escapeHtml as e } from '../island/dynamic-island/helpers/format.js';
 import { time, tracksFor, moveTrack } from './model.js';
-import { shellMarkup, chipsMarkup, sectionMarkup, emptyMarkup, rowMarkup, selectionMarkup, menuItem, cover, icon, VIEW_NAMES } from './view.js';
+import { shellMarkup, chipsMarkup, sectionMarkup, emptyMarkup, rowMarkup, selectionMarkup, menuItem, cover, VIEW_NAMES } from './view.js';
+import { createPanel, setIcon, warmPanel } from './panel.js';
 
 const PAGE = 150;
 const SORTS = { title: 'Titre', artist: 'Artiste', album: 'Album', recent: 'Ajout récent' };
@@ -40,16 +40,18 @@ async function startImport(player, kind) {
 
 const IMPORT_LABELS = { pick: 'Choisissez votre musique dans la fenêtre Windows…', scan: 'Recherche des fichiers audio…', read: 'Lecture des titres et pochettes', save: 'Enregistrement de la bibliothèque…' };
 
+/** Ouverture fluide dès la première fois (voir warmPanel). */
+export function warmLibrary(player) {
+    warmPanel(host => mountLibrary(host, { player }));
+}
+
 /**
  * Vue Bibliothèque montée dans l’Island (shadow DOM : ses styles ne débordent pas).
  * La collection et la lecture viennent directement du lecteur local de l’Island.
  */
-export function mountLibrary(host, { player, savedState = {}, onBack = () => {}, onClose = () => {} }) {
-    const root = host.shadowRoot || host.attachShadow({ mode: 'open' });
-    root.innerHTML = `<link rel="stylesheet" href="/assets/icons/phosphor.css"><style>${styles}</style>${shellMarkup}`;
-    const $ = selector => root.querySelector(selector);
-    const abort = new AbortController();
-    const on = (target, name, callback, options = {}) => target.addEventListener(name, callback, { ...options, signal: abort.signal });
+export function mountLibrary(host, { player, savedState = {}, ready = Promise.resolve(), onBack = () => {}, onClose = () => {} }) {
+    const panel = createPanel(host, shellMarkup);
+    const { root, $, on, toast, openMenu, closeMenu } = panel;
 
     const state = {
         view: 'all', query: '', sort: 'title', ...savedState,
@@ -58,10 +60,8 @@ export function mountLibrary(host, { player, savedState = {}, onBack = () => {},
     let library = null;
     let queueKey = '';
     let lastError = '';
-    let toastTimer;
-    let menuAnchor = null;
     let sheetReturnFocus = null;
-    let disposed = false;
+    let waiting = true;
 
     const playback = () => player.snapshot;
     const playlist = () => player.library.playlists.find(p => p.id === state.view);
@@ -69,20 +69,10 @@ export function mountLibrary(host, { player, savedState = {}, onBack = () => {},
     const playableIds = tracks => tracks.filter(t => !t.missing).map(t => t.id);
     const errorText = error => String(error?.message || error);
 
-    function toast(message, error = false) {
-        if (disposed) return;
-        const element = $('#toast');
-        clearTimeout(toastTimer);
-        element.textContent = message;
-        element.classList.toggle('is-error', error);
-        element.hidden = !message;
-        if (message) toastTimer = setTimeout(() => { element.hidden = true; }, error ? 7000 : 3200);
-    }
-
     // ------------------------------------------------------------------ Rendu
 
     function render() {
-        if (disposed) return;
+        if (panel.disposed) return;
         library = player.library;
         if (!VIEWS.includes(state.view) && !playlist()) state.view = 'all';
         const known = new Set(library.tracks.map(t => t.id));
@@ -107,14 +97,19 @@ export function mountLibrary(host, { player, savedState = {}, onBack = () => {},
         const scroll = list.scrollTop;
         if (!tracks.length) {
             list.innerHTML = emptyMarkup({ query: state.query.trim(), playlist: playlist(), view: state.view });
+            panel.keepFocus();
             return;
         }
         const { trackId, isPlaying } = playback();
-        list.innerHTML = tracks.slice(0, state.limit).map((track, index) => rowMarkup(track, {
+        // Les lignes attendent que la capsule ait fini de s'agrandir (voir `ready`).
+        if (waiting) return;
+        const count = state.limit;
+        list.innerHTML = tracks.slice(0, count).map((track, index) => rowMarkup(track, {
             index, current: track.id === trackId, playing: isPlaying, selecting: state.selecting, selected: state.selection.has(track.id),
-        })).join('') + (tracks.length > state.limit ? `<button type="button" class="pill-btn more" data-action="more">Afficher ${Math.min(PAGE, tracks.length - state.limit)} titres de plus</button>` : '');
+        })).join('') + (tracks.length > count ? `<button type="button" class="pill-btn more" data-action="more">Afficher ${Math.min(PAGE, tracks.length - state.limit)} titres de plus</button>` : '');
         list.scrollTop = scroll;
         if (focusedKey) list.querySelector(`[data-track="${CSS.escape(focusedKey)}"] [data-action="${CSS.escape(focusedAction || 'play')}"]`)?.focus({ preventScroll: true });
+        panel.keepFocus();
     }
 
     function renderSelection(tracks = visibleTracks()) {
@@ -124,14 +119,6 @@ export function mountLibrary(host, { player, savedState = {}, onBack = () => {},
         if (!state.selecting) return;
         const ids = tracks.slice(0, state.limit).map(t => t.id);
         bar.innerHTML = selectionMarkup(state.selection.size, ids.length > 0 && ids.every(id => state.selection.has(id)));
-    }
-
-    function setIcon(button, name, weight) {
-        const glyph = `${weight} ph-${name}`;
-        if (button.dataset.glyph !== glyph) {
-            button.dataset.glyph = glyph;
-            button.innerHTML = icon(name, weight);
-        }
     }
 
     function renderPlayer() {
@@ -184,35 +171,6 @@ export function mountLibrary(host, { player, savedState = {}, onBack = () => {},
     }
 
     // --------------------------------------------------------- Menus et feuilles
-
-    function openMenu(anchor, html, point) {
-        const menu = $('#menu');
-        menu.innerHTML = html;
-        menu.hidden = false;
-        menuAnchor = anchor;
-        anchor?.setAttribute('aria-expanded', 'true');
-        const box = $('.lib').getBoundingClientRect();
-        const rect = point ? { left: point.x, right: point.x, top: point.y, bottom: point.y } : anchor.getBoundingClientRect();
-        const width = menu.offsetWidth;
-        const height = menu.offsetHeight;
-        const below = rect.bottom - box.top + 6;
-        const top = below + height > box.height - 8 ? rect.top - box.top - height - 6 : below;
-        const left = (point ? rect.left : rect.right - width) - box.left;
-        menu.style.left = `${Math.max(8, Math.min(left, box.width - width - 8))}px`;
-        menu.style.top = `${Math.max(8, top)}px`;
-        menu.style.transformOrigin = `${point ? 'left' : 'right'} ${top < below ? 'bottom' : 'top'}`;
-        menu.querySelector('button:not(:disabled)')?.focus({ preventScroll: true });
-    }
-
-    function closeMenu({ restoreFocus = false } = {}) {
-        const menu = $('#menu');
-        if (menu.hidden) return false;
-        menu.hidden = true;
-        menuAnchor?.removeAttribute('aria-expanded');
-        if (restoreFocus) menuAnchor?.focus({ preventScroll: true });
-        menuAnchor = null;
-        return true;
-    }
 
     function trackMenu(id, anchor, point) {
         const track = player.library.tracks.find(t => t.id === id);
@@ -349,18 +307,27 @@ export function mountLibrary(host, { player, savedState = {}, onBack = () => {},
         if (!result || result.cancelled) return;
         if (result.added) { state.view = 'all'; state.query = ''; $('#search').value = ''; syncClearButton(); }
         render();
-        const details = [result.duplicates && `${result.duplicates} déjà présent${result.duplicates > 1 ? 's' : ''}`, result.skipped && `${result.skipped} illisible${result.skipped > 1 ? 's' : ''}`].filter(Boolean);
-        toast(result.added
-            ? `${result.added} titre${result.added > 1 ? 's' : ''} ajouté${result.added > 1 ? 's' : ''}${details.length ? ` · ${details.join(' · ')}` : ''}.`
-            : `Aucun nouveau titre${details.length ? ` · ${details.join(' · ')}` : ' : aucun fichier audio pris en charge'}.`, !result.added && !result.duplicates);
+        const s = count => (count > 1 ? 's' : '');
+        // Dossier déplacé puis réimporté : les titres retrouvés gardent playlists et favoris.
+        const found = result.relinked ? `${result.relinked} titre${s(result.relinked)} retrouvé${s(result.relinked)} à son nouvel emplacement` : '';
+        const details = [result.duplicates && `${result.duplicates} déjà présent${s(result.duplicates)}`, result.skipped && `${result.skipped} illisible${s(result.skipped)}`].filter(Boolean);
+        const head = [result.added && `${result.added} titre${s(result.added)} ajouté${s(result.added)}`, found].filter(Boolean).join(' · ');
+        toast(head
+            ? `${head}${details.length ? ` · ${details.join(' · ')}` : ''}.`
+            : `Aucun nouveau titre${details.length ? ` · ${details.join(' · ')}` : ' : aucun fichier audio pris en charge'}.`, !head && !result.duplicates);
     }
 
     async function relink(id) {
         if (state.busy) return;
         state.busy = true;
         try {
+            const missing = () => player.library.tracks.filter(t => t.missing).length;
+            const before = missing();
             player.library = await native.invoke('library_relink', { id });
             render();
+            // Les autres titres du même dossier déplacé sont retrouvés avec lui.
+            const others = before - missing() - 1;
+            if (others > 0) toast(`${others} autre${others > 1 ? 's' : ''} titre${others > 1 ? 's' : ''} du même dossier retrouvé${others > 1 ? 's' : ''}.`);
         } finally { state.busy = false; }
     }
 
@@ -465,12 +432,8 @@ export function mountLibrary(host, { player, savedState = {}, onBack = () => {},
 
     on(root, 'click', async event => {
         const target = event.target.closest('[data-action], [data-view]');
-        if (!$('#menu').hidden && !event.target.closest('#menu')) {
-            // Un second clic sur le bouton qui a ouvert le menu le referme simplement.
-            const sameAnchor = target && target === menuAnchor;
-            closeMenu();
-            if (sameAnchor) return;
-        }
+        // Un second clic sur le bouton qui a ouvert le menu le referme simplement.
+        if (panel.dismissMenuOnClick(event, target)) return;
         if (event.target === $('#sheet')) { closeSheet(); return; }
         if (!target || target.disabled || target.getAttribute('aria-disabled') === 'true') return;
         try {
@@ -492,12 +455,6 @@ export function mountLibrary(host, { player, savedState = {}, onBack = () => {},
         render();
     });
 
-    on($('#chips'), 'wheel', event => {
-        if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-        event.preventDefault();
-        event.currentTarget.scrollLeft += event.deltaY;
-    }, { passive: false });
-
     on($('#seek'), 'input', event => { paintSlider(event.target); $('#p-elapsed').textContent = time(Number(event.target.value)); });
     on($('#seek'), 'change', event => player.control({ type: 'seek', value: Number(event.target.value) }).catch(error => toast(errorText(error), true)));
     on($('#volume'), 'input', event => { paintSlider(event.target); player.control({ type: 'volume', value: Number(event.target.value) }).catch(() => {}); });
@@ -507,15 +464,6 @@ export function mountLibrary(host, { player, savedState = {}, onBack = () => {},
             event.preventDefault();
             $('#search').focus();
             $('#search').select();
-            return;
-        }
-        const menu = $('#menu');
-        if (!menu.hidden && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
-            event.preventDefault();
-            const items = [...menu.querySelectorAll('button:not(:disabled)')];
-            const index = items.indexOf(root.activeElement);
-            const next = { ArrowDown: index + 1, ArrowUp: index - 1, Home: 0, End: items.length - 1 }[event.key];
-            items[(next + items.length) % items.length]?.focus();
             return;
         }
         if (event.key === 'Tab' && !$('#sheet').hidden) {
@@ -537,7 +485,7 @@ export function mountLibrary(host, { player, savedState = {}, onBack = () => {},
     });
 
     const unsubscribe = player.subscribe(snapshot => {
-        if (disposed) return;
+        if (panel.disposed) return;
         const nextQueue = snapshot.queue.join('|');
         const queueChanged = nextQueue !== queueKey;
         queueKey = nextQueue;
@@ -552,17 +500,17 @@ export function mountLibrary(host, { player, savedState = {}, onBack = () => {},
 
     $('#search').value = state.query;
     syncClearButton();
-    // Cascade d'entrée des lignes : seulement à l'ouverture, pas à chaque mise à jour.
-    host.setAttribute('data-intro', '');
-    const introTimer = setTimeout(() => host.removeAttribute('data-intro'), 900);
     queueKey = playback().queue.join('|');
     lastError = playback().error;
     render();
+    ready.then(() => {
+        waiting = false;
+        if (!panel.disposed) { renderList(); panel.startIntro(); }
+    });
     importJob.listeners.add(renderImport);
     importWasRunning = Boolean(importJob.phase);
     renderImport();
-    // Le clavier (Échap, Ctrl+F) agit dès l'ouverture, sans clic préalable dans la vue.
-    $('.lib').focus({ preventScroll: true });
+    panel.focus();
     if (!player.library.tracks.length) player.reload().catch(error => toast(`Impossible d’ouvrir la bibliothèque : ${errorText(error)}`, true));
 
     return {
@@ -572,10 +520,7 @@ export function mountLibrary(host, { player, savedState = {}, onBack = () => {},
         get busy() { return state.busy || importJob.phase === 'pick'; },
         notify: message => toast(message),
         destroy() {
-            disposed = true;
-            clearTimeout(toastTimer);
-            clearTimeout(introTimer);
-            abort.abort();
+            panel.destroy();
             unsubscribe();
             importJob.listeners.delete(renderImport);
         },

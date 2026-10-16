@@ -4,6 +4,9 @@
 
 - Bibliothèque intégrée à l’Island : un mode de la capsule comme les autres (même ressort, mêmes boutons, accent du thème ou de la pochette), avec collections en pastilles, lignes en verre et mini-lecteur. Elle revient au menu ou se replie sans interrompre la lecture.
 - Correction : « Importer » ouvre de nouveau le sélecteur de fichiers Windows (il échouait en silence). Une barre de progression suit l’import, même après avoir refermé puis rouvert la Bibliothèque.
+- Historique refait sur le modèle de la Bibliothèque : taille fixe (plus de sauts de hauteur pendant la recherche), filtres en pastilles, lignes en verre, menu ⋯ (rechercher, ouvrir dans le lecteur d’origine, retirer) et clic sur une ligne pour relancer le titre. Un titre local partage son favori avec la Bibliothèque.
+- Dossier de musique déplacé : réimporter retrouve les titres au lieu de les dupliquer (même fichier, même durée), « Retrouver le fichier » retrouve aussi les autres titres du dossier, et les doublons déjà créés sont fusionnés au chargement. Playlists et favoris sont conservés.
+- Ouverture de la Bibliothèque et de l’Historique sans à-coup en fin de ressort : la vue a sa taille finale dès le départ, les lignes arrivent une fois la capsule posée, et la vue est préparée au repos après le lancement.
 - Boutons en verre (Liquid Glass) sur le mini-lecteur de la Bibliothèque, comme dans le Lecteur ; l’accent reste lisible avec une pochette très sombre.
 - Correction de l’ouverture des Réglages : les fenêtres partagent désormais les mêmes options WebView2.
 - Bibliothèque musicale personnelle : import de fichiers ou de dossiers, informations et pochettes des fichiers, favoris, recherche et playlists réordonnables. Les fichiers originaux restent à leur emplacement.

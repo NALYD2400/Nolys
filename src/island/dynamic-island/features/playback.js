@@ -251,9 +251,8 @@ export const playbackMethods = {
                 this.updatePlaybackVisualState(data.isPlaying);
             }
         } else if (this.isExpanded && this.mode === 'music-history') {
-            if (trackChanged) {
-                this.renderMusicHistory();
-            }
+            // Titre en cours et égaliseur de l'Historique.
+            if (trackChanged || playbackChanged) this._historyController?.refresh();
         } else if (!this.isExpanded) {
             // La pilule affiche la musique seulement pendant la lecture : elle doit aussi se
             // redessiner quand la lecture démarre ou s'arrête. Sans ça, un morceau annoncé
