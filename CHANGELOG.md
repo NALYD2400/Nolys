@@ -3,7 +3,8 @@
 ## En préparation
 
 - Bibliothèque intégrée à l’Island : un mode de la capsule comme les autres (même ressort, mêmes boutons, accent du thème ou de la pochette), avec collections en pastilles, lignes en verre et mini-lecteur. Elle revient au menu ou se replie sans interrompre la lecture.
-- Correction : « Importer » ouvre de nouveau le sélecteur de fichiers Windows (il échouait en silence).
+- Correction : « Importer » ouvre de nouveau le sélecteur de fichiers Windows (il échouait en silence). Une barre de progression suit l’import, même après avoir refermé puis rouvert la Bibliothèque.
+- Boutons en verre (Liquid Glass) sur le mini-lecteur de la Bibliothèque, comme dans le Lecteur ; l’accent reste lisible avec une pochette très sombre.
 - Correction de l’ouverture des Réglages : les fenêtres partagent désormais les mêmes options WebView2.
 - Bibliothèque musicale personnelle : import de fichiers ou de dossiers, informations et pochettes des fichiers, favoris, recherche et playlists réordonnables. Les fichiers originaux restent à leur emplacement.
 - Lecture locale reliée à l’Island : file de lecture, volume, déplacement dans le morceau, aléatoire et répétition. Fermer la Bibliothèque laisse la musique continuer tant que Nolys fonctionne.

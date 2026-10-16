@@ -24,6 +24,10 @@ export const shellMarkup = `
     </header>
     <nav class="lib-chips" id="chips" aria-label="Collections"></nav>
     <div class="lib-section" id="section"></div>
+    <div class="lib-progress" id="progress" role="progressbar" aria-label="Import de musique" aria-valuemin="0" aria-valuemax="100" hidden>
+        <div class="progress-head">${icon('circle-notch', 'ph-bold')}<span id="progress-label"></span><small id="progress-count"></small></div>
+        <div class="progress-track"><i></i></div>
+    </div>
     <div class="lib-list" id="list"></div>
     <footer class="lib-player" id="player" aria-label="Lecture">
         <div class="player-track">
@@ -95,7 +99,7 @@ export function rowMarkup(track, { current, playing, selecting, selected, index 
     const state = current ? `<span class="cover-state ${playing ? 'is-playing' : ''}" aria-hidden="true"><i></i><i></i><i></i></span>` : `<span class="cover-play" aria-hidden="true">${icon('play', 'ph-fill')}</span>`;
     const main = selecting
         ? `<button type="button" class="row-main" data-action="toggle-select" data-id="${e(track.id)}" aria-pressed="${selected}"><span class="check" aria-hidden="true">${icon('check', 'ph-bold')}</span>`
-        : `<button type="button" class="row-main" data-action="play" data-id="${e(track.id)}" ${track.missing ? 'aria-disabled="true"' : ''} title="${e(track.path)}">`;
+        : `<button type="button" class="row-main" data-action="play" data-id="${e(track.id)}" ${track.missing ? 'aria-disabled="true"' : ''}>`;
     return `<div class="row ${current ? 'is-current' : ''} ${track.missing ? 'is-missing' : ''} ${selected ? 'is-selected' : ''}" data-track="${e(track.id)}" style="--i:${Math.min(index, 12)}">
         ${main}<span class="cover">${cover(track)}${selecting ? '' : state}</span>
         <span class="row-text"><strong>${e(track.title)}</strong><small>${track.missing ? '<em>Fichier introuvable</em>' : sub || 'Artiste inconnu'}</small></span></button>

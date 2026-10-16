@@ -18,6 +18,8 @@ use std::{
 use tauri::{AppHandle, Manager};
 
 pub const CHANGED: &str = "local-library-changed";
+/// Avancement d’un import (phase, fichiers lus, total).
+pub const PROGRESS: &str = "local-library-import";
 /// Commande média (raccourcis clavier) destinée au lecteur local de l’Island.
 pub const CONTROL: &str = "local-library-media";
 pub const EXTENSIONS: &[&str] = &["mp3", "flac", "wav", "m4a", "aac", "ogg", "opus"];

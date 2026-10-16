@@ -8,7 +8,11 @@ export const libraryView = {
     },
 
     renderLibrary() {
-        if (this._libraryHost?.isConnected) return;
+        if (this._libraryHost?.isConnected) {
+            // renderContent vient de retirer le verre : on le repose sur les mêmes boutons.
+            this.syncGlassControls();
+            return;
+        }
         // Le contenu a été vidé pendant une transition : on repart d’une vue propre.
         this.leaveLibrary();
         const host = document.createElement('div');
@@ -21,6 +25,7 @@ export const libraryView = {
             onBack: () => this.setMode('menu'),
             onClose: () => this.collapseIsland(),
         });
+        this.syncGlassControls();
     },
 
     leaveLibrary() {

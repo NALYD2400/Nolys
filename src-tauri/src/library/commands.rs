@@ -1,4 +1,4 @@
-use super::{authorize, collect, mutate, path_key, read_track, Library, Mutation, Store, CHANGED, EXTENSIONS};
+use super::{authorize, collect, mutate, path_key, read_track, Library, Mutation, Store, CHANGED, EXTENSIONS, PROGRESS};
 use std::{collections::HashSet, path::Path, sync::atomic::Ordering};
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 
@@ -67,20 +67,29 @@ pub async fn library_import(app: AppHandle, kind: String) -> Result<ImportResult
                 cancelled: true,
             });
         };
+        // Barre de progression de la vue : parcours des dossiers, puis lecture des tags.
+        let progress = |phase: &str, done: usize, total: usize| {
+            let _ = handle.emit_to(crate::island::LABEL, PROGRESS, serde_json::json!({ "phase": phase, "done": done, "total": total }));
+        };
+        progress("scan", 0, 0);
         let (files, skipped) = collect(paths);
         let known: HashSet<_> = previous.tracks.iter().map(|t| path_key(&t.path)).collect();
         let mut duplicates = 0;
-        let tracks: Vec<_> = files
-            .iter()
-            .filter_map(|path| {
-                if known.contains(&path_key(&path.to_string_lossy())) {
-                    duplicates += 1;
-                    None
-                } else {
-                    Some(read_track(path, &store.covers_dir()))
-                }
-            })
-            .collect();
+        let mut tracks = Vec::new();
+        let mut last = std::time::Instant::now();
+        progress("read", 0, files.len());
+        for (index, path) in files.iter().enumerate() {
+            if known.contains(&path_key(&path.to_string_lossy())) {
+                duplicates += 1;
+            } else {
+                tracks.push(read_track(path, &store.covers_dir()));
+            }
+            if last.elapsed().as_millis() >= 80 {
+                last = std::time::Instant::now();
+                progress("read", index + 1, files.len());
+            }
+        }
+        progress("save", files.len(), files.len());
         let mut added = 0;
         let library = store.change(|library| {
             let mut known: HashSet<_> = library.tracks.iter().map(|t| path_key(&t.path)).collect();

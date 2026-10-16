@@ -50,6 +50,10 @@ function wavFixture() {
                 case 'library_player_active': playerActive = args.active; return;
                 case 'library_check_track': if (!library.tracks.some(t => t.id === args.id && !t.missing)) throw new Error('Fichier introuvable.'); return;
                 case 'library_import': {
+                    // Progression comme le cœur natif : la barre d'import doit s'afficher.
+                    await emit('local-library-import', { phase: 'read', done: 5, total: 12 });
+                    await new Promise(resolve => setTimeout(resolve, 600));
+                    if (process.env.NOLYS_PROGRESS_SHOT) await _source.page.screenshot({ path: process.env.NOLYS_PROGRESS_SHOT });
                     const added = library.tracks.length ? 0 : fixture.length;
                     if (added) library.tracks.push(...structuredClone(fixture));
                     await emit('local-library-changed', null);
@@ -107,6 +111,8 @@ function wavFixture() {
         assert.ok(box.left >= 0 && box.right <= box.width && box.bottom <= box.height, `la capsule tient dans la fenêtre : ${JSON.stringify(box)}`);
 
         await page.getByRole('button', { name: 'Importer un dossier', exact: true }).click();
+        await page.getByRole('progressbar', { name: 'Import de musique' }).waitFor();
+        assert.equal(await page.locator('#progress-count').textContent(), '5 / 12');
         await inLibrary(() => window.island._libraryHost.shadowRoot.querySelectorAll('.row').length === 12);
         await page.getByRole('status').filter({ hasText: '12 titres ajoutés' }).waitFor();
         await page.locator('#search').fill('ete');
@@ -156,9 +162,23 @@ function wavFixture() {
         await page.getByRole('button', { name: 'Ajouter Lumière aux favoris', exact: true }).click();
         await inLibrary(() => window.island._libraryHost.shadowRoot.querySelector('.chip[data-view=favorites] small').textContent === '1');
         assert.equal(library.tracks[0].favorite, true);
-        // L'accent suit celui de l'Island (thème ou pochette), sans copie propre à la vue.
-        const accent = await page.evaluate(() => [getComputedStyle(window.island._libraryHost.shadowRoot.querySelector('.lib')).getPropertyValue('--accent-rgb').trim(), getComputedStyle(document.documentElement).getPropertyValue('--neon-primary-rgb').trim()]);
-        assert.equal(accent[0], accent[1] || '212, 148, 96');
+        // L'accent suit celui de l'Island et reste lisible avec une pochette noire.
+        const accentLightness = color => page.evaluate(value => {
+            document.documentElement.style.setProperty('--neon-primary', value);
+            const probe = window.island._libraryHost.shadowRoot.querySelector('#p-title');
+            probe.style.color = 'var(--accent)';
+            const canvas = new OffscreenCanvas(1, 1).getContext('2d');
+            canvas.fillStyle = getComputedStyle(probe).color;
+            canvas.fillRect(0, 0, 1, 1);
+            const [r, g, b] = canvas.getImageData(0, 0, 1, 1).data;
+            probe.style.color = '';
+            return { r, g, b, luminance: (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 };
+        }, color);
+        const dark = await accentLightness('#050505');
+        assert.ok(dark.luminance > 0.45, `accent illisible avec une pochette noire : ${JSON.stringify(dark)}`);
+        const warm = await accentLightness('#d49460');
+        assert.ok(warm.r > warm.b, `l'accent garde sa teinte : ${JSON.stringify(warm)}`);
+        await page.evaluate(() => document.documentElement.style.removeProperty('--neon-primary'));
         await page.getByRole('button', { name: 'Lecture', exact: true }).click();
         await shot('19-bibliotheque.png');
 

@@ -42,7 +42,25 @@ const SURFACES_BY_MODE = {
         { selector: '.ic-np-btn.play', options: (_, coverTint) => ({ material: 'regular', radius: 'circle', interactive: true, tint: coverTint }) },
         { selector: '.ic-vertical-slider', options: { material: 'clear', radius: 18 } },
     ],
+    // Mini-lecteur et boutons ronds de la Bibliothèque (dans son shadow DOM, voir surfaceRoot).
+    library: [
+        { selector: '.lib-player', options: { material: 'clear', radius: 20 } },
+        { selector: '.lib-header .round-btn', options: { material: 'clear', radius: 'circle', interactive: true } },
+        { selector: '.player-controls .ctl-btn:not(.is-play)', options: { material: 'clear', radius: 'circle', interactive: true }, hoverOnly: true },
+        { selector: '.player-controls .ctl-btn.is-play', options: (_, coverTint) => ({ material: 'regular', radius: 'circle', interactive: true, tint: legibleTint(coverTint) }) },
+    ],
 };
+
+/** Une pochette très sombre teinterait le verre en noir sur fond noir : on l'éclaircit. */
+function legibleTint(hex) {
+    const match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '');
+    if (!match) return hex;
+    const rgb = [1, 2, 3].map(i => parseInt(match[i], 16));
+    const luminance = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
+    if (luminance >= 0.35) return hex;
+    const mix = Math.min(1, (0.35 - luminance) / (1 - luminance) + 0.08);
+    return rgbToHex(...rgb.map(v => Math.round(v + (255 - v) * mix)));
+}
 
 let glassModule = null;
 const loadGlass = () => (glassModule ??= import('../../glass-scene.js'));
@@ -106,8 +124,11 @@ export const glassMethods = {
                 };
             };
 
+            // La Bibliothèque vit dans un shadow DOM : ses boutons y sont cherchés directement.
+            const surfaceRoot = mode === 'library' ? this._libraryHost?.shadowRoot : this.content;
+            if (!surfaceRoot) return;
             for (const { selector, options, hoverOnly } of SURFACES_BY_MODE[mode]) {
-                for (const element of this.content.querySelectorAll(selector)) {
+                for (const element of surfaceRoot.querySelectorAll(selector)) {
                     const resolved = typeof options === 'function' ? options(element, coverTint) : options;
                     const surfaceOptions = { ...resolved, appearance: 'dark' };
                     if (!hoverOnly) {

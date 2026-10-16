@@ -9,6 +9,38 @@ const SORTS = { title: 'Titre', artist: 'Artiste', album: 'Album', recent: 'Ajou
 const VIEWS = ['all', 'favorites', 'queue'];
 
 /**
+ * Import en cours, hors de la vue : refermer puis rouvrir la Bibliothèque retrouve sa
+ * progression au lieu de relancer un second import (« Un import est déjà en cours »).
+ * phase : pick (sélecteur Windows ouvert), scan, read, save ; vide quand rien ne tourne.
+ */
+const importJob = { phase: '', done: 0, total: 0, result: null, error: '', listeners: new Set(), listening: null };
+const notifyImport = () => importJob.listeners.forEach(listener => listener());
+
+async function startImport(player, kind) {
+    if (importJob.phase) return;
+    importJob.listening ||= native.listen('local-library-import', progress => {
+        if (!importJob.phase) return;
+        Object.assign(importJob, progress);
+        notifyImport();
+    }).catch(() => { importJob.listening = null; });
+    Object.assign(importJob, { phase: 'pick', done: 0, total: 0, result: null, error: '' });
+    notifyImport();
+    try {
+        await importJob.listening;
+        const result = await native.invoke('library_import', { kind });
+        player.library = result.library;
+        importJob.result = result;
+    } catch (error) {
+        importJob.error = String(error?.message || error);
+    } finally {
+        importJob.phase = '';
+        notifyImport();
+    }
+}
+
+const IMPORT_LABELS = { pick: 'Choisissez votre musique dans la fenêtre Windows…', scan: 'Recherche des fichiers audio…', read: 'Lecture des titres et pochettes', save: 'Enregistrement de la bibliothèque…' };
+
+/**
  * Vue Bibliothèque montée dans l’Island (shadow DOM : ses styles ne débordent pas).
  * La collection et la lecture viennent directement du lecteur local de l’Island.
  */
@@ -285,30 +317,42 @@ export function mountLibrary(host, { player, savedState = {}, onBack = () => {},
             submit: async () => { await mutate({ type: 'removeTracks', ids }); exitSelection(); } });
     }
 
-    async function importMusic(kind) {
-        if (state.busy) return;
+    function importMusic(kind) {
         closeMenu();
-        state.busy = true;
-        host.toggleAttribute('data-busy', true);
-        setIcon($('[data-action="import"]'), 'circle-notch', 'ph-bold');
-        toast('Choisissez votre musique dans la fenêtre Windows…');
-        try {
-            const result = await native.invoke('library_import', { kind });
-            player.library = result.library;
-            if (result.cancelled) { toast(''); render(); return; }
-            if (result.added) { state.view = 'all'; state.query = ''; $('#search').value = ''; syncClearButton(); }
-            render();
-            const details = [result.duplicates && `${result.duplicates} déjà présent${result.duplicates > 1 ? 's' : ''}`, result.skipped && `${result.skipped} illisible${result.skipped > 1 ? 's' : ''}`].filter(Boolean);
-            toast(result.added
-                ? `${result.added} titre${result.added > 1 ? 's' : ''} ajouté${result.added > 1 ? 's' : ''}${details.length ? ` · ${details.join(' · ')}` : ''}.`
-                : `Aucun nouveau titre${details.length ? ` · ${details.join(' · ')}` : ' : aucun fichier audio pris en charge'}.`, !result.added && !result.duplicates);
-        } catch (error) {
-            toast(errorText(error), true);
-        } finally {
-            state.busy = false;
-            host.toggleAttribute('data-busy', false);
-            setIcon($('[data-action="import"]'), 'plus', 'ph-bold');
+        return startImport(player, kind);
+    }
+
+    /** Barre d'import dans le thème, et bilan quand l'import se termine. */
+    let importWasRunning = false;
+    function renderImport() {
+        const running = Boolean(importJob.phase);
+        host.toggleAttribute('data-busy', running);
+        setIcon($('[data-action="import"]'), running ? 'circle-notch' : 'plus', 'ph-bold');
+        const bar = $('#progress');
+        bar.hidden = !running;
+        if (running) {
+            const counted = importJob.phase === 'read' && importJob.total > 0;
+            const pct = importJob.phase === 'save' ? 100 : counted ? Math.round(importJob.done / importJob.total * 100) : 0;
+            bar.classList.toggle('is-indeterminate', !counted && importJob.phase !== 'save');
+            bar.style.setProperty('--pct', `${pct}%`);
+            bar.setAttribute('aria-valuenow', String(pct));
+            $('#progress-label').textContent = IMPORT_LABELS[importJob.phase] || 'Import…';
+            $('#progress-count').textContent = counted ? `${importJob.done} / ${importJob.total}` : '';
         }
+        if (importWasRunning && !running) finishImport();
+        importWasRunning = running;
+    }
+
+    function finishImport() {
+        const { result, error } = importJob;
+        if (error) { toast(error, true); return; }
+        if (!result || result.cancelled) return;
+        if (result.added) { state.view = 'all'; state.query = ''; $('#search').value = ''; syncClearButton(); }
+        render();
+        const details = [result.duplicates && `${result.duplicates} déjà présent${result.duplicates > 1 ? 's' : ''}`, result.skipped && `${result.skipped} illisible${result.skipped > 1 ? 's' : ''}`].filter(Boolean);
+        toast(result.added
+            ? `${result.added} titre${result.added > 1 ? 's' : ''} ajouté${result.added > 1 ? 's' : ''}${details.length ? ` · ${details.join(' · ')}` : ''}.`
+            : `Aucun nouveau titre${details.length ? ` · ${details.join(' · ')}` : ' : aucun fichier audio pris en charge'}.`, !result.added && !result.duplicates);
     }
 
     async function relink(id) {
@@ -514,6 +558,9 @@ export function mountLibrary(host, { player, savedState = {}, onBack = () => {},
     queueKey = playback().queue.join('|');
     lastError = playback().error;
     render();
+    importJob.listeners.add(renderImport);
+    importWasRunning = Boolean(importJob.phase);
+    renderImport();
     // Le clavier (Échap, Ctrl+F) agit dès l'ouverture, sans clic préalable dans la vue.
     $('.lib').focus({ preventScroll: true });
     if (!player.library.tracks.length) player.reload().catch(error => toast(`Impossible d’ouvrir la bibliothèque : ${errorText(error)}`, true));
@@ -522,7 +569,7 @@ export function mountLibrary(host, { player, savedState = {}, onBack = () => {},
         /** Ce qui survit à une fermeture : vue, recherche et tri. */
         get savedState() { return { view: state.view, query: state.query, sort: state.sort }; },
         /** Un sélecteur Windows est ouvert : l’Island ne doit pas se replier. */
-        get busy() { return state.busy; },
+        get busy() { return state.busy || importJob.phase === 'pick'; },
         notify: message => toast(message),
         destroy() {
             disposed = true;
@@ -530,6 +577,7 @@ export function mountLibrary(host, { player, savedState = {}, onBack = () => {},
             clearTimeout(introTimer);
             abort.abort();
             unsubscribe();
+            importJob.listeners.delete(renderImport);
         },
     };
 }
