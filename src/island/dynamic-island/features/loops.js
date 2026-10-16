@@ -165,10 +165,13 @@ export const loopMethods = {
     },
 
     async updateMediaState() {
-        if (this.localPlayer?.active) {
-            const media = this.localPlayer.media;
+        const local = this.localPlayer;
+        if (local?.active) {
+            const media = local.media;
             if (media) this.updateMusic(media);
-            return;
+            // En lecture, le titre local garde la main. En pause, on continue de regarder les
+            // autres lecteurs : si l'un d'eux démarre (Spotify…), il reprend l'Island.
+            if (local.snapshot.isPlaying) return;
         }
         try {
             if (this._mediaStateRequestInFlight) return;
@@ -176,7 +179,7 @@ export const loopMethods = {
             this._mediaStateRequestInFlight = true;
 
             const mediaInfo = await ipcRenderer.invoke('get-media-info');
-            if (this.localPlayer?.active) return;
+            if (local?.active && !(mediaInfo?.isPlaying && local.park())) return;
             if (mediaInfo) {
                 this.updateMusic({
                     title: mediaInfo.title || "Aucune lecture",

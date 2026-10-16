@@ -1,12 +1,13 @@
 # Historique
 
-## En préparation
+## 2.3.0 — 16 octobre 2026
 
 - Réglages ouverts directement dans l’Island, comme la Bibliothèque : la capsule s’agrandit (sa plus grande forme, 680 px de large) au lieu d’ouvrir une fenêtre à part. La fenêtre transparente de l’Island passe de 620 à 720 px de large pour leur faire place ; la pilule reste exactement au même endroit de l’écran. Depuis le menu, le clic droit, l’icône de la barre des tâches ou Ctrl+Alt+P (un second appui les referme) ; l’Island réapparaît si elle était masquée. Échap, ✕ ou un clic ailleurs les referment, le bouton ⊞ revient au menu.
 - La capsule prend la hauteur de son contenu dans la Bibliothèque, l’Historique et les Réglages : avec un seul favori ou une page courte, plus de grand vide entre la liste et le lecteur. Elle ne bouge pas pendant une recherche (pas de saut à chaque lettre), ni quand on déplie une option des Réglages.
 - Les Réglages prennent l’accent du thème ou de la pochette, éclairci s’il est trop sombre, et le thème choisi s’applique en direct à la capsule qui les entoure.
 - Position : la taille de l’Island se règle par boutons − / + (5 % par pas). « Déplacer » referme les Réglages le temps du placement, puis les rouvre sur Position.
 - Exporter les réglages passe par la fenêtre « Enregistrer sous » de Windows ; importer ou exporter ne referme plus l’Island pendant le choix du fichier.
+- Correction : un titre de la Bibliothèque mis en pause ne bloque plus Spotify (ou un autre lecteur). Dès que celui-ci joue, il reprend l’Island et les touches média ; le titre local reste prêt dans la Bibliothèque et Lecture le reprend au même endroit (en mettant l’autre lecteur en pause).
 - Correction : recliquer la page ouverte remonte en haut au lieu de laisser le verre des cartes passer sous le titre.
 
 - Bibliothèque intégrée à l’Island : un mode de la capsule comme les autres (même ressort, mêmes boutons, accent du thème ou de la pochette), avec collections en pastilles, lignes en verre et mini-lecteur. Elle revient au menu ou se replie sans interrompre la lecture.

@@ -52,11 +52,14 @@ export class LocalMusicPlayer {
 
     get current() { return this.library.tracks.find(track => track.id === this.currentId); }
 
+    /** Mis de côté (voir park) : morceau, file et position gardés, reprise possible. */
+    get parked() { return !this.active && Boolean(this.currentId && this.currentSource); }
+
     get snapshot() {
         const duration = Number.isFinite(this.audio.duration) ? this.audio.duration * 1000 : this.current?.duration || 0;
         return { active: this.active, trackId: this.currentId, isPlaying: this.active && !this.audio.paused && !this.audio.ended,
             progress: this.audio.currentTime * 1000 || 0, duration, volume: this.audio.volume,
-            shuffle: this.shuffle, repeat: this.repeat, queue: [...this.queue], error: this.error };
+            parked: this.parked, shuffle: this.shuffle, repeat: this.repeat, queue: [...this.queue], error: this.error };
     }
 
     get media() {
@@ -117,6 +120,18 @@ export class LocalMusicPlayer {
         }
     }
 
+    /**
+     * Titre local en pause et un autre lecteur (Spotify…) qui démarre : l'Island et les touches
+     * média lui reviennent. Le morceau reste chargé à sa position ; Lecture le reprend.
+     * Renvoie false si la lecture locale est en cours (elle garde la main).
+     */
+    park() {
+        if (!this.active || !this.audio.paused) return false;
+        this.active = false;
+        this.publish();
+        return true;
+    }
+
     stop() {
         ++this.playToken;
         this.active = false;
@@ -160,7 +175,7 @@ export class LocalMusicPlayer {
             case 'stop': this.stop(); break;
             case 'seek': {
                 const ms = Number(command.value);
-                if (this.active && Number.isFinite(ms)) this.audio.currentTime = Math.max(0, Math.min(state.duration / 1000, ms / 1000));
+                if ((this.active || this.parked) && Number.isFinite(ms)) this.audio.currentTime = Math.max(0, Math.min(state.duration / 1000, ms / 1000));
                 this.publish(); break;
             }
             case 'volume': {
@@ -176,8 +191,16 @@ export class LocalMusicPlayer {
                 this.publish(); break;
             }
             case 'media': {
-                if (!this.active) return;
                 const action = String(command.action || '');
+                if (!this.active) {
+                    // Reprise d'un morceau mis de côté : l'autre lecteur est mis en pause, comme à
+                    // chaque lancement d'un titre local.
+                    if (!this.parked || action === 'pause' || action.startsWith('seek ')) return;
+                    await this.invoke('media_control', { action: 'pause' });
+                    this.active = true;
+                    this.error = '';
+                    if (action === 'play' || action === 'toggle') { await this.audio.play(); break; }
+                }
                 if (action.startsWith('seek ')) return this.control({ type: 'seek', value: Number(action.slice(5)) });
                 if (action === 'next') return this.next();
                 if (action === 'prev') {

@@ -128,3 +128,43 @@ test('une ancienne préparation rejetée ne coupe pas le morceau choisi ensuite'
     assert.equal(player.snapshot.isPlaying, true);
     assert.equal(player.error, '');
 });
+
+test('titre en pause : un autre lecteur reprend la main, Lecture reprend le titre au même endroit', async () => {
+    const { player, calls } = fixture();
+    const reported = () => calls.filter(([command]) => command === 'library_player_active').at(-1)?.[1].active;
+    await player.play('a', ['a', 'b']);
+    assert.equal(player.park(), false, 'en lecture, le titre local garde la main');
+    await player.control({ type: 'media', action: 'toggle' });
+    player.audio.currentTime = 20;
+    assert.equal(player.park(), true);
+    assert.equal(player.media, null, 'l’Island affiche l’autre lecteur');
+    assert.equal(reported(), false, 'les touches média vont à l’autre lecteur');
+    assert.equal(player.snapshot.parked, true);
+    assert.deepEqual(player.snapshot.queue, ['a', 'b']);
+    // Une pause demandée pendant que l'autre lecteur joue ne réactive rien.
+    await player.control({ type: 'media', action: 'pause' });
+    assert.equal(player.active, false);
+    calls.length = 0;
+    await player.control({ type: 'media', action: 'toggle' });
+    assert.deepEqual(calls[0], ['media_control', { action: 'pause' }], 'l’autre lecteur est mis en pause');
+    assert.equal(player.snapshot.isPlaying, true);
+    assert.equal(player.audio.currentTime, 20);
+    assert.equal(reported(), true);
+    assert.equal(player.media.trackKey, 'local:a');
+});
+
+test('titre mis de côté : suivant reprend la file, arrêt l’oublie', async () => {
+    const { player } = fixture();
+    await player.play('a', ['a', 'b']);
+    await player.control({ type: 'media', action: 'pause' });
+    player.park();
+    await player.control({ type: 'media', action: 'next' });
+    assert.equal(player.currentId, 'b');
+    assert.equal(player.active, true);
+    await player.control({ type: 'media', action: 'pause' });
+    player.park();
+    player.stop();
+    assert.equal(player.snapshot.parked, false);
+    await player.control({ type: 'media', action: 'toggle' });
+    assert.equal(player.active, false);
+});

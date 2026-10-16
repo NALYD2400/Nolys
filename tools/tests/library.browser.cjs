@@ -23,6 +23,9 @@ function wavFixture() {
         const context = await browser.newContext({ viewport: { width: 720, height: 600 } });
         const library = { tracks: [], playlists: [] };
         let playerActive = false;
+        // Autre lecteur (Spotify) vu par le cœur natif, et commandes média qui lui sont envoyées.
+        let externalMedia = null;
+        const mediaCommands = [];
         let sequence = 0;
         const errors = [];
         const titles = ['Lumière', 'Été', 'Après la pluie', 'Nocturne', 'Panorama', 'Horizon', 'Résonance', 'Dérive', 'Matin calme', 'Les heures bleues', 'Traversée', 'Dernier regard'];
@@ -48,6 +51,8 @@ function wavFixture() {
                     return structuredClone(library);
                 }
                 case 'library_player_active': playerActive = args.active; return;
+                case 'get_media_info': return externalMedia;
+                case 'media_control': mediaCommands.push(args.action); if (args.action === 'pause' && externalMedia) externalMedia = { ...externalMedia, isPlaying: false }; return;
                 case 'library_check_track': if (!library.tracks.some(t => t.id === args.id && !t.missing)) throw new Error('Fichier introuvable.'); return;
                 case 'library_import': {
                     // Progression comme le cœur natif : la barre d'import doit s'afficher.
@@ -199,6 +204,22 @@ function wavFixture() {
         assert.equal(await page.locator('.row.is-missing').count(), 0);
         await page.locator('[data-action="play"][data-id="t1"]').click();
         await page.waitForFunction(() => window.island.localPlayer.currentSource.includes('relocated') && !window.island.localPlayer.audio.paused);
+        // Titre local en pause, Spotify démarre : il reprend l'Island et les touches média ;
+        // Lecture dans la Bibliothèque reprend le titre local au même endroit et met Spotify en pause.
+        await page.getByRole('button', { name: 'Pause', exact: true }).click();
+        await page.waitForFunction(() => window.island.localPlayer.audio.paused);
+        const parkedAt = await page.evaluate(() => window.island.localPlayer.audio.currentTime);
+        externalMedia = { title: 'Paris', artist: 'Nono La Grinta', appId: 'Spotify.exe', source: 'smtc', isPlaying: true, progress: 1000, duration: 180000, trackKey: 'spotify:paris' };
+        await page.evaluate(() => window.island.updateMediaState());
+        await page.waitForFunction(() => !window.island.localPlayer.active && window.island.musicData?.title === 'Paris');
+        assert.equal(playerActive, false, 'les touches média vont à Spotify');
+        assert.equal(await page.getByRole('button', { name: 'Lecture', exact: true }).isDisabled(), false, 'le titre local reste prêt à reprendre');
+        await page.getByRole('button', { name: 'Lecture', exact: true }).click();
+        await page.waitForFunction(() => window.island.localPlayer.active && !window.island.localPlayer.audio.paused);
+        assert.equal(mediaCommands.at(-1), 'pause', 'Spotify mis en pause');
+        assert.ok(await page.evaluate(at => window.island.localPlayer.audio.currentTime >= at, parkedAt), 'reprise au même endroit');
+        assert.equal(playerActive, true);
+        externalMedia = null;
         await page.getByRole('button', { name: 'Arrêter et revenir aux autres lecteurs', exact: true }).click();
         await page.waitForFunction(() => !window.island.localPlayer.active);
         assert.equal(playerActive, false);
@@ -284,6 +305,6 @@ function wavFixture() {
         assert.equal(counts['local-library-changed'], 1);
         assert.equal(counts['local-library-media'], 1);
         assert.equal(errors.length, 0, JSON.stringify(errors));
-        console.log(JSON.stringify({ passed: ['entrée menu', 'taille de la capsule', 'import', 'recherche sans accents', 'sélection', 'playlist', 'ordre', 'audio réel', 'Échap et réouverture', 'pause', 'position', 'volume', 'aléatoire', 'favoris', 'accent du thème', 'fichier déplacé', 'retour aux autres lecteurs', 'retrait groupé', 'feuilles et Échap', 'état conservé', 'notification', 'historique : sections, recherche, filtres, favori partagé, lecture locale, vider, retirer, Échap'] }));
+        console.log(JSON.stringify({ passed: ['entrée menu', 'taille de la capsule', 'import', 'recherche sans accents', 'sélection', 'playlist', 'ordre', 'audio réel', 'Échap et réouverture', 'pause', 'position', 'volume', 'aléatoire', 'favoris', 'accent du thème', 'fichier déplacé', 'Spotify reprend la main après une pause', 'retour aux autres lecteurs', 'retrait groupé', 'feuilles et Échap', 'état conservé', 'notification', 'historique : sections, recherche, filtres, favori partagé, lecture locale, vider, retirer, Échap'] }));
     } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

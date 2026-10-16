@@ -129,7 +129,9 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
         const snap = playback();
         const track = player.library.tracks.find(t => t.id === snap.trackId);
         const panel = $('#player');
-        panel.classList.toggle('is-idle', !snap.active);
+        // Mis de côté (un autre lecteur a pris la main) : le morceau reste là, prêt à reprendre.
+        const usable = snap.active || snap.parked;
+        panel.classList.toggle('is-idle', !usable);
         if (panel.dataset.track !== (track?.id || '')) {
             panel.dataset.track = track?.id || '';
             $('#p-cover').innerHTML = cover(track);
@@ -139,7 +141,7 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
         const toggle = panel.querySelector('[data-action="toggle"]');
         setIcon(toggle, snap.isPlaying ? 'pause' : 'play', 'ph-fill');
         toggle.setAttribute('aria-label', snap.isPlaying ? 'Pause' : 'Lecture');
-        for (const button of panel.querySelectorAll('[data-action="toggle"], [data-action="prev"], [data-action="next"], [data-action="stop"]')) button.disabled = !snap.active;
+        for (const button of panel.querySelectorAll('[data-action="toggle"], [data-action="prev"], [data-action="next"], [data-action="stop"]')) button.disabled = !usable;
 
         const shuffle = panel.querySelector('[data-action="shuffle"]');
         shuffle.classList.toggle('is-on', snap.shuffle);
@@ -153,7 +155,7 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
 
         const seek = $('#seek');
         seek.max = String(Math.max(1, Math.round(snap.duration || 0)));
-        seek.disabled = !snap.active;
+        seek.disabled = !usable;
         if (!seek.matches(':active')) seek.value = String(snap.progress || 0);
         paintSlider(seek);
         $('#p-elapsed').textContent = time(Number(seek.value));
