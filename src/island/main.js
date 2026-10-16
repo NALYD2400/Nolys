@@ -257,6 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Listen to custom alert triggers
     ipcRenderer.on('trigger-notif', (event, data) => {
+        if (!data || typeof data !== 'object') return;
         if (window.island && typeof window.island.showNotification === 'function') {
             window.island.showNotification(data.title, data.message, data.icon);
         }

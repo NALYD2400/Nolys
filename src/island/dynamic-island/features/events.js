@@ -30,9 +30,21 @@ export const eventMethods = {
             }
 
             if (this.mode === 'notification') {
-                this.mode = this.previousMode || 'music';
+                if (!this.isExpanded) this.expandNotification();
+                return;
             }
             this.toggleExpand();
+        });
+
+        this.el.addEventListener('keydown', (e) => {
+            if (this.mode !== 'notification' || this._layoutEditMode) return;
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                this.dismissNotification();
+            } else if (!this.isExpanded && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                this.expandNotification();
+            }
         });
 
         const dragPointerTarget = this.dragSurface || this.el;

@@ -199,6 +199,7 @@ export const preferenceMethods = {
         document.body.classList.toggle('layout-edit-mode', this._layoutEditMode);
 
         if (this._layoutEditMode) {
+            this.clearNotification();
             this.closeContextMenu();
             // Toujours la pilule repliée pour le placement. Une ouverture en cours est annulée
             // (elle finissait sinon après coup), et renderContent retire les classes de taille

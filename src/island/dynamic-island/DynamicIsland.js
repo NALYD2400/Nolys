@@ -14,6 +14,7 @@ import { coverThemeMethods } from './features/cover-theme.js';
 import { eventMethods } from './features/events.js';
 import { loopMethods } from './features/loops.js';
 import { navigationMethods } from './features/navigation.js';
+import { notificationMethods } from './features/notifications.js';
 import { playbackMethods } from './features/playback.js';
 import { musicHistoryMethods } from './features/music-history.js';
 import { volumeMethods } from './features/volume.js';
@@ -138,6 +139,7 @@ const METHOD_GROUPS = [
     eventMethods,
     loopMethods,
     navigationMethods,
+    notificationMethods,
     playbackMethods,
     musicHistoryMethods,
     volumeMethods,

@@ -1,6 +1,5 @@
 /** Navigation entre les modes et rendu principal. */
 import { ipcRenderer } from '../../../shared/ipc.js';
-import { SoundService } from '../../../services/SoundService.js';
 
 export const navigationMethods = {
     // ... (rest of methods)
@@ -67,6 +66,10 @@ export const navigationMethods = {
 
     collapseIsland() {
         if (!this.isExpanded) return;
+        if (this.mode === 'notification') {
+            this.dismissNotification();
+            return;
+        }
 
         try { window.speechSynthesis.cancel(); } catch (e) {}
 
@@ -82,12 +85,7 @@ export const navigationMethods = {
     },
 
     returnToMusicIdle() {
-        if (this.notifTimeout) {
-            clearTimeout(this.notifTimeout);
-            this.notifTimeout = null;
-        }
-
-        this.previousMode = 'music';
+        this.clearNotification();
         this.mode = 'music';
         this.isExpanded = false;
         this.el.classList.remove(...this.getIslandSizeClasses());
@@ -195,51 +193,6 @@ export const navigationMethods = {
         });
     },
 
-    showNotification(title, message, icon = 'ph-bell') {
-        if (localStorage.getItem('liquid_notifications_enabled') === 'false') return;
-        // Mode Focus : l'Island ne s'ouvre plus d'elle-même pour une notification.
-        if (localStorage.getItem('liquid_focus_mode') === 'true') return;
-
-        this.notificationData = { title, message, icon };
-        // Don't overwrite previousMode if we are already in notification mode (e.g. rapid notifications)
-        if (this.mode !== 'notification') {
-            this.previousMode = this.mode;
-        }
-
-        this.transitionState(() => {
-            this.mode = 'notification';
-            SoundService.play('notification');
-            // Utilise la classe notifying plus compacte et temporaire
-            this.el.classList.remove(...this.getIslandSizeClasses(), 'island-active-music');
-            this.el.style.width = ''; // largeur du titre de la pilule : la notification a la sienne
-            this.el.classList.add('island-notifying');
-            this.renderNotification();
-        });
-
-        // Clear any existing timeout if we are spamming notifications?
-        if (this.notifTimeout) clearTimeout(this.notifTimeout);
-
-        this.notifTimeout = setTimeout(() => {
-            if (this.mode === 'notification') {
-                this.transitionState(() => {
-                    this.el.classList.remove('island-notifying');
-                    this.mode = this.previousMode || 'music';
-
-                    // Restore idle state base
-                    this.el.classList.add('island-idle');
-
-                    // Si l'île était active en musique, elle y retourne via renderIdle check
-                    if (this.mode === 'music' && this.musicData && this.musicData.isPlaying) {
-                        this.renderIdle(); // renderIdle adds island-active-music
-                    } else {
-                        this.renderIdle();
-                    }
-                });
-            }
-            this.notifTimeout = null;
-        }, 4000);
-    },
-
     getIslandSizeClasses() {
         return [
             'island-idle',
@@ -280,6 +233,8 @@ export const navigationMethods = {
 
     renderContent() {
         try { window.speechSynthesis.cancel(); } catch (e) {}
+        // Une navigation manuelle annule aussi le retour automatique de l'ancienne alerte.
+        if (this.mode !== 'notification' && this._notificationReturnState) this.clearNotification();
 
         // Reset any inline sizing from dynamic modes (e.g. mixer/history autosize)
         try {
@@ -343,8 +298,8 @@ export const navigationMethods = {
 
         // Essential: Clear ALL possible size/state classes before applying the new one.
         // Une notification repliée garde sa taille compacte (280×35) pendant son délai.
-        const keepCompactNotification = !this.isExpanded && this.mode === 'notification' && this.el.classList.contains('island-notifying');
-        this.el.classList.remove(...this.getIslandSizeClasses().filter((c) => !(keepCompactNotification && c === 'island-notifying')));
+        const keepCompactNotification = !this.isExpanded && this.mode === 'notification';
+        this.el.classList.remove(...this.getIslandSizeClasses());
 
         if (this.isExpanded) {
             const modeSizeClass = this.getModeSizeClass();
@@ -376,7 +331,12 @@ export const navigationMethods = {
             else if (this.mode === 'mixer') this.renderMixer();
             else if (this.mode === 'mic') this.renderMicMonitor();
         } else if (keepCompactNotification) {
-            this.renderNotification();
+            this.el.classList.add('island-notifying');
+            if (this._isTransitioning) {
+                this.content.innerHTML = '';
+            } else {
+                this.renderNotification();
+            }
         } else {
             // Collapsed state
             this.el.classList.add('island-idle');
