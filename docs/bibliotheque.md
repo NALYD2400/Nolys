@@ -32,6 +32,8 @@ Collection, chemins, favoris et playlists sont sauvegardés dans **`music-librar
 
 ## Vérification et limites
 
+L’ouverture simultanée de l’Island, de Bibliothèque et de Réglages a été vérifiée dans l’application Windows locale après harmonisation des options WebView2.
+
 Les parcours d’interface ont été vérifiés dans un navigateur avec une **passerelle Tauri simulée** : import, playlists, ordre, favoris, fermeture/réouverture et tailles de fenêtre. La lecture a utilisé un véritable élément **HTMLAudio** dans ce navigateur, avec pause, position, volume et aléatoire. Cela ne constitue pas une validation complète du lecteur dans la fenêtre Windows native.
 
 Les tests Rust natifs du parcours de fichiers, des métadonnées et des transactions de sauvegarde passent. Les boîtes de dialogue Windows de choix de fichiers et dossiers n’ont pas été exercées manuellement. Les captures `18-bibliotheque-vide.png` à `21-bibliotheque-compacte.png` illustrent les états vérifiés ; leurs titres musicaux sont des données synthétiques de test. Cette documentation ne vaut pas annonce de publication, de version installée ou de distribution.

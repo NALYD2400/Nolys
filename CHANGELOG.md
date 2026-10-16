@@ -2,6 +2,7 @@
 
 ## En préparation
 
+- Correction de l’ouverture de Bibliothèque et Réglages : les fenêtres partagent désormais les mêmes options WebView2.
 - Bibliothèque musicale personnelle : import de fichiers ou de dossiers, informations et pochettes des fichiers, favoris, recherche et playlists réordonnables. Les fichiers originaux restent à leur emplacement.
 - Lecture locale reliée à l’Island : file de lecture, volume, déplacement dans le morceau, aléatoire et répétition. Fermer la Bibliothèque laisse la musique continuer tant que Nolys fonctionne.
 - Récupération d’un fichier déplacé sans perdre ses playlists, détection des doublons à l’import et sauvegarde atomique de la collection.

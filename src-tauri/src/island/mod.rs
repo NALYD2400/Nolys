@@ -28,8 +28,10 @@ pub fn create(app: &AppHandle, legacy_settings: Option<String>) -> tauri::Result
     if let Some(script) = legacy_settings {
         builder = builder.initialization_script(script);
     }
+    // Garder les mêmes options WebView2 que les fenêtres Réglages et Bibliothèque.
+    // Wry autorise déjà la lecture audio par défaut ; remplacer ses arguments sur
+    // cette fenêtre seule empêche les autres WebViews de partager leur profil.
     let window = builder
-        .additional_browser_args("--autoplay-policy=no-user-gesture-required")
         .title("Nolys")
         .inner_size(BASE_WIDTH * layout.scale, BASE_HEIGHT * layout.scale)
         .position(layout.x, layout.y)

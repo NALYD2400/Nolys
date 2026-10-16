@@ -17,7 +17,10 @@ fn audio_dialog(app: &AppHandle, title: &str) -> rfd::FileDialog {
 
 #[tauri::command]
 pub async fn library_open(app: AppHandle) -> Result<(), String> {
-    super::open(&app)
+    super::open(&app).map_err(|error| {
+        crate::logger::log(&format!("[Library] Failed to open window: {error}"));
+        format!("Impossible d’ouvrir la bibliothèque. Relance Nolys puis réessaie. Détail : {error}")
+    })
 }
 
 #[tauri::command]
