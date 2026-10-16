@@ -1,10 +1,10 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-16T19:00:20.5502290+02:00",
+  "generatedAt": "2026-10-16T19:40:46+02:00",
   "title": "Design System: Nolys",
   "extensions": {
     "colorMeta": {
-      "accent": { "role": "primary", "displayName": "Cuivre" },
+      "accent": { "role": "primary", "displayName": "Cuivre — repli de l’accent configurable" },
       "champagne": { "role": "primary", "displayName": "Champagne" },
       "charcoal": { "role": "neutral", "displayName": "Charbon" },
       "ivory": { "role": "neutral", "displayName": "Ivoire" }
@@ -16,8 +16,8 @@
     },
     "shadows": [
       { "name": "library-menu", "value": "0 12px 30px rgba(0, 0, 0, .4)", "purpose": "Menus d’import et de morceau." },
-      { "name": "library-dialog", "value": "0 22px 80px rgba(0, 0, 0, .5)", "purpose": "Dialogue au-dessus du voile de fenêtre." },
-      { "name": "island-default", "value": "inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 8px 24px rgba(0, 0, 0, 0.42), 0 0 16px rgba(212, 148, 96, 0.42), 0 0 36px rgba(212, 148, 96, 0.22), 0 0 0 1px rgba(212, 148, 96, 0.22)", "purpose": "Valeurs par défaut de ThemeService.buildIslandShadow(20) ; taille, couleur et activation configurables." }
+      { "name": "library-dialog", "value": "0 22px 80px rgba(0, 0, 0, .5)", "purpose": "Dialogue au-dessus du voile de l’Island agrandie." },
+      { "name": "island-default", "value": "inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 8px 24px rgba(0, 0, 0, 0.42), 0 0 16px rgba(212, 148, 96, 0.42), 0 0 36px rgba(212, 148, 96, 0.22), 0 0 0 1px rgba(212, 148, 96, 0.22)", "purpose": "Cadre commun de l’Island et de sa bibliothèque ; valeurs de repli de ThemeService.buildIslandShadow(20), taille, couleur et activation configurables." }
     ],
     "motion": [
       { "name": "library-control", "value": "background .16s ease, color .16s ease", "purpose": "Survol des boutons et résumés ; transitions supprimées si prefers-reduced-motion: reduce." },
@@ -25,8 +25,10 @@
       { "name": "settings-page", "value": "0.28s cubic-bezier(0.2, 0.8, 0.2, 1)", "purpose": "Apparition de page depuis opacity: 0 et translateY(6px)." }
     ],
     "breakpoints": [
-      { "name": "library-compact-width (max-width)", "value": "900px" },
-      { "name": "library-compact-height (max-height)", "value": "620px" }
+      { "name": "library-compact-width (media max-width)", "value": "900px" },
+      { "name": "library-compact-height (media max-height)", "value": "620px" },
+      { "name": "library-narrow (container library max-width)", "value": "760px" },
+      { "name": "library-minimum (container library max-width)", "value": "530px" }
     ]
   },
   "components": [
@@ -34,9 +36,9 @@
       "name": "Importer — action principale",
       "kind": "button",
       "refersTo": "library-button-primary",
-      "description": "Action cuivre de la bibliothèque ; valeurs de repli extraites du CSS en place.",
+      "description": "Import teinté par l’accent de l’Island, avec synchronisation de pochette lorsqu’elle est active.",
       "html": "<button class=\"ds-primary\">Importer</button>",
-      "css": ".ds-primary{font:550 12px Inter,system-ui,sans-serif;padding:10px 15px;border:1px solid transparent;border-radius:9px;background:var(--accent,#d49460);color:#25180e;cursor:pointer;transition:background .16s ease,color .16s ease}.ds-primary:hover{background:#e2a675}.ds-primary:focus-visible{outline:2px solid var(--accent,#d49460);outline-offset:3px}.ds-primary:disabled{opacity:.38;cursor:default}@media(prefers-reduced-motion:reduce){.ds-primary{transition:none}}"
+      "css": ".ds-primary{font:550 12px Inter,system-ui,sans-serif;padding:10px 15px;border:1px solid rgba(var(--library-accent-rgb,212,148,96),.35);border-radius:9px;background:rgba(var(--library-accent-rgb,212,148,96),.25);color:rgba(255,255,255,.96);cursor:pointer;transition:background .16s ease,color .16s ease}.ds-primary:hover{background:rgba(var(--library-accent-rgb,212,148,96),.36)}.ds-primary:focus-visible{outline:2px solid var(--library-accent,#d49460);outline-offset:3px}.ds-primary:disabled{opacity:.38;cursor:default}@media(prefers-reduced-motion:reduce){.ds-primary{transition:none}}"
     },
     {
       "name": "Commande secondaire",
@@ -44,33 +46,33 @@
       "refersTo": "library-button",
       "description": "Commande compacte sur fond translucide.",
       "html": "<button class=\"ds-secondary\">Écouter</button>",
-      "css": ".ds-secondary{font:550 12px Inter,system-ui,sans-serif;padding:10px 15px;border:1px solid rgba(245,239,231,.08);border-radius:9px;background:rgba(245,239,231,.05);color:#f5efe7;cursor:pointer;transition:background .16s ease,color .16s ease}.ds-secondary:hover:not(:disabled){background:rgba(245,239,231,.10)}.ds-secondary:focus-visible{outline:2px solid var(--accent,#d49460);outline-offset:3px}.ds-secondary:disabled{opacity:.38;cursor:default}@media(prefers-reduced-motion:reduce){.ds-secondary{transition:none}}"
+      "css": ".ds-secondary{font:550 12px Inter,system-ui,sans-serif;padding:10px 15px;border:1px solid rgba(245,239,231,.08);border-radius:9px;background:rgba(245,239,231,.05);color:rgba(255,255,255,.96);cursor:pointer;transition:background .16s ease,color .16s ease}.ds-secondary:hover:not(:disabled){background:rgba(245,239,231,.10)}.ds-secondary:focus-visible{outline:2px solid var(--library-accent,#d49460);outline-offset:3px}.ds-secondary:disabled{opacity:.38;cursor:default}@media(prefers-reduced-motion:reduce){.ds-secondary{transition:none}}"
     },
     {
       "name": "Champ de dialogue",
       "kind": "input",
-      "description": "Nom d’une playlist ; le focus reprend le cuivre.",
+      "description": "Nom d’une playlist ; le focus reprend l’accent hérité de l’Island.",
       "html": "<label class=\"ds-field\">Nom de la playlist<input placeholder=\"Par exemple : Sur la route\"></label>",
-      "css": ".ds-field{display:flex;flex-direction:column;gap:10px;font:12px Inter,system-ui,sans-serif;color:rgba(245,239,231,.65)}.ds-field input{font:inherit;width:100%;border:1px solid rgba(245,239,231,.16);border-radius:8px;padding:11px 12px;background:#17151b;color:#f5efe7;caret-color:var(--accent,#d49460)}.ds-field input:focus-visible{outline:2px solid var(--accent,#d49460);outline-offset:3px}"
+      "css": ".ds-field{display:flex;flex-direction:column;gap:10px;font:12px Inter,system-ui,sans-serif;color:rgba(255,255,255,.72)}.ds-field input{font:inherit;width:100%;border:1px solid rgba(245,239,231,.16);border-radius:8px;padding:11px 12px;background:rgba(10,10,15,.9);color:rgba(255,255,255,.96);caret-color:var(--library-accent,#d49460)}.ds-field input:focus-visible{outline:2px solid var(--library-accent,#d49460);outline-offset:3px}"
     },
     {
       "name": "Navigation active",
       "kind": "nav",
-      "description": "Libellé champagne, compteur secondaire et fond cuivre discret.",
+      "description": "Libellé clair, compteur secondaire et fond discret teinté par l’accent courant.",
       "html": "<nav aria-label=\"Bibliothèque\"><button class=\"ds-nav\" aria-current=\"page\"><svg width=\"19\" height=\"19\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" aria-hidden=\"true\"><path d=\"m3 8 9-5 9 5-9 5-9-5Zm0 4 9 5 9-5M3 16l9 5 9-5\"/></svg><span>Tous les titres</span><small>12</small></button></nav>",
-      "css": ".ds-nav{display:flex;align-items:center;gap:11px;width:100%;padding:11px 12px;border:0;border-radius:10px;background:rgba(212,148,96,.11);color:#edbc89;text-align:left;font:13px Inter,system-ui,sans-serif;cursor:pointer;transition:background .16s ease,color .16s ease}.ds-nav span{flex:1}.ds-nav small{color:rgba(245,239,231,.65);font-size:11px;font-variant-numeric:tabular-nums}.ds-nav:hover{background:rgba(212,148,96,.11);color:#edbc89}.ds-nav:focus-visible{outline:2px solid var(--accent,#d49460);outline-offset:3px}@media(prefers-reduced-motion:reduce){.ds-nav{transition:none}}"
+      "css": ".ds-nav{display:flex;align-items:center;gap:11px;width:100%;padding:11px 12px;border:0;border-radius:10px;background:rgba(var(--library-accent-rgb,212,148,96),.11);color:rgba(255,255,255,.96);text-align:left;font:13px Inter,system-ui,sans-serif;cursor:pointer;transition:background .16s ease,color .16s ease}.ds-nav span{flex:1}.ds-nav small{color:rgba(255,255,255,.72);font-size:11px;font-variant-numeric:tabular-nums}.ds-nav:hover{background:rgba(var(--library-accent-rgb,212,148,96),.11)}.ds-nav:focus-visible{outline:2px solid var(--library-accent,#d49460);outline-offset:3px}@media(prefers-reduced-motion:reduce){.ds-nav{transition:none}}"
     },
     {
       "name": "Commande de lecture",
       "kind": "custom",
-      "description": "Bouton circulaire clair au centre du transport persistant.",
+      "description": "Bouton circulaire clair ; la lecture continue pendant les changements de mode de l’Island.",
       "html": "<button class=\"ds-play\" aria-label=\"Lecture\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M7 3v18l15-9Z\"/></svg></button>",
-      "css": ".ds-play{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border:0;border-radius:50%;background:#f5efe7;color:#17151b;cursor:pointer;transition:background .16s ease,color .16s ease}.ds-play:focus-visible{outline:2px solid var(--accent,#d49460);outline-offset:3px}.ds-play:disabled{opacity:.38;cursor:default}@media(prefers-reduced-motion:reduce){.ds-play{transition:none}}"
+      "css": ".ds-play{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.96);color:#17151b;cursor:pointer;transition:background .16s ease,color .16s ease}.ds-play:focus-visible{outline:2px solid var(--library-accent,#d49460);outline-offset:3px}.ds-play:disabled{opacity:.38;cursor:default}@media(prefers-reduced-motion:reduce){.ds-play{transition:none}}"
     }
   ],
   "narrative": {
     "northStar": "Identité Nolys existante",
-    "overview": "Ce relevé décrit l’identité en place, sans nouvelle direction artistique. Le N en verre cuivre/champagne sur carré charbon arrondi reste l’asset de marque. Les réglages et l’Island établissent la matière sombre, les accents chauds et les commandes arrondies ; la bibliothèque les prolonge avec une liste plus dense.",
+    "overview": "Ce relevé décrit l’identité en place, sans nouvelle direction artistique. Le N en verre cuivre/champagne sur carré charbon arrondi reste l’asset de marque. Les réglages et l’Island établissent la matière sombre, les accents chauds et les commandes arrondies ; la bibliothèque les prolonge avec une liste plus dense, directement dans la capsule agrandie.",
     "keyCharacteristics": [
       "Charbon, cuivre et champagne par défaut ; personnalisation existante de l’Island conservée.",
       "Inter, hiérarchie compacte et icônes Phosphor cohérentes avec l’application.",
@@ -85,7 +87,7 @@
       "Do préserver les états vide, sélectionné, en lecture et fichier introuvable."
     ],
     "donts": [
-      "Don't transformer une extension de fenêtre en nouvelle identité visuelle.",
+      "Don't transformer un mode agrandi de l’Island en nouvelle identité visuelle.",
       "Don't remplacer les variantes de matière et de couleur déjà configurables dans l’Island par une palette imposée.",
       "Don't présenter les titres synthétiques des captures de test comme du contenu utilisateur."
     ]

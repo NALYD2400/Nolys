@@ -18,7 +18,8 @@ Donner accès à la musique et aux commandes du bureau depuis un widget compact.
 
 - Conserver les fichiers musicaux à leur emplacement actuel, sans les dupliquer : choix confirmé par l’utilisateur.
 - Sauvegarder la collection et les playlists entre les ouvertures de Nolys.
-- Grande fenêtre Bibliothèque reliée à la lecture dans l’Island : choix confirmé par l’utilisateur.
+- Bibliothèque intégrée dans la capsule : l’Island s’agrandit à une taille de travail proche de 1060 × 720 px, comme un mode Chrono plus grand. La demande actuelle remplace le choix antérieur d’une fenêtre dédiée.
+- Matière, couleurs, fond et halo suivent les réglages de l’Island. Le bouton Menu revient aux autres modes ; la lecture continue pendant ces changements.
 - Conserver le lecteur, le menu et les notifications existants.
 - L’interface existante et les réglages de personnalisation constituent la référence pour cette extension.
 

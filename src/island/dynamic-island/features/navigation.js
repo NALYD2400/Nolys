@@ -66,6 +66,7 @@ export const navigationMethods = {
 
     collapseIsland() {
         if (!this.isExpanded) return;
+        if (this.mode === 'library' && this._libraryController?.importing) return;
         if (this.mode === 'notification') {
             this.dismissNotification();
             return;
@@ -162,7 +163,7 @@ export const navigationMethods = {
 
     setMode(mode) {
         if (mode === 'library') {
-            ipcRenderer.invoke('open-library').catch(error => this.showNotification('Bibliothèque', String(error), 'ph-warning-circle'));
+            this.openLibrary();
             return;
         }
         this.isAudioDeviceDropdownOpen = false;
@@ -213,7 +214,8 @@ export const navigationMethods = {
             'island-mode-music-history',
             'island-mode-control',
             'island-mode-mixer',
-            'island-mode-mic'
+            'island-mode-mic',
+            'island-mode-library'
         ];
     },
 
@@ -229,13 +231,15 @@ export const navigationMethods = {
             'music-history': 'island-mode-music-history',
             control: 'island-mode-control',
             mixer: 'island-mode-mixer',
-            mic: 'island-mode-mic'
+            mic: 'island-mode-mic',
+            library: 'island-mode-library'
         };
 
         return sizeByMode[this.mode] || 'island-mode-music';
     },
 
     renderContent() {
+        if (this.mode !== 'library' || !this.isExpanded) this.leaveLibrary?.();
         try { window.speechSynthesis.cancel(); } catch (e) {}
         // Une navigation manuelle annule aussi le retour automatique de l'ancienne alerte.
         if (this.mode !== 'notification' && this._notificationReturnState) this.clearNotification();
@@ -334,6 +338,7 @@ export const navigationMethods = {
             else if (this.mode === 'control') this.renderControl();
             else if (this.mode === 'mixer') this.renderMixer();
             else if (this.mode === 'mic') this.renderMicMonitor();
+            else if (this.mode === 'library') this.renderLibrary();
         } else if (keepCompactNotification) {
             this.el.classList.add('island-notifying');
             if (this._isTransitioning) {

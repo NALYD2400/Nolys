@@ -71,11 +71,18 @@ pub fn apply_layout(app: &AppHandle) {
         state.suppress_move_sync.store(true, Ordering::SeqCst);
         let monitor_scale = layout::target_monitor(app, &layout.display_id).map(|m| m.scale_factor()).unwrap_or(1.0);
         let _ = window.set_zoom(layout.scale);
-        let _ = window.set_size(LogicalSize::new((BASE_WIDTH * layout.scale).round(), (BASE_HEIGHT * layout.scale).round()));
+        let (x, y, width, height) = if state.library_expanded.load(Ordering::SeqCst) {
+            let area = layout::target_monitor(app, &layout.display_id).map(|m| layout::work_area(&m))
+                .unwrap_or(layout::WorkArea { x: 0.0, y: 0.0, width: 1920.0, height: 1040.0 });
+            layout::library_bounds(&layout, &area)
+        } else {
+            (layout.x, layout.y, (BASE_WIDTH * layout.scale).round(), (BASE_HEIGHT * layout.scale).round())
+        };
+        let _ = window.set_size(LogicalSize::new(width, height));
         // Position convertie avec l'échelle de l'écran cible (fiable en multi-écran à DPI mixte).
         let _ = window.set_position(tauri::PhysicalPosition::new(
-            (layout.x * monitor_scale).round() as i32,
-            (layout.y * monitor_scale).round() as i32,
+            (x * monitor_scale).round() as i32,
+            (y * monitor_scale).round() as i32,
         ));
         let handle = app.clone();
         tauri::async_runtime::spawn(async move {
@@ -98,7 +105,7 @@ pub fn update_layout(app: &AppHandle, next: Layout) {
 
 fn on_moved(app: &AppHandle) {
     let state = app.state::<AppState>();
-    if state.suppress_move_sync.load(Ordering::SeqCst) {
+    if state.suppress_move_sync.load(Ordering::SeqCst) || state.library_expanded.load(Ordering::SeqCst) {
         return;
     }
     let Some(window) = window(app) else { return };

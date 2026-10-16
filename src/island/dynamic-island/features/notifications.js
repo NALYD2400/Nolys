@@ -19,6 +19,11 @@ export const notificationMethods = {
 
     showNotification(title, message, icon = 'ph-bell') {
         if (!notificationsAllowed(this)) return;
+        // Une alerte ne remplace pas le formulaire ou la collection en cours d’utilisation.
+        if (this.mode === 'library' && this._libraryController) {
+            this._libraryController.notify(`${title} — ${message}`);
+            return;
+        }
 
         const request = {};
         this._notificationRequest = request;

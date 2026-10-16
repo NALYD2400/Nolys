@@ -6,6 +6,7 @@ export const icon = name => `<i class="${name.endsWith('-fill') ? 'ph-fill' : 'p
 export const cover = track => track?.cover ? `<img src="${e(native.fileSrc(track.cover))}" alt="" loading="lazy">` : icon('vinyl-record');
 
 export function renderNavigation(state) {
+    const document = state.root || globalThis.document;
     const { library, view } = state;
     const items = [['all', 'stack', 'Tous les titres', library.tracks.length], ['favorites', 'heart', 'Favoris', library.tracks.filter(t => t.favorite).length], ['queue', 'queue', 'File de lecture', state.playback.queue?.length || 0]];
     document.querySelector('#navigation').innerHTML = items.map(([id, glyph, label, count]) => `<button data-view="${id}" class="nav-item ${view === id ? 'active' : ''}" ${view === id ? 'aria-current="page"' : ''}>${icon(glyph)}<span>${label}</span><small>${count}</small></button>`).join('');
@@ -15,6 +16,7 @@ export function renderNavigation(state) {
 }
 
 export function renderCollection(state) {
+    const document = state.root || globalThis.document;
     const { library, view, playback, selection } = state;
     const playlist = library.playlists.find(playlist => playlist.id === view);
     const tracks = tracksFor(library, view, playback, state.query, state.sort);
@@ -52,6 +54,7 @@ export function renderCollection(state) {
 }
 
 export function renderPlayback(state) {
+    const document = state.root || globalThis.document;
     const playback = state.playback;
     const track = state.library.tracks.find(track => track.id === playback.trackId);
     const player = document.querySelector('#player');

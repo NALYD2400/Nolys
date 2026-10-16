@@ -1,6 +1,6 @@
 use super::{
     authorize, collect, mutate, path_key, read_track, Library, Mutation, Playback, Store, CHANGED,
-    CONTROL, EXTENSIONS, LABEL, PLAYBACK,
+    CONTROL, EXTENSIONS, PLAYBACK,
 };
 use std::{collections::HashSet, path::Path};
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
@@ -9,7 +9,7 @@ fn audio_dialog(app: &AppHandle, title: &str) -> rfd::FileDialog {
     let mut dialog = rfd::FileDialog::new()
         .set_title(title)
         .add_filter("Musique", EXTENSIONS);
-    if let Some(window) = app.get_webview_window(LABEL) {
+    if let Some(window) = app.get_webview_window(crate::island::LABEL) {
         dialog = dialog.set_parent(&window);
     }
     dialog
@@ -24,23 +24,16 @@ pub async fn library_open(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn library_window(app: AppHandle, action: String) -> Result<(), String> {
-    let window = app
-        .get_webview_window(LABEL)
-        .ok_or("Fenêtre introuvable.")?;
-    match action.as_str() {
-        "close" => window.close(),
-        "minimize" => window.minimize(),
-        "maximize" => {
-            if window.is_maximized().unwrap_or(false) {
-                window.unmaximize()
-            } else {
-                window.maximize()
-            }
-        }
-        _ => return Err("Action inconnue.".into()),
+pub async fn library_workspace(app: AppHandle, expanded: bool) -> Result<(), String> {
+    use std::sync::atomic::Ordering;
+    let window = crate::island::window(&app).ok_or("Island introuvable.")?;
+    app.state::<crate::state::AppState>().library_expanded.store(expanded, Ordering::SeqCst);
+    crate::island::apply_layout(&app);
+    if expanded {
+        window.set_ignore_cursor_events(false).map_err(|e| e.to_string())?;
+        window.set_focus().map_err(|e| e.to_string())?;
     }
-    .map_err(|e| e.to_string())
+    Ok(())
 }
 
 #[tauri::command]
@@ -222,7 +215,7 @@ pub fn library_set_playback(
     playback.progress = playback.progress.max(0.0);
     playback.duration = playback.duration.max(0.0);
     *app.state::<Store>().playback.lock() = playback.clone();
-    app.emit_to(LABEL, PLAYBACK, &playback)
+    app.emit(PLAYBACK, &playback)
         .map_err(|e| e.to_string())
 }
 

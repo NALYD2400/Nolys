@@ -14,9 +14,8 @@ use std::{
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
-pub const LABEL: &str = "library";
 pub const CHANGED: &str = "local-library-changed";
 pub const CONTROL: &str = "local-library-control";
 pub const PLAYBACK: &str = "local-library-playback";
@@ -363,26 +362,11 @@ fn remove_tracks(library: &mut Library, ids: HashSet<String>) {
 }
 
 pub fn open(app: &AppHandle) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window(LABEL) {
-        let _ = window.unminimize();
-        let _ = window.show();
-        let _ = window.set_focus();
-        return Ok(());
-    }
-    tauri::WebviewWindowBuilder::new(
-        app,
-        LABEL,
-        tauri::WebviewUrl::App("library/index.html".into()),
-    )
-    .title("Bibliothèque — Nolys")
-    .inner_size(1060.0, 720.0)
-    .min_inner_size(780.0, 540.0)
-    .center()
-    .decorations(false)
-    .resizable(true)
-    .build()
-    .map_err(|e| e.to_string())?;
-    Ok(())
+    let window = crate::island::window(app).ok_or("Island introuvable.")?;
+    window.show().map_err(|e| e.to_string())?;
+    window.set_focus().map_err(|e| e.to_string())?;
+    app.emit_to(crate::island::LABEL, "local-library-open", ())
+        .map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

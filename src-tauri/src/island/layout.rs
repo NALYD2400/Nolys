@@ -12,6 +12,16 @@ use tauri::{AppHandle, Monitor};
 pub const BASE_WIDTH: f64 = 620.0;
 pub const BASE_HEIGHT: f64 = 600.0;
 
+/// Taille de travail temporaire : la position/échelle enregistrée de la pilule reste intacte.
+pub fn library_bounds(layout: &Layout, area: &WorkArea) -> (f64, f64, f64, f64) {
+    let width = (1124.0 * layout.scale).min((area.width - 16.0).max(1.0)).round();
+    let height = (802.0 * layout.scale).min((area.height - 16.0).max(1.0)).round();
+    let center = layout.x + BASE_WIDTH * layout.scale / 2.0;
+    let x = (center - width / 2.0).clamp(area.x + 8.0, (area.x + area.width - width - 8.0).max(area.x + 8.0));
+    let y = layout.y.clamp(area.y - 32.0 * layout.scale, (area.y + area.height - height).max(area.y - 32.0 * layout.scale));
+    (x.round(), y.round(), width, height)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Layout {
@@ -164,5 +174,30 @@ pub fn save(data_dir: &Path, layout: &Layout) {
         if let Err(error) = std::fs::write(config_path(data_dir), json) {
             crate::logger::log(&format!("[Layout] Failed to save layout: {error}"));
         }
+    }
+}
+
+#[cfg(test)]
+mod workspace_tests {
+    use super::*;
+
+    #[test]
+    fn library_keeps_pill_center_and_does_not_change_saved_layout() {
+        let layout = Layout { x: 650.0, y: -30.0, scale: 1.0, display_id: "primary".into() };
+        let original = layout.clone();
+        let area = WorkArea { x: 0.0, y: 0.0, width: 1920.0, height: 1040.0 };
+        let (x, y, width, height) = library_bounds(&layout, &area);
+        assert_eq!((x, y, width, height), (398.0, -30.0, 1124.0, 802.0));
+        assert_eq!(layout, original);
+    }
+
+    #[test]
+    fn library_fits_small_secondary_display_at_large_zoom() {
+        let layout = Layout { x: -1450.0, y: 500.0, scale: 1.5, display_id: "left".into() };
+        let area = WorkArea { x: -1280.0, y: 0.0, width: 1280.0, height: 720.0 };
+        let (x, y, width, height) = library_bounds(&layout, &area);
+        assert!(x >= area.x && x + width <= area.x + area.width);
+        assert!(y + 50.0 * layout.scale >= area.y && y + height <= area.y + area.height);
+        assert_eq!((width, height), (1264.0, 704.0));
     }
 }

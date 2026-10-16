@@ -1,4 +1,4 @@
-/** Le son vit dans l'Island, indépendamment de la fenêtre Bibliothèque. */
+/** Le son vit dans l’Island, indépendamment du mode affiché. */
 export class LocalMusicPlayer {
     constructor({ invoke, listen, fileSrc, onMedia, onError, audio = new Audio(), storage = localStorage, random = Math.random }) {
         Object.assign(this, { invoke, listen, fileSrc, onMedia, onError, audio, storage, random });

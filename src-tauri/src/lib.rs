@@ -40,7 +40,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             library::commands::library_open,
-            library::commands::library_window,
+            library::commands::library_workspace,
             library::commands::library_get,
             library::commands::library_import,
             library::commands::library_mutate,
