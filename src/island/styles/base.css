@@ -524,11 +524,21 @@ body.motion-vivid .inner-action-btn:hover {
     border-radius: 38px;
 }
 
-/* La plus grande forme de la capsule, toujours dans la fenêtre de l'Island (620 × 600)
+/* Grande forme de la capsule, toujours dans la fenêtre de l'Island (720 × 600)
  * pour garder le même ressort que les autres modes. */
 .island-mode-library {
     width: 560px;
     height: 496px;
+    border-radius: 40px;
+    cursor: default;
+}
+
+/* Réglages (views/settings.js) : la plus grande forme de la capsule. Les marges qui restent
+ * dans la fenêtre de 720 × 600 (20 px de côté, 26 px dessous) laissent le halo s'estomper
+ * avant le bord ; plus grande, il serait coupé net. */
+.island-mode-settings {
+    width: 680px;
+    height: 524px;
     border-radius: 40px;
     cursor: default;
 }
@@ -545,6 +555,11 @@ body.motion-vivid .inner-action-btn:hover {
     height: var(--panel-height, 496px);
     translate: -50% -50%;
     contain: strict;
+}
+
+#dynamic-island.island-mode-settings .island-library-view {
+    --panel-width: 680px;
+    --panel-height: 524px;
 }
 
 #dynamic-island.island-mode-music-history .island-library-view {

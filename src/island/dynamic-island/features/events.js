@@ -9,7 +9,7 @@ export const eventMethods = {
     initEvents() {
         // Right-click context menu listener
         this.el.addEventListener('contextmenu', (e) => {
-            if (this.mode === 'library' || this.mode === 'music-history') return;
+            if (this.mode === 'library' || this.mode === 'music-history' || this.mode === 'settings') return;
             e.preventDefault();
             e.stopPropagation();
             
@@ -23,7 +23,7 @@ export const eventMethods = {
 
         this.el.addEventListener('click', (e) => {
             if (this._layoutEditMode) return;
-            if (this.mode === 'library') return;
+            if (this.mode === 'library' || this.mode === 'settings') return;
             if (this.isExpanded && (this.mode === 'search' || this.mode === 'music-search' || this.mode === 'music-history' || this.mode === 'control' || this.mode === 'mixer' || this.mode === 'mic')) return; // Don't toggle expansion on interactive screens
 
             if (this.mode === 'ai-thinking' || this.mode === 'ai-action') {

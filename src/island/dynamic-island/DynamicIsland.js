@@ -33,6 +33,7 @@ import { micMonitorView } from './views/mic-monitor.js';
 import { glowHaloMethods } from './features/glow-halo.js';
 import { framePacerMethods } from './features/frame-pacer.js';
 import { libraryView } from './views/library.js';
+import { settingsView } from './views/settings.js';
 
 export class DynamicIsland {
     constructor() {
@@ -157,6 +158,7 @@ const METHOD_GROUPS = [
     systemViews,
     micMonitorView,
     libraryView,
+    settingsView,
 ];
 
 // Méthodes non énumérables, comme celles déclarées directement dans une classe.

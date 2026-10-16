@@ -8,7 +8,6 @@ mod library;
 mod media;
 mod migration;
 mod platform;
-mod settings_window;
 mod shortcut;
 mod state;
 mod tray;
@@ -84,14 +83,12 @@ pub fn run() {
             commands::app::set_hit_region,
             commands::app::set_persistent_island,
             commands::app::set_fullscreen_autohide,
-            commands::app::open_settings,
-            commands::app::close_settings,
             commands::app::exit_app,
             commands::app::register_shortcuts,
             commands::app::config_changed,
             commands::app::wallpaper_sync_status,
             commands::app::trigger_notification,
-            commands::app::cover_color_changed,
+            commands::app::save_settings_file,
             commands::updates::get_update_status,
             commands::updates::check_for_updates,
             commands::updates::download_update,

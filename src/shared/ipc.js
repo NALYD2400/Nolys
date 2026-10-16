@@ -21,11 +21,8 @@ const SEND_CHANNELS = {
     'layout-drag-end': () => ['layout_drag_end'],
     'layout-nudge': (dx, dy) => ['layout_nudge', { dx: Math.round(Number(dx) || 0), dy: Math.round(Number(dy) || 0) }],
     'set-layout-edit-mode': (enabled) => ['set_layout_edit_mode', { enabled: Boolean(enabled) }],
-    'close-settings': () => ['close_settings'],
     'trigger-notif': (data) => ['trigger_notification', { data: data ?? {} }],
-    'cover-color-changed': (colors) => ['cover_color_changed', { colors: colors ?? {} }],
     'exit-app': () => ['exit_app'],
-    'open-settings': () => ['open_settings'],
     'set-persistent-island': (enabled) => ['set_persistent_island', { enabled: enabled ?? false }],
     'set-game-detection': (enabled) => ['set_fullscreen_autohide', { enabled: Boolean(enabled) }],
     'set-target-display': (displayId) => ['set_target_display', { displayId: displayId ?? null }],
@@ -69,7 +66,7 @@ const INVOKE_CHANNELS = {
 /** Événements émis par le cœur natif que l'interface peut écouter. */
 const EVENT_CHANNELS = new Set([
     'config-changed', 'trigger-notif', 'layout-config-changed',
-    'layout-edit-mode-changed', 'update-status-changed', 'cover-color-changed',
+    'layout-edit-mode-changed', 'update-status-changed', 'open-settings',
     'mic-monitor-changed', 'shortcut-open-mode', 'island-visibility-changed',
     // Canaux historiques sans émetteur natif, conservés pour compatibilité.
     'app-go-background', 'app-go-foreground', 'open-search',

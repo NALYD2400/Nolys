@@ -8,9 +8,14 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Monitor};
 
-/// Taille de base de la fenêtre transparente (avant mise à l'échelle).
-pub const BASE_WIDTH: f64 = 620.0;
+/// Taille de base de la fenêtre transparente (avant mise à l'échelle). 720 de large : les
+/// Réglages (680 px) y tiennent avec la place du halo. La fenêtre laisse passer les clics hors
+/// de la pilule (hit_test), sa largeur ne gêne donc pas le bureau.
+pub const BASE_WIDTH: f64 = 720.0;
 pub const BASE_HEIGHT: f64 = 600.0;
+/// Largeur des versions précédentes : leurs positions enregistrées sont celles d'une fenêtre
+/// de 620 px (voir `adapt_to_width`).
+const LEGACY_WIDTH: f64 = 620.0;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -151,18 +156,82 @@ pub fn config_path(data_dir: &Path) -> PathBuf {
     data_dir.join("liquid-island-layout.json")
 }
 
+/// La position enregistrée est le coin de la fenêtre. Si la fenêtre a changé de largeur depuis,
+/// on la décale de la moitié de la différence : la pilule (centrée dans la fenêtre) reste au
+/// même endroit de l'écran.
+pub fn adapt_to_width(layout: Layout, saved_width: f64) -> Layout {
+    if !saved_width.is_finite() || saved_width <= 0.0 || saved_width == BASE_WIDTH {
+        return layout;
+    }
+    let shift = (BASE_WIDTH - saved_width) * clamp_scale(layout.scale) / 2.0;
+    Layout { x: (layout.x - shift).round(), ..layout }
+}
+
 pub fn load(app: &AppHandle, data_dir: &Path) -> Layout {
     let saved = std::fs::read_to_string(config_path(data_dir))
         .ok()
-        .and_then(|raw| serde_json::from_str::<LayoutPatch>(&raw).ok())
-        .map(|patch| merge(&default_layout(app), &patch));
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+        .and_then(|value| {
+            // Fichier sans `windowWidth` : écrit par une version à fenêtre de 620 px. Sans `x`,
+            // la position par défaut (déjà à la bonne largeur) est gardée telle quelle.
+            let width = match value.get("x") {
+                Some(_) => value.get("windowWidth").and_then(serde_json::Value::as_f64).unwrap_or(LEGACY_WIDTH),
+                None => BASE_WIDTH,
+            };
+            let patch = serde_json::from_value::<LayoutPatch>(value).ok()?;
+            Some(adapt_to_width(merge(&default_layout(app), &patch), width))
+        });
     clamp(app, &saved.unwrap_or_else(|| default_layout(app)))
 }
 
+/// Ce qui est écrit sur le disque : la position et la largeur de fenêtre qui lui correspond.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SavedLayout<'a> {
+    #[serde(flatten)]
+    layout: &'a Layout,
+    window_width: f64,
+}
+
 pub fn save(data_dir: &Path, layout: &Layout) {
-    if let Ok(json) = serde_json::to_string_pretty(layout) {
+    if let Ok(json) = serde_json::to_string_pretty(&SavedLayout { layout, window_width: BASE_WIDTH }) {
         if let Err(error) = std::fs::write(config_path(data_dir), json) {
             crate::logger::log(&format!("[Layout] Failed to save layout: {error}"));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn at(x: f64, scale: f64) -> Layout {
+        Layout { x, y: 10.0, scale, display_id: "primary".into() }
+    }
+
+    #[test]
+    fn la_pilule_reste_au_meme_endroit_quand_la_fenetre_s_elargit() {
+        // Ancienne fenêtre de 620 px à x = 650 : pilule centrée à 960.
+        let moved = adapt_to_width(at(650.0, 1.0), LEGACY_WIDTH);
+        assert_eq!(moved.x + BASE_WIDTH / 2.0, 650.0 + LEGACY_WIDTH / 2.0);
+        // À 150 %, la fenêtre (et le décalage) grandit d'autant.
+        let scaled = adapt_to_width(at(500.0, 1.5), LEGACY_WIDTH);
+        assert_eq!(scaled.x + BASE_WIDTH * 1.5 / 2.0, 500.0 + LEGACY_WIDTH * 1.5 / 2.0);
+    }
+
+    #[test]
+    fn une_position_deja_a_la_bonne_largeur_ne_bouge_pas() {
+        assert_eq!(adapt_to_width(at(650.0, 1.0), BASE_WIDTH), at(650.0, 1.0));
+        assert_eq!(adapt_to_width(at(650.0, 1.0), f64::NAN), at(650.0, 1.0));
+    }
+
+    #[test]
+    fn le_fichier_garde_le_meme_format_plus_la_largeur() {
+        let json = serde_json::to_value(SavedLayout { layout: &at(12.0, 1.0), window_width: BASE_WIDTH }).unwrap();
+        assert_eq!(json["x"], 12.0);
+        assert_eq!(json["displayId"], "primary");
+        assert_eq!(json["windowWidth"], BASE_WIDTH);
+        // Relu comme avant par LayoutPatch (champ en trop ignoré).
+        assert!(serde_json::from_value::<LayoutPatch>(json).is_ok());
     }
 }

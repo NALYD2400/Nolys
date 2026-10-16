@@ -47,8 +47,8 @@ function rowMarkup(item, { current, playing, favorite, provider, index }) {
     </div>`;
 }
 
-export function mountHistory(host, { store, savedState = {}, ready = Promise.resolve(), onBack = () => {}, onClose = () => {} }) {
-    const panel = createPanel(host, shellMarkup);
+export function mountHistory(host, { store, savedState = {}, ready = Promise.resolve(), onBack = () => {}, onClose = () => {}, onFit = null }) {
+    const panel = createPanel(host, shellMarkup, { onFit });
     const { root, $, on, toast, openMenu, closeMenu } = panel;
     const state = { filter: 'all', query: '', ...savedState };
     let armedTimer;
@@ -87,6 +87,7 @@ export function mountHistory(host, { store, savedState = {}, ready = Promise.res
                 : ['clock-counter-clockwise', 'Historique vide', 'Les titres que vous écoutez apparaîtront ici, quel que soit le lecteur.'];
             list.innerHTML = `<div class="empty"><span class="empty-icon">${icon(glyph, 'ph-fill')}</span><strong>${title}</strong><p>${text}</p></div>`;
             panel.keepFocus();
+            panel.fit({ frozen: Boolean(search) });
             return;
         }
         const playing = store.isPlaying();
@@ -95,6 +96,7 @@ export function mountHistory(host, { store, savedState = {}, ready = Promise.res
             + entries.map(item => rowMarkup(item, { index: index++, current: store.isCurrent(item), playing, favorite: store.isFavorite(item), provider: store.provider(item) })).join('')).join('');
         list.scrollTop = scroll;
         panel.keepFocus();
+        panel.fit({ frozen: Boolean(search) });
     }
 
     function rowMenu(key, anchor, point) {

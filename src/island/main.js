@@ -5,6 +5,7 @@
 import { ipcRenderer, native } from '../shared/ipc.js';
 import { LocalMusicPlayer } from '../services/LocalMusicPlayer.js';
 import { warmLibrary } from '../library/controller.js';
+import { warmSettingsView } from './dynamic-island/views/settings.js';
 import { disableNativeContextMenu } from '../shared/context-menu.js';
 import { enableWindowDragging } from '../shared/window-drag.js';
 import { ThemeService } from '../services/ThemeService.js';
@@ -80,7 +81,11 @@ document.addEventListener('DOMContentLoaded', () => {
         onError: message => island.showNotification('Bibliothèque', message, 'ph-warning-circle'),
     });
     island.localPlayer.init()
-        .then(() => (window.requestIdleCallback || setTimeout)(() => warmLibrary(island.localPlayer), { timeout: 4000 }))
+        .then(() => (window.requestIdleCallback || setTimeout)(() => {
+            warmLibrary(island.localPlayer, height => island.fitPanel('library', null, height));
+            // Réglages : code téléchargé au repos, pour une première ouverture sans attente.
+            (window.requestIdleCallback || setTimeout)(warmSettingsView, { timeout: 4000 });
+        }, { timeout: 4000 }))
         .catch(error => console.warn('[Library]', error));
 
     // Première fois seulement : Windows range l'icône de la barre dans la zone masquée (flèche ^).
@@ -291,6 +296,14 @@ document.addEventListener('DOMContentLoaded', () => {
     ipcRenderer.on('layout-edit-mode-changed', (event, enabled) => {
         if (!window.island) return;
         window.island.setLayoutEditMode(Boolean(enabled));
+    });
+
+    // Réglages demandés par l'icône de la barre des tâches (`toggle` faux) ou par leur raccourci
+    // (`toggle` vrai : un second appui les referme). Le cœur natif a déjà réaffiché l'Island.
+    ipcRenderer.on('open-settings', (event, toggle) => {
+        if (!window.island) return;
+        if (toggle) window.island.toggleSettings();
+        else window.island.openSettings();
     });
 
     // Raccourcis « ouvrir le lecteur / centre de contrôle / retour micro » : même ouverture que le clic droit.

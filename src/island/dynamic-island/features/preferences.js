@@ -199,6 +199,9 @@ export const preferenceMethods = {
         document.body.classList.toggle('layout-edit-mode', this._layoutEditMode);
 
         if (this._layoutEditMode) {
+            // Placement lancé depuis les Réglages : ils se referment (la pilule doit être repliée)
+            // et reviennent sur la page Position une fois le placement terminé.
+            this._settingsAfterLayout = this.mode === 'settings' && this.isExpanded;
             this.clearNotification();
             this.closeContextMenu();
             // Toujours la pilule repliée pour le placement. Une ouverture en cours est annulée
@@ -235,6 +238,10 @@ export const preferenceMethods = {
                 this.setLayoutPreviewButton(false);
                 this.isExpanded = false;
                 this.renderContent();
+            }
+            if (this._settingsAfterLayout) {
+                this._settingsAfterLayout = false;
+                this.openSettings('position');
             }
         }
     },

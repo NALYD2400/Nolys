@@ -16,7 +16,30 @@ const panelSheet = () => {
     return sharedSheet;
 };
 
-export function createPanel(host, markup) {
+/**
+ * Hauteur naturelle de la vue : tout sauf la liste, plus le contenu réel de la liste. Mesures
+ * relatives à la liste elle-même : l'animation d'entrée (translation) ne les fausse pas.
+ */
+function naturalHeight(root) {
+    const lib = root.querySelector('.lib');
+    const list = root.querySelector('#list');
+    if (!lib || !list) return 0;
+    const top = list.getBoundingClientRect().top;
+    const empty = list.querySelector(':scope > .empty');
+    let content = 0;
+    if (empty) {
+        // L'état vide s'étire sur toute la liste : on mesure ce qu'il contient.
+        const first = empty.firstElementChild?.getBoundingClientRect();
+        const last = empty.lastElementChild?.getBoundingClientRect();
+        content = first && last ? last.bottom - first.top + 40 : 0;
+    } else if (list.lastElementChild) {
+        content = list.lastElementChild.getBoundingClientRect().bottom - top + list.scrollTop + parseFloat(getComputedStyle(list).paddingBottom);
+    }
+    return Math.ceil(lib.clientHeight - list.clientHeight + content);
+}
+
+/** `onFit(hauteur)` : la vue demande à l'Island la hauteur de son contenu (voir fitPanel). */
+export function createPanel(host, markup, { onFit = null } = {}) {
     const root = host.shadowRoot || host.attachShadow({ mode: 'open' });
     root.adoptedStyleSheets = [panelSheet()];
     root.innerHTML = `<link rel="stylesheet" href="/assets/icons/phosphor.css">${markup}`;
@@ -111,6 +134,13 @@ export function createPanel(host, markup) {
             if (!root.activeElement && [document.body, host, null].includes(document.activeElement)) $('.lib').focus({ preventScroll: true });
         },
         get disposed() { return disposed; },
+        /** Après un rendu de la liste. `frozen` : recherche en cours, la hauteur ne bouge pas
+         * (elle sauterait à chaque lettre tapée). */
+        fit({ frozen = false } = {}) {
+            if (!onFit || disposed || frozen) return;
+            const height = naturalHeight(root);
+            if (height > 0) onFit(height);
+        },
         startIntro() {
             host.setAttribute('data-intro', '');
             clearTimeout(introTimer);

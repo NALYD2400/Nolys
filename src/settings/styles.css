@@ -1,40 +1,47 @@
-/* Fenêtre des réglages — Liquid Glass, thème sombre. */
+/* Réglages dans l'Island (shadow DOM, voir mount.jsx) — Liquid Glass, thème sombre.
+ * La vue a la taille de la capsule (680 × 524 au plus) : barre latérale et pages côte à côte. */
 
-:root {
-    --accent: #D49460;
+:host {
+    /* Accent du thème ou de la pochette, éclairci s'il est trop sombre (comme la Bibliothèque) :
+     * une pochette noire donnait sinon un accent invisible sur le fond sombre. */
+    --accent-raw: #D49460;
+    --accent: oklch(from var(--accent-raw) max(l, 0.74) c h);
     --text: rgba(255, 255, 255, 0.94);
     --text-secondary: rgba(235, 235, 245, 0.58);
     --text-tertiary: rgba(235, 235, 245, 0.36);
     --separator: rgba(255, 255, 255, 0.08);
     --fill: rgba(255, 255, 255, 0.07);
     --fill-hover: rgba(255, 255, 255, 0.12);
-    --radius-window: 22px;
+    --radius-window: 40px;
+    --sidebar-width: 184px;
     --lg-foreground: var(--text);
     color-scheme: dark;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+    cursor: default;
 }
 
 * {
     box-sizing: border-box;
 }
 
-html,
-body {
-    margin: 0;
-    height: 100%;
-    background: transparent;
-    overflow: hidden;
-    font-family: 'Inter', system-ui, sans-serif;
-    font-size: 13px;
-    color: var(--text);
-    -webkit-font-smoothing: antialiased;
-    user-select: none;
-}
-
-#root {
+.settings-root {
     height: 100%;
     border-radius: var(--radius-window);
     overflow: hidden;
     background: #161618;
+    outline: none;
+    animation: settings-in 0.22s ease-out;
+}
+
+/* Apparition une fois la capsule posée (les Réglages sont montés après son ressort). */
+@keyframes settings-in {
+    from {
+        opacity: 0;
+    }
 }
 
 button {
@@ -47,7 +54,7 @@ button {
 .window {
     height: 100%;
     display: grid;
-    grid-template-columns: 228px 1fr;
+    grid-template-columns: var(--sidebar-width) 1fr;
 }
 
 .backdrop {
@@ -86,14 +93,14 @@ button {
 }
 
 /* Matière du thème, reprise par le fond (et donc par le verre des cartes qui le réfracte). */
-:root[data-material='metal'] .backdrop-shade {
+:host([data-material='metal']) .backdrop-shade {
     background:
         repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.018) 0px, rgba(255, 255, 255, 0.018) 1px, transparent 1px, transparent 4px),
         radial-gradient(70% 55% at 50% 0%, color-mix(in srgb, var(--accent) 10%, transparent) 0%, transparent 70%),
         linear-gradient(180deg, rgba(16, 16, 18, 0.5) 0%, rgba(14, 14, 16, 0.82) 100%);
 }
 
-:root[data-material='holo'] .backdrop-shade {
+:host([data-material='holo']) .backdrop-shade {
     background:
         linear-gradient(135deg, rgba(0, 243, 255, 0.07) 0%, rgba(188, 19, 254, 0.07) 50%, rgba(255, 45, 85, 0.06) 100%),
         radial-gradient(70% 55% at 50% 0%, color-mix(in srgb, var(--accent) 12%, transparent) 0%, transparent 70%),
@@ -103,36 +110,36 @@ button {
 /* ---------------------------------------------------------------- Barre latérale */
 
 .sidebar {
-    margin: 10px 0 10px 10px;
-    padding: 14px 10px;
+    /* Coins concentriques avec la capsule (rayon 40, marge 12). */
+    margin: 12px 0 12px 12px;
+    padding: 12px 8px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    -webkit-app-region: drag;
+    gap: 10px;
 }
 
 .sidebar-header {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 4px 6px 6px;
+    gap: 9px;
+    padding: 2px 6px 4px;
 }
 
 .sidebar-header img {
-    width: 34px;
-    height: 34px;
-    border-radius: 9px;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
 }
 
 .sidebar-header strong {
     display: block;
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 600;
     letter-spacing: -0.01em;
 }
 
 .sidebar-header span {
-    font-size: 12px;
+    font-size: 11.5px;
     color: var(--text-secondary);
 }
 
@@ -145,16 +152,16 @@ button {
 .nav-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 6px 8px;
+    gap: 8px;
+    padding: 5px 7px;
     border: 0;
     border-radius: 10px;
     background: transparent;
-    font-size: 13px;
+    font-size: 12.5px;
+    white-space: nowrap;
     font-weight: 500;
     text-align: left;
     cursor: pointer;
-    -webkit-app-region: no-drag;
     transition: background 0.15s ease;
 }
 
@@ -180,6 +187,11 @@ button {
 
 .nav-item.is-active .nav-icon {
     color: var(--accent);
+}
+
+.nav-item:focus-visible {
+    outline: 2px solid rgb(from var(--accent) r g b / 0.75);
+    outline-offset: -2px;
 }
 
 /* Tailles optiques : à 17 px, certains dessins font 11 px d'encre et d'autres 16 px. */
@@ -220,19 +232,18 @@ button {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px 20px 10px 28px;
-    -webkit-app-region: drag;
+    padding: 16px 16px 8px 20px;
 }
 
-/* Fond de la fenêtre recopié sous le titre, aligné pixel pour pixel sur l'original (la
- * colonne du contenu commence à 228 px). Il dépasse un peu sous l'en-tête en s'estompant :
+/* Fond de la vue recopié sous le titre, aligné pixel pour pixel sur l'original (la
+ * colonne du contenu commence après la barre latérale). Il dépasse un peu sous l'en-tête en s'estompant :
  * les cartes qui remontent disparaissent en fondu, sans bandeau ni trait. */
 .header-backdrop {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
-    height: 76px; /* en-tête (58 px) + fondu de 18 px */
+    height: 72px; /* en-tête (54 px) + fondu de 18 px */
     z-index: 1;
     overflow: hidden;
     pointer-events: none;
@@ -245,9 +256,10 @@ button {
 .header-backdrop-inner {
     position: absolute;
     top: 0;
-    left: -228px;
-    width: 100vw;
-    height: 100vh;
+    left: calc(-1 * var(--sidebar-width));
+    /* Taille de la vue, posée sur l'hôte par l'Island (base.css). */
+    width: var(--panel-width, 680px);
+    height: var(--panel-height, 524px);
     overflow: hidden;
     background: #161618;
 }
@@ -258,47 +270,58 @@ button {
 
 .content-header h1 {
     margin: 0;
-    font-size: 22px;
+    font-size: 19px;
     font-weight: 700;
     letter-spacing: -0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-/* Bouton de fermeture : petit rond discret qui s'éclaire au survol. */
-.close {
-    -webkit-app-region: no-drag;
-    width: 28px;
-    height: 28px;
+/* Boutons ronds de l'en-tête (menu, fermer), comme ceux de la Bibliothèque. */
+.header-actions {
+    display: flex;
+    gap: 6px;
+    flex: none;
+}
+
+.round-btn {
+    width: 30px;
+    height: 30px;
     flex: none;
     display: grid;
     place-items: center;
     padding: 0;
-    border: 0.5px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.07);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
     color: var(--text-secondary);
     font-size: 15px;
     cursor: pointer;
     transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 
-.close:hover {
+.round-btn:hover {
     background: rgba(255, 255, 255, 0.14);
     color: var(--text);
+    transform: translateY(-1px);
 }
 
-.close:active {
+.round-btn:active {
     transform: scale(0.92);
 }
 
-.close:focus-visible {
-    outline: 2px solid var(--accent);
+.round-btn:focus-visible {
+    outline: 2px solid rgb(from var(--accent) r g b / 0.75);
     outline-offset: 2px;
 }
 
 .page {
     flex: 1;
     overflow-y: auto;
-    padding: 12px 24px 28px 28px;
+    padding: 8px 14px 22px 18px;
+    overscroll-behavior: contain;
     animation: page-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -369,9 +392,10 @@ button {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    min-height: 44px;
-    padding: 8px 14px;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    min-height: 42px;
+    padding: 8px 12px;
 }
 
 .row + .row,
@@ -387,11 +411,22 @@ button {
     gap: 6px;
 }
 
+.row-stacked .row-text {
+    flex: none;
+}
+
+.row-stacked .row-control {
+    margin-left: 0;
+}
+
 .row-text {
     display: flex;
     flex-direction: column;
     gap: 2px;
     min-width: 0;
+    /* Page étroite : un contrôle trop large (choix segmenté, menu) passe sous le libellé au
+     * lieu de l'écraser sur plusieurs lignes. */
+    flex: 1 1 220px;
 }
 
 .row-label {
@@ -410,6 +445,8 @@ button {
     align-items: center;
     gap: 8px;
     flex: none;
+    max-width: 100%;
+    margin-left: auto;
 }
 
 .reveal {
@@ -452,7 +489,6 @@ button {
     min-height: 28px;
     padding: 0 12px;
     font-size: 12.5px;
-    -webkit-app-region: no-drag;
 }
 
 /* Icône de bouton : même taille que le texte de 12,5 px, un cran au-dessus des menus (14 px). */
@@ -473,7 +509,7 @@ button {
     align-items: center;
     gap: 8px;
     min-height: 28px;
-    max-width: 240px;
+    max-width: 200px;
     padding: 0 10px 0 12px;
     font-size: 12.5px;
     font-weight: 500;
@@ -525,6 +561,7 @@ button {
 .text-input {
     height: 28px;
     width: 150px;
+    min-width: 0;
     padding: 0 10px;
     border: 1px solid var(--separator);
     border-radius: 8px;
@@ -587,7 +624,6 @@ button {
     gap: 4px;
     min-height: 28px;
     padding: 0 8px;
-    -webkit-app-region: no-drag;
 }
 
 .shortcut kbd {
@@ -780,8 +816,8 @@ div.profile {
 .about-hero {
     display: flex;
     align-items: center;
-    gap: 14px;
-    margin: 0 0 20px 4px;
+    gap: 12px;
+    margin: 0 0 16px 4px;
 }
 
 .about-logo {
@@ -857,7 +893,7 @@ div.profile {
 /* ---------------------------------------------------------------- Retour micro : vumètre */
 .mic-level {
     position: relative;
-    width: 180px;
+    width: 140px;
     height: 10px;
     border-radius: 999px;
     overflow: hidden;
@@ -870,7 +906,7 @@ div.profile {
     inset: 0 auto 0 0;
     border-radius: inherit;
     background: linear-gradient(90deg, #30d158 0 62%, #ffd60a 82%, #ff453a);
-    background-size: 180px 100%;
+    background-size: 140px 100%;
     transition: width 0.07s linear;
 }
 
@@ -886,4 +922,26 @@ div.profile {
     margin-left: -1px;
     background: #fff;
     box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+}
+
+/* ---------------------------------------------------------------- Taille (Position) */
+
+.stepper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.stepper .button {
+    width: 28px;
+    padding: 0;
+    justify-content: center;
+}
+
+.stepper-value {
+    min-width: 44px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    font-size: 12.5px;
+    color: var(--text-secondary);
 }

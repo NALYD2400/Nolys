@@ -1,6 +1,6 @@
 /**
  * Apparence du thème choisi dans Réglages → Island, partagée par le menu clic
- * droit de l'Island et la fenêtre des Réglages.
+ * droit de l'Island et les Réglages.
  *
  * Le thème actif n'est pas stocké : on le déduit des réglages qu'il pose
  * (matière de la pilule, couleur du halo, sinon couleur du visualiseur).

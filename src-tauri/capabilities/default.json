@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permissions des fenêtres de l'Island et des réglages.",
-  "windows": ["island", "settings"],
+  "description": "Permissions de la fenêtre de l'Island (Réglages et Bibliothèque compris).",
+  "windows": ["island"],
   "permissions": [
     "core:event:default",
     "core:window:allow-start-dragging"

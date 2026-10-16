@@ -64,10 +64,12 @@ export const navigationMethods = {
         });
     },
 
-    collapseIsland() {
+    /** `force` : fermeture demandée par l'utilisateur (Échap, ✕), même avec un dialogue ouvert. */
+    collapseIsland({ force = false } = {}) {
         if (!this.isExpanded) return;
         // Sélecteur de fichiers Windows ouvert : la perte de focus ne doit pas fermer la vue.
         if (this.mode === 'library' && this._libraryController?.busy) return;
+        if (this.mode === 'settings' && this._settingsController?.busy && !force) return;
         if (this.mode === 'notification') {
             this.dismissNotification();
             return;
@@ -167,18 +169,13 @@ export const navigationMethods = {
             this.openLibrary();
             return;
         }
-        this.isAudioDeviceDropdownOpen = false;
-        this.isMicDeviceDropdownOpen = false;
+        // Les Réglages s'ouvrent dans l'Island (views/settings.js), plus dans une fenêtre à part.
         if (mode === 'settings') {
-            try {
-                
-                ipcRenderer.send('open-settings');
-            } catch(e) {
-                console.error("Failed to open settings via IPC:", e);
-            }
-            this.collapseIsland();
+            this.openSettings();
             return;
         }
+        this.isAudioDeviceDropdownOpen = false;
+        this.isMicDeviceDropdownOpen = false;
 
         if (mode === 'menu') {
             this.transitionState(() => {
@@ -216,7 +213,8 @@ export const navigationMethods = {
             'island-mode-control',
             'island-mode-mixer',
             'island-mode-mic',
-            'island-mode-library'
+            'island-mode-library',
+            'island-mode-settings'
         ];
     },
 
@@ -233,7 +231,8 @@ export const navigationMethods = {
             control: 'island-mode-control',
             mixer: 'island-mode-mixer',
             mic: 'island-mode-mic',
-            library: 'island-mode-library'
+            library: 'island-mode-library',
+            settings: 'island-mode-settings'
         };
 
         return sizeByMode[this.mode] || 'island-mode-music';
@@ -242,6 +241,7 @@ export const navigationMethods = {
     renderContent() {
         if (this.mode !== 'library' || !this.isExpanded) this.leaveLibrary?.();
         if (this.mode !== 'music-history' || !this.isExpanded) this.leaveMusicHistory?.();
+        if (this.mode !== 'settings' || !this.isExpanded) this.leaveSettings?.();
         try { window.speechSynthesis.cancel(); } catch (e) {}
         // Une navigation manuelle annule aussi le retour automatique de l'ancienne alerte.
         if (this.mode !== 'notification' && this._notificationReturnState) this.clearNotification();
@@ -258,7 +258,9 @@ export const navigationMethods = {
                 this.el.style.height = `${Math.round(target)}px`;
                 this.el.style.width = '';
             } else {
-                this.el.style.height = '';
+                // Bibliothèque, Historique, Réglages : hauteur de leur contenu (views/library.js).
+                const fitted = this.isExpanded ? this.fittedPanelHeight?.(this.mode) : null;
+                this.el.style.height = fitted ? `${fitted}px` : '';
                 this.el.style.width = '';
             }
         } catch (e) {
@@ -319,6 +321,7 @@ export const navigationMethods = {
             else if (this.mode === 'mixer') this.renderMixer();
             else if (this.mode === 'mic') this.renderMicMonitor();
             else if (this.mode === 'library') this.renderLibrary();
+            else if (this.mode === 'settings') this.renderSettings();
         } else if (keepCompactNotification) {
             this.el.classList.add('island-notifying');
             if (this._isTransitioning) {

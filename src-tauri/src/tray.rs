@@ -5,7 +5,7 @@ use tauri::tray::{MouseButton, TrayIconBuilder, TrayIconEvent};
 use tauri::AppHandle;
 use tauri_plugin_autostart::ManagerExt;
 
-use crate::{island, settings_window};
+use crate::island;
 
 pub fn create(app: &AppHandle) -> tauri::Result<()> {
     let autostart_enabled = app.autolaunch().is_enabled().unwrap_or(false);
@@ -25,7 +25,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(move |app, event| match event.id().as_ref() {
             "toggle" => island::toggle_visibility(app, "tray-show"),
-            "settings" => settings_window::open(app),
+            "settings" => island::open_settings(app, false),
             "autostart" => {
                 let launcher = app.autolaunch();
                 let enable = !launcher.is_enabled().unwrap_or(false);

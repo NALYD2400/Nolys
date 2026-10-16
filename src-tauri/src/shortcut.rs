@@ -69,11 +69,8 @@ fn run(app: &AppHandle, action: &str) {
         "openControl" => open_mode(app, "control"),
         "openMic" => open_mode(app, "mic"),
         "openMixer" => open_mode(app, "mixer"),
-        // Asynchrone comme la commande `open_settings` : créer une fenêtre depuis ce thread bloque sous Windows.
-        "openSettings" => {
-            let handle = app.clone();
-            tauri::async_runtime::spawn(async move { crate::settings_window::open(&handle) });
-        }
+        // Les Réglages s'ouvrent dans l'Island ; un second appui les referme.
+        "openSettings" => island::open_settings(app, true),
         "mediaToggle" => media_control(app.clone(), "toggle".into()),
         "mediaPrev" => media_control(app.clone(), "prev".into()),
         "mediaNext" => media_control(app.clone(), "next".into()),

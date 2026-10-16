@@ -264,11 +264,13 @@ export const musicHistoryMethods = {
         this.leaveMusicHistory();
         const host = document.createElement('div');
         host.className = 'island-library-view';
+        this.applyPanelHeight(host, 'music-history');
         this.content.replaceChildren(host);
         this._historyHost = host;
         const settled = capsuleSettled(this.el);
         this._historyController = mountHistory(host, {
             store: this.historyStore(),
+            onFit: height => this.fitPanel('music-history', host, height),
             ready: settled,
             savedState: this._historySavedState || { filter: localStorage.getItem('liquid_music_history_filter') || 'all' },
             onBack: () => this.setMode('music'),

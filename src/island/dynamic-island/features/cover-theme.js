@@ -1,6 +1,6 @@
 /** Couleurs extraites de la pochette et thème dynamique. */
-import { ipcRenderer } from '../../../shared/ipc.js';
 import { ThemeService } from '../../../services/ThemeService.js';
+import { publishCover } from '../../../shared/cover-bus.js';
 import { blendHexColors, hexToRgb, rgbToHex } from '../helpers/color.js';
 import { getDisplayMediaArt, getRawDisplayMediaArt, isSocialFallbackIcon } from '../helpers/media-art.js';
 import { getMusicHistoryKey } from '../helpers/music-search.js';
@@ -259,18 +259,8 @@ export const coverThemeMethods = {
             }
         }
 
-        // Broadcast cover color to the standalone settings window via IPC
-        if (ipcRenderer) {
-            try {
-                
-                ipcRenderer.send('cover-color-changed', { 
-                    primary: priHex, 
-                    secondary: secHex, 
-                    rgb: priRgbStr,
-                    cover: effectiveArt
-                });
-            } catch (e) {}
-        }
+        // Fond des Réglages (ouverts dans l'Island) : pochette et couleurs du morceau.
+        publishCover({ primary: priHex, secondary: secHex, rgb: priRgbStr, cover: effectiveArt });
     },
 
     /**
@@ -339,13 +329,8 @@ export const coverThemeMethods = {
             }
         }
 
-        // Broadcast restoration to standalone settings window
-        if (ipcRenderer) {
-            try {
-                
-                ipcRenderer.send('cover-color-changed', { primary: colors.primary, secondary: colors.secondary, rgb: rgbStr });
-            } catch (e) {}
-        }
+        // Couleurs rétablies : les Réglages suivent aussi.
+        publishCover({ primary: colors.primary, secondary: colors.secondary, rgb: rgbStr });
     },
 
     /** Opacité de la pochette floutée dans l'Island ouverte (réglage « Pochette en fond du lecteur »). */

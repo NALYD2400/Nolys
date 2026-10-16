@@ -4,7 +4,8 @@
  * de curseur), profils, mises à jour et position.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ipcRenderer } from '../../shared/ipc.js';
+import { ipcRenderer, native } from '../../shared/ipc.js';
+import { currentCover, onCover } from '../../shared/cover-bus.js';
 import { QUICK_PROFILES } from './presets.js';
 import { activeHotkeys, sanitizeHotkeys } from '../../shared/hotkeys.js';
 import {
@@ -16,6 +17,7 @@ import {
     toSnapshot,
 } from './storage.js';
 import { playClick } from './sound.js';
+import { whileBusy } from './busy.js';
 
 const SEND_INTERVAL_MS = 33;
 
@@ -106,12 +108,12 @@ export function useSettings() {
             profiles: loadCustomProfiles(),
             musicHistory: JSON.parse(localStorage.getItem('liquid_music_history') || '[]'),
         };
-        const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `nolys-reglages-${new Date().toISOString().slice(0, 10)}.json`;
-        link.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        // Fenêtre « Enregistrer sous » de Windows : un téléchargement WebView2 ouvrirait son
+        // panneau au-dessus de l'Island et lui ferait perdre le focus.
+        return whileBusy(() => native.invoke('save_settings_file', {
+            contents: JSON.stringify(payload, null, 2),
+            fileName: `nolys-reglages-${new Date().toISOString().slice(0, 10)}.json`,
+        }));
     }, [settings]);
 
     const importSettings = useCallback(async (file) => {
@@ -203,7 +205,10 @@ export function useLayout() {
         layout,
         editMode,
         displays,
-        setScale: (scale) => {
+        /** Taille par pas de 5 % (65 à 150 %), comme la barre du mode placement. */
+        stepScale: (direction) => {
+            const scale = Math.min(1.5, Math.max(0.65, Math.round(((layout.scale || 1) + direction * 0.05) * 100) / 100));
+            if (scale === layout.scale) return;
             setLayout((current) => ({ ...current, scale }));
             ipcRenderer.send('layout-config-changed', { scale });
         },
@@ -240,16 +245,18 @@ export function useUpdates() {
     };
 }
 
-/** Pochette et couleurs du morceau en cours, pour le fond de la fenêtre. */
+/** Pochette et couleurs du morceau en cours (publiées par l'Island), pour le fond des Réglages. */
 export function useCoverTheme(enabled) {
     const [cover, setCover] = useState(() => {
+        const known = currentCover();
+        if (known) return known;
         try {
             return JSON.parse(localStorage.getItem('liquid_cover_colors') || '{}');
         } catch {
             return {};
         }
     });
-    useEffect(() => ipcRenderer.on('cover-color-changed', (_event, next) => next && setCover(next)), []);
+    useEffect(() => onCover(setCover), []);
     return enabled ? cover : {};
 }
 

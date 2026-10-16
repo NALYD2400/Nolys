@@ -16,7 +16,7 @@ export const dbToPct = (db) => Math.max(0, Math.min(100, ((db - METER_FLOOR_DB) 
 export const pctToDb = (pct) => METER_FLOOR_DB + (pct / 100) * -METER_FLOOR_DB;
 
 export const micMonitorMethods = {
-    /** Appelé une fois au démarrage : état initial et synchro avec la fenêtre des réglages. */
+    /** Appelé une fois au démarrage : état initial et synchro avec les Réglages. */
     initMicMonitor() {
         this.micStatus = null;
         this._micSatellite = document.getElementById('island-satellite');
@@ -51,10 +51,9 @@ export const micMonitorMethods = {
         if (bgLayer) themeObserver.observe(bgLayer, { attributes: true, attributeFilter: ['style'] });
         this.syncSatelliteTheme();
 
-        // Option « bulle d'activité » changée dans les réglages (même stockage local).
-        window.addEventListener('storage', (e) => {
-            if (e.key === 'liquid_mic_satellite') this.syncMicActivity();
-        });
+        // Option « bulle d'activité » : les Réglages vivent dans l'Island (même page, pas
+        // d'événement « storage »). La bulle n'existe qu'Island repliée, et chaque repli
+        // relit l'option (renderContent → syncMicActivity).
 
         ipcRenderer.on('mic-monitor-changed', (_event, status) => {
             // Pendant nos propres envois, les états intermédiaires feraient reculer l'interface.

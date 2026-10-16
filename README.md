@@ -66,6 +66,7 @@ src/                         Interface, construite par Vite (vite.config.js) dan
 ├─ public/assets/            Logo, polices et icônes embarquées (aucun CDN)
 ├─ shared/
 │  ├─ ipc.js                 Pont interface <-> Rust (canaux nommés -> commandes Tauri)
+│  ├─ cover-bus.js           Pochette en cours, publiée par l'Island pour les Réglages
 │  └─ window-drag.js         Déplacement des fenêtres sans bordure (-webkit-app-region)
 ├─ services/                 Visualiseur audio, sons, thème
 ├─ island/                   Fenêtre de l'Island (JavaScript sans framework, très léger)
@@ -77,7 +78,8 @@ src/                         Interface, construite par Vite (vite.config.js) dan
 │     ├─ features/           Logique : lecture, volume, mixeur, thème…
 │     ├─ views/              Rendu des écrans : repos, lecteur, centre de contrôle…
 │     └─ helpers/            Fonctions utilitaires (couleurs, formats, pochettes)
-└─ settings/                 Fenêtre des réglages (React + @glass-sdk/liquid-glass)
+└─ settings/                 Réglages, un mode de l'Island (React + @glass-sdk/liquid-glass, voir docs/reglages.md)
+   ├─ mount.jsx              Montage dans la capsule (shadow DOM), chargé à la demande
    ├─ App.jsx                Barre latérale, fond réfracté, navigation
    ├─ pages/                 Général, Apparence, Musique, Fond d'écran, Centre de contrôle, Position, À propos
    ├─ components/            Cartes, lignes et contrôles en verre
@@ -91,7 +93,6 @@ src-tauri/src/               Cœur natif (Rust)
 ├─ wallpaper/                Synchronisation et rendu du fond d'écran (flou, cinématique)
 ├─ platform/                 Accès Windows : WASAPI, SMTC, radios, registre, icônes, réseau…
 ├─ migration.rs              Reprise des réglages de la version Electron
-├─ settings_window.rs        Fenêtre des réglages (créée à la demande)
 ├─ tray.rs / shortcut.rs     Icône de notification, raccourcis globaux (Alt+I par défaut, configurables)
 └─ updater.rs                Mises à jour via les releases GitHub
 ```

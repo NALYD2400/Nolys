@@ -311,6 +311,26 @@ pub fn toggle_visibility(app: &AppHandle, reason: &str) {
     notify_visibility(app);
 }
 
+/// Ouvre les Réglages dans l'Island (icône de la barre des tâches, raccourci). L'Island est
+/// d'abord réaffichée, même masquée à la main ou par un plein écran, puis prend le focus :
+/// le clavier (Échap) agit tout de suite et cliquer ailleurs la replie. `toggle` : un second
+/// appui du raccourci referme les Réglages (décidé par l'interface, qui connaît son mode).
+pub fn open_settings(app: &AppHandle, toggle: bool) {
+    let state = app.state::<AppState>();
+    let Some(window) = window(app) else { return };
+    state.hidden_by_user.store(false, Ordering::SeqCst);
+    // Le plein écran sera réévalué au prochain passage : l'Island ayant le focus, il ne la
+    // masquera plus tant que les Réglages sont au premier plan.
+    state.hidden_by_fullscreen.store(false, Ordering::SeqCst);
+    if let Ok(hwnd) = window.hwnd() {
+        win::show_inactive(hwnd);
+        win::raise_topmost(hwnd);
+    }
+    let _ = window.set_focus();
+    sync_native_state(app);
+    let _ = app.emit_to(LABEL, events::OPEN_SETTINGS, toggle);
+}
+
 pub fn set_layout_edit_mode(app: &AppHandle, enabled: bool) {
     let state = app.state::<AppState>();
     state.layout_edit_mode.store(enabled, Ordering::SeqCst);

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { ipcRenderer } from '../../shared/ipc.js';
 import { Button, Card, Icon, Row } from '../components/controls.jsx';
 import { useUpdates } from '../state/useSettings.js';
+import { whileBusy } from '../state/busy.js';
 
 const UPDATE_COPY = {
     idle: { icon: 'ph-shield-check', title: 'Version installée', text: 'Vérifie s’il existe une nouvelle version.' },
@@ -63,10 +64,21 @@ export default function About({ store }) {
 
             <Card title="Sauvegarde" footer={importError || 'Le fichier contient tes réglages, tes profils et ton historique musical.'}>
                 <Row label="Exporter les réglages">
-                    <Button icon="ph-export" onClick={store.exportSettings}>Exporter</Button>
+                    <Button icon="ph-export" onClick={() => store.exportSettings().catch(() => setImportError('Export impossible : le fichier n’a pas pu être écrit.'))}>Exporter</Button>
                 </Row>
                 <Row label="Importer un fichier">
-                    <Button icon="ph-download-simple" onClick={() => fileInput.current?.click()}>Importer</Button>
+                    <Button icon="ph-download-simple" onClick={() => {
+                        const input = fileInput.current;
+                        if (!input) return;
+                        // Sélecteur Windows ouvert : l'Island ne se replie pas en perdant le focus.
+                        // Fin : fichier choisi, annulation, ou à défaut retour du focus dans l'Island.
+                        whileBusy(new Promise((resolve) => {
+                            input.addEventListener('change', resolve, { once: true });
+                            input.addEventListener('cancel', resolve, { once: true });
+                            window.addEventListener('focus', resolve, { once: true });
+                        }));
+                        input.click();
+                    }}>Importer</Button>
                     <input
                         ref={fileInput}
                         type="file"

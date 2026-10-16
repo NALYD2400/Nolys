@@ -6,7 +6,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use crate::island::{self, hit_test::{CssRect, HitRegion}};
 use crate::state::AppState;
 use crate::wallpaper::SettingsPatch;
-use crate::{events, settings_window, shortcut};
+use crate::{events, shortcut};
 
 #[tauri::command]
 pub fn set_ignore_mouse(app: AppHandle, ignore: bool) {
@@ -28,17 +28,6 @@ pub fn set_fullscreen_autohide(app: AppHandle, enabled: bool) {
 #[tauri::command]
 pub fn set_persistent_island(app: AppHandle, enabled: Value) {
     island::set_persistent(&app, truthy(&enabled));
-}
-
-/// Asynchrone : créer une WebView depuis une commande synchrone bloque sous Windows.
-#[tauri::command]
-pub async fn open_settings(app: AppHandle) {
-    settings_window::open(&app);
-}
-
-#[tauri::command]
-pub fn close_settings(app: AppHandle) {
-    settings_window::close(&app);
 }
 
 #[tauri::command]
@@ -135,7 +124,23 @@ pub fn trigger_notification(app: AppHandle, data: Value) {
     let _ = app.emit_to(island::LABEL, events::TRIGGER_NOTIF, data);
 }
 
+/// Export des réglages : fenêtre « Enregistrer sous » de Windows, puis écriture du fichier.
+/// Renvoie `false` si l'utilisateur annule. Le dialogue tourne sur un thread neuf (COM, voir
+/// `library::commands::pick`) et appartient à l'Island, qui reste ouverte pendant ce temps.
 #[tauri::command]
-pub fn cover_color_changed(app: AppHandle, colors: Value) {
-    let _ = app.emit_to(settings_window::LABEL, events::COVER_COLOR_CHANGED, colors);
+pub async fn save_settings_file(app: AppHandle, contents: String, file_name: String) -> Result<bool, String> {
+    let mut dialog = rfd::FileDialog::new()
+        .set_title("Exporter les réglages de Nolys")
+        .set_file_name(file_name)
+        .add_filter("Réglages Nolys", &["json"]);
+    if let Some(window) = island::window(&app) {
+        dialog = dialog.set_parent(&window);
+    }
+    let path = tauri::async_runtime::spawn_blocking(move || std::thread::spawn(move || dialog.save_file()).join())
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|_| "La fenêtre d'enregistrement s'est fermée de façon inattendue.".to_string())?;
+    let Some(path) = path else { return Ok(false) };
+    std::fs::write(&path, contents).map_err(|e| format!("Écriture impossible : {e}"))?;
+    Ok(true)
 }
