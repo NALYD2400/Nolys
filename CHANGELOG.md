@@ -1,6 +1,6 @@
 # Historique
 
-## 2.3.0 — 16 octobre 2026
+## 2.4.0 — 17 octobre 2026
 
 - Réglages ouverts directement dans l’Island, comme la Bibliothèque : la capsule s’agrandit (sa plus grande forme, 680 px de large) au lieu d’ouvrir une fenêtre à part. La fenêtre transparente de l’Island passe de 620 à 720 px de large pour leur faire place ; la pilule reste exactement au même endroit de l’écran. Depuis le menu, le clic droit, l’icône de la barre des tâches ou Ctrl+Alt+P (un second appui les referme) ; l’Island réapparaît si elle était masquée. Échap, ✕ ou un clic ailleurs les referment, le bouton ⊞ revient au menu.
 - La capsule prend la hauteur de son contenu dans la Bibliothèque, l’Historique et les Réglages : avec un seul favori ou une page courte, plus de grand vide entre la liste et le lecteur. Elle ne bouge pas pendant une recherche (pas de saut à chaque lettre), ni quand on déplie une option des Réglages.
