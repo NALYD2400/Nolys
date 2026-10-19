@@ -4,8 +4,8 @@
 const { chromium } = require(process.env.NOLYS_PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const base = process.env.NOLYS_UI_URL || 'http://127.0.0.1:1420';
-const screenshots = path.join(process.cwd(), 'docs', 'screenshots');
+const base = process.env.NOLYS_UI_URL || 'http://localhost:1420';
+const screenshots = process.env.NOLYS_SCREENSHOTS_DIR || path.join(process.cwd(), 'docs', 'screenshots');
 const pageShots = process.env.NOLYS_SHOTS;
 
 (async () => {
@@ -99,7 +99,8 @@ const pageShots = process.env.NOLYS_SHOTS;
 
         // Chaque page s'affiche sans erreur et tient dans la capsule.
         const labels = await page.locator('.nav-item').allTextContents();
-        assert.equal(labels.length, 10);
+        assert.equal(labels.length, 11);
+        assert.ok(labels.some(label => label.trim() === 'Menus'));
         const overflows = [];
         for (const [index, label] of labels.entries()) {
             await page.locator('.nav-item').nth(index).click();

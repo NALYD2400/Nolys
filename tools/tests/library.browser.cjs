@@ -3,8 +3,8 @@
 const { chromium } = require(process.env.NOLYS_PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const base = process.env.NOLYS_UI_URL || 'http://127.0.0.1:1420';
-const screenshots = path.join(process.cwd(), 'docs', 'screenshots');
+const base = process.env.NOLYS_UI_URL || 'http://localhost:1420';
+const screenshots = process.env.NOLYS_SCREENSHOTS_DIR || path.join(process.cwd(), 'docs', 'screenshots');
 
 function wavFixture() {
     const samples = 8000 * 30;
@@ -107,7 +107,7 @@ function wavFixture() {
         const shot = async name => { await settled(); await page.waitForTimeout(1000); await page.screenshot({ path: path.join(screenshots, name), animations: 'disabled' }); };
 
         await page.evaluate(() => window.island.openExpandedMode('menu'));
-        await page.waitForFunction(() => !window.island._transitionInProgress && document.querySelectorAll('.island-menu-item').length === 8);
+        await page.waitForFunction(() => !window.island._transitionInProgress);
         await page.locator('.island-menu-item').filter({ hasText: /Bibliothèque/ }).click();
         await page.getByText('Votre musique, ici').waitFor();
         await page.evaluate(() => document.fonts.ready);
