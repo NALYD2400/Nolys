@@ -17,7 +17,7 @@ OWN-WORLD: extension de la Bibliothèque et de Fichiers : capsule, thème utilis
 
 STORY: choisir un écran ou une fenêtre de jeu, activer le replay, lire sa durée disponible, sauvegarder. REC utilise le même flux encodé. Les paramètres détaillés restent dans un onglet, les clips dans un autre.
 
-FIRST VIEWPORT: titre et état en haut ; onglets Capture / Réglages / Clips ; source et état du tampon ; action principale Sauvegarder / Activer ; commandes REC et Arrêter ; qualité réellement utilisée et raccourci lisible.
+FIRST VIEWPORT: titre sans sous-titre ; onglets Capture / Réglages / Clips ; source, état et durée disponible au centre ; action principale Sauvegarder / Activer, commande REC et arrêt par icône nommée. Aucun bandeau de succès ni barre de tampon, à la demande de l’utilisateur. Mémoire et encodeur réellement utilisés dans Réglages → Moteur vidéo et compatibilité ; raccourci dans l’infobulle de Sauvegarder. Clips donne accès à Lire, Afficher et Supprimer ; Lire agrandit la capsule et affiche une vidéo intégrée avec retour à la liste.
 
 FORM: extension locale du panneau partagé ; chemin code-led, pas de nouvelle composition globale ni de comp générée. seed: none (extension locale sans tirage).
 

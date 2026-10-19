@@ -93,6 +93,12 @@ export const filesView = {
             onFit: height => this.fitPanel('files', host, height),
             onClose: () => this.closeFiles(),
             onBack: () => this.closeFiles(),
+            onPreviewChange: expanded => {
+                this.el.classList.toggle('island-files-preview', expanded);
+                const width = Math.min(680, window.innerWidth - 40);
+                this.el.style.setProperty('--files-preview-width', `${width}px`);
+                host.style.setProperty('--panel-width', `${expanded ? width : 560}px`);
+            },
             onRender: () => settled.then(() => afterIntro(() => { if (this._filesHost === host && this.mode === 'files') this.syncGlassControls(); })),
         });
         window.dispatchEvent(new Event('nolys-hit-region-changed'));
@@ -108,7 +114,7 @@ export const filesView = {
     leaveFiles() {
         this._filesController?.destroy(); this._filesController = null;
         this._filesHost?.remove(); this._filesHost = null;
-        this.el.classList.remove('island-mode-files');
+        this.el.classList.remove('island-mode-files', 'island-files-preview');
     },
     filesNotify(text) { files.notice = text; notify(); },
 };

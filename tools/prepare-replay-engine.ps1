@@ -25,6 +25,10 @@ $distributionLicense = Join-Path $distribution 'LICENSE'
 if (Test-Path -LiteralPath $distributionLicense) {
     Copy-Item -LiteralPath $distributionLicense -Destination (Join-Path $targetDirectory 'FFmpeg-LICENSE.txt')
 }
+$distributionReadme = Join-Path $distribution 'README.txt'
+if (Test-Path -LiteralPath $distributionReadme) {
+    Copy-Item -LiteralPath $distributionReadme -Destination (Join-Path $targetDirectory 'FFmpeg-README.txt')
+}
 $version = & $resolvedEngine -version 2>&1
 [System.IO.File]::WriteAllLines((Join-Path $targetDirectory 'build-info.txt'), [string[]]$version, [System.Text.UTF8Encoding]::new($false))
 $sha = [System.Security.Cryptography.SHA256]::Create()

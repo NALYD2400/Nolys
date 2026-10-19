@@ -3,24 +3,48 @@ const { chromium } = require(process.env.NOLYS_PLAYWRIGHT_MODULE || 'playwright'
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 
 (async () => {
+    const fixture = path.join(process.cwd(), '.impeccable/runtime/replay-player-fixture.mp4');
+    fs.mkdirSync(path.dirname(fixture), { recursive: true });
+    const encoded = spawnSync(process.env.NOLYS_FFMPEG || path.join(process.cwd(), 'src-tauri/resources/replay/ffmpeg.exe'), ['-v', 'error', '-f', 'lavfi', '-i', 'testsrc2=size=640x360:rate=30:duration=3', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=3', '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-movflags', '+faststart', '-y', fixture], { encoding: 'utf8', windowsHide: true });
+    assert.equal(encoded.status, 0, encoded.stderr || 'Prepare FFmpeg with npm run prepare:replay first');
     const browser = await chromium.launch({ headless: true, channel: 'msedge', args: ['--mute-audio'] });
     try {
         const context = await browser.newContext({ viewport: { width: 900, height: 700 } });
         const config = { sourceId: '', capture: 'auto', encoder: 'auto', codec: 'h264', preset: 'speed', height: 1080, fps: 60, bitrateMbps: 16, seconds: 60, memoryMb: 256, cursor: true, systemAudio: true, microphone: false, outputDevice: '', inputDevice: '', systemVolume: 100, micVolume: 100, audioKbps: 192, separateAudio: false, destination: 'C:\\Users\\Test\\Videos\\Nolys', enginePath: '' };
         let state = { phase: 'idle', config, bufferedSeconds: 0, bufferBytes: 0, recording: false, recordingSeconds: 0, exporting: false, encoder: '', pipeline: '', width: 0, height: 0, error: null, notice: null, clips: [], engineAvailable: true, enginePath: 'C:\\Nolys\\ffmpeg.exe', recoveryFiles: 0 };
         const calls = [], errors = [];
+        let rejectDeletion = false, rejectRename = false;
+        await context.route('**/__replay_fixture.mp4', route => {
+            const bytes = fs.readFileSync(fixture);
+            const range = /^bytes=(\d+)-(\d*)$/.exec(route.request().headers().range || '');
+            if (!range) return route.fulfill({ contentType: 'video/mp4', headers: { 'Accept-Ranges': 'bytes' }, body: bytes });
+            const start = Number(range[1]), end = Math.min(Number(range[2] || bytes.length - 1), bytes.length - 1);
+            return route.fulfill({ status: 206, contentType: 'video/mp4', headers: { 'Accept-Ranges': 'bytes', 'Content-Range': `bytes ${start}-${end}/${bytes.length}` }, body: bytes.subarray(start, end + 1) });
+        });
         await context.exposeBinding('__invoke', async ({ page }, command, args = {}) => {
             calls.push({ command, args });
             if (command === 'replay_snapshot') return structuredClone(state);
+            if (command === 'replay_media') return 'http://localhost:1420/__replay_fixture.mp4';
+            if (command === 'replay_rename') {
+                if (rejectRename) { rejectRename = false; throw new Error('Un fichier porte déjà ce nom.'); }
+                state.clips = state.clips.map(clip => clip.id === args.id ? { ...clip, name: `${args.name}.mp4` } : clip);
+                return structuredClone(state);
+            }
+            if (command === 'replay_delete') {
+                if (rejectDeletion) { rejectDeletion = false; throw new Error('Le fichier est utilisé par une autre application.'); }
+                state.clips = state.clips.filter(clip => clip.id !== args.id); state.notice = null;
+                return structuredClone(state);
+            }
             if (command === 'replay_sources') return [{ id: 'monitor:1', kind: 'monitor', label: 'Écran 1 · 1920 × 1080', width: 1920, height: 1080 }, { id: 'window:42:10', kind: 'window', label: 'Jeu de test', width: 2560, height: 1440 }];
             if (command === 'replay_configure') { state.config = args.config; return structuredClone(state); }
             if (command === 'replay_action') {
                 if (args.action === 'start') Object.assign(state, { phase: 'buffering', bufferedSeconds: 30.25, bufferBytes: 19 * 1024 ** 2, encoder: 'h264_amf', pipeline: 'DXGI · GPU direct', width: 1920, height: 1080 });
                 if (args.action === 'record') state.recording = true;
                 if (args.action === 'record-stop') state.recording = false;
-                if (args.action === 'save') { state.notice = 'Clip de test enregistré'; state.clips = [{ id: 'fixture-replay', name: 'Clip de test.mp4', path: 'C:\\Videos\\Clip de test.mp4', kind: 'replay', createdAt: 1792411200, seconds: 30.25, bytes: 19 * 1024 ** 2 }]; }
+                if (args.action === 'save') { state.notice = 'Clip de test.mp4 enregistré'; state.clips = [{ id: 'fixture-replay', name: 'Clip de test.mp4', path: 'C:\\Videos\\Clip de test.mp4', kind: 'replay', createdAt: 1792411200, seconds: 30.25, bytes: 19 * 1024 ** 2 }]; }
                 if (args.action === 'dismiss') { state.error = null; state.notice = null; }
                 if (args.action === 'stop') Object.assign(state, { phase: 'idle', recording: false, bufferedSeconds: 0, bufferBytes: 0 });
                 return structuredClone(state);
@@ -72,13 +96,20 @@ const path = require('node:path');
         await page.waitForSelector('#replay-phase');
         assert.equal(await page.locator('#replay-phase').textContent(), 'Replay actif');
         await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
-        assert.equal(state.recording, true);
+        assert.equal(state.recording, true); await settled();
         await page.screenshot({ path: path.join(shots, 'replay-recording-desktop.png') });
         await page.getByRole('tab', { name: 'Réglages', exact: true }).click();
         assert.equal(await page.getByLabel('Images par seconde', { exact: false }).isDisabled(), true);
         await page.getByRole('tab', { name: 'Capture', exact: true }).click();
-        await page.getByRole('button', { name: 'Sauvegarder 00:30', exact: true }).click();
-        assert.equal(state.notice, 'Clip de test enregistré');
+        await page.getByRole('button', { name: 'Sauvegarder', exact: true }).click();
+        assert.equal(state.notice, 'Clip de test.mp4 enregistré');
+        assert.equal(await page.getByRole('button', { name: 'Voir le clip', exact: true }).count(), 0);
+        assert.equal(await page.locator('#replay-buffer-progress').count(), 0);
+        assert.equal(await page.locator('#replay-content #replay-pipeline').count(), 0, 'technical diagnostics belong in settings');
+        assert.equal(await page.locator('#replay-feedback').textContent().then(text => text.includes('Clip de test.mp4')), false);
+        await settled();
+        assert.equal(await page.locator('.replay-body').evaluate(el => el.scrollHeight > el.clientHeight + 1), false);
+        await page.screenshot({ path: path.join(shots, 'replay-clean-saved.png') });
         await page.getByRole('button', { name: 'Fermer Replay', exact: true }).click(); await settled();
         assert.equal(state.recording, true, 'closing the panel must not stop capture');
         await page.evaluate(() => window.__dispatch('replay-status', {}));
@@ -144,7 +175,50 @@ const path = require('node:path');
         await page.waitForTimeout(400);
         assert.equal(await page.getByRole('tab', { name: 'Clips', exact: true }).getAttribute('aria-selected'), 'true');
         assert.equal(await page.getByText('Clip de test.mp4', { exact: true }).count(), 1);
+        await settled();
+        const clipHeight = await page.locator('#dynamic-island').evaluate(el => el.getBoundingClientRect().height);
+        assert.ok(clipHeight < 240, `single clip should be compact, got ${clipHeight}`);
+        const originalClips = structuredClone(state.clips);
+        state.clips = Array.from({ length: 12 }, (_, index) => ({ ...originalClips[0], id: `many-${index}`, name: `Clip ${index}.mp4` }));
+        await page.evaluate(() => window.__dispatch('replay-status', {})); await settled();
+        const manyHeight = await page.locator('#dynamic-island').evaluate(el => el.getBoundingClientRect().height);
+        assert.ok(manyHeight > clipHeight + 100 && manyHeight <= 538, `clip list height must grow within its cap, got ${manyHeight}`);
+        assert.equal(await page.locator('.replay-body').evaluate(el => el.scrollHeight > el.clientHeight), true);
+        state.clips = originalClips;
+        await page.evaluate(() => window.__dispatch('replay-status', {})); await settled();
+        assert.ok(await page.locator('#dynamic-island').evaluate(el => el.getBoundingClientRect().height) < 240);
+        await page.getByRole('button', { name: 'Renommer le clip', exact: true }).click();
+        const rename = page.getByRole('textbox', { name: 'Nouveau nom du clip', exact: true });
+        await rename.fill('Nom annulé'); await rename.press('Escape');
+        assert.equal(await page.getByText('Clip de test.mp4', { exact: true }).count(), 1);
+        await page.getByRole('button', { name: 'Renommer le clip', exact: true }).click();
+        await rename.fill('Victoire été');
+        await rename.evaluate(el => { window.__renameInput = el; });
+        await page.evaluate(() => window.__dispatch('replay-status', {})); await page.waitForTimeout(300);
+        assert.equal(await rename.evaluate(el => el === window.__renameInput && el.value === 'Victoire été' && el.getRootNode().activeElement === el), true);
+        await page.screenshot({ path: path.join(shots, 'replay-rename-desktop.png') });
+        rejectRename = true; await rename.press('Enter');
+        await page.getByRole('alert').waitFor();
+        assert.equal(await rename.inputValue(), 'Victoire été'); assert.equal(state.clips[0].name, 'Clip de test.mp4');
+        await rename.press('Enter'); await settled();
+        assert.equal(await rename.count(), 0); assert.equal(await page.getByText('Victoire été.mp4', { exact: true }).count(), 1);
+        assert.ok(calls.some(call => call.command === 'replay_rename' && call.args.id === 'fixture-replay' && call.args.name === 'Victoire été'));
         await page.getByRole('button', { name: 'Lire', exact: true }).click();
+        await page.waitForFunction(() => document.querySelector('.replay-panel-host').shadowRoot.querySelector('#replay-video')?.readyState >= 2);
+        await settled();
+        assert.ok(await page.locator('#dynamic-island').evaluate(el => el.getBoundingClientRect().width) > 560);
+        await page.locator('#replay-video').evaluate(video => { video.pause(); video.currentTime = 1.2; window.__playingVideo = video; });
+        await page.waitForFunction(() => { const video = window.__playingVideo; return !video.seeking && Math.abs(video.currentTime - 1.2) < 0.1; });
+        await page.evaluate(() => window.__dispatch('replay-status', {})); await page.waitForTimeout(300);
+        assert.equal(await page.locator('#replay-video').evaluate(video => video === window.__playingVideo), true, 'telemetry must not reload video');
+        assert.ok(await page.locator('#replay-video').evaluate(video => video.paused && video.currentTime >= 1.1));
+        await page.screenshot({ path: path.join(shots, 'replay-player-desktop.png') });
+        await page.locator('#replay-video').evaluate(video => video.dispatchEvent(new Event('error')));
+        await page.getByRole('button', { name: 'Ouvrir dans un autre lecteur', exact: true }).click();
+        assert.ok(calls.some(call => call.command === 'replay_media' && call.args.id === 'fixture-replay'));
+        await page.getByRole('button', { name: 'Revenir aux clips', exact: true }).click(); await settled();
+        assert.equal(await page.locator('#replay-video').count(), 0);
+        assert.equal(await page.locator('#dynamic-island').evaluate(el => Math.round(el.getBoundingClientRect().width)), 562);
         await page.getByRole('button', { name: 'Afficher', exact: true }).click();
         assert.ok(calls.some(call => call.command === 'replay_play' && call.args.id === 'fixture-replay'));
         assert.ok(calls.some(call => call.command === 'replay_reveal' && call.args.id === 'fixture-replay'));
@@ -160,7 +234,24 @@ const path = require('node:path');
         await page.screenshot({ path: path.join(shots, 'replay-idle-compact.png') });
         const overflow = await page.locator('.replay-panel').evaluate(el => el.scrollWidth > el.clientWidth + 1);
         assert.equal(overflow, false);
+        await page.getByRole('tab', { name: 'Clips', exact: true }).click();
+        await page.getByRole('button', { name: 'Renommer le clip', exact: true }).click();
+        await page.screenshot({ path: path.join(shots, 'replay-rename-compact.png') });
+        assert.equal(await page.locator('.replay-panel').evaluate(el => el.scrollWidth > el.clientWidth + 1), false);
+        await page.getByRole('button', { name: 'Annuler le renommage', exact: true }).click();
+        await page.getByRole('button', { name: 'Lire', exact: true }).click(); await settled();
+        const playerBox = await page.locator('#dynamic-island').boundingBox();
+        assert.ok(playerBox.x >= 0 && playerBox.x + playerBox.width <= 640);
+        await page.screenshot({ path: path.join(shots, 'replay-player-compact.png') });
+        await page.locator('#replay-video').press('Escape'); await settled();
+        rejectDeletion = true;
+        await page.getByRole('button', { name: 'Supprimer', exact: true }).click();
+        assert.equal(state.clips.length, 1);
+        await page.getByRole('alert').waitFor();
+        await page.getByRole('button', { name: 'Supprimer', exact: true }).click();
+        assert.equal(state.clips.length, 0);
+        assert.equal(await page.getByRole('heading', { name: 'Vos clips apparaîtront ici' }).count(), 1);
         assert.deepEqual(errors, []);
-        console.log('Replay browser: settings, lock, replay save, REC, satellite placement with mic/timer and viewport edge, visibility in expanded modules, close/reopen, empty clips and compact layout passed.');
+        console.log('Replay browser: settings, capture, REC, satellites, embedded playback and seek, telemetry persistence, player resize/return, deletion failure/success, empty clips and compact layout passed.');
     } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

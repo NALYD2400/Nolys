@@ -134,3 +134,43 @@ pub fn replay_play(app: AppHandle, window: WebviewWindow, id: String) -> Result<
     crate::platform::system::shell_open(&path.to_string_lossy());
     Ok(())
 }
+
+#[tauri::command]
+pub fn replay_media(app: AppHandle, window: WebviewWindow, id: String) -> Result<String, String> {
+    authorize(&window)?;
+    let path = app.state::<Store>().clip_path(&id)?;
+    app.asset_protocol_scope()
+        .allow_file(&path)
+        .map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub async fn replay_rename(app: AppHandle, window: WebviewWindow, id: String, name: String) -> Result<Snapshot, String> {
+    authorize(&window)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = app.state::<Store>();
+        let result = store.rename_clip(&id, &name);
+        store.shared.notify();
+        result?;
+        Ok(store.snapshot())
+    }).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn replay_delete(
+    app: AppHandle,
+    window: WebviewWindow,
+    id: String,
+) -> Result<Snapshot, String> {
+    authorize(&window)?;
+    let owner = window.hwnd().map_err(|e| e.to_string())?.0 as usize;
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = app.state::<Store>();
+        store.delete_clip(&id, |path| super::recycle::recycle(path, owner))?;
+        store.shared.notify();
+        Ok(store.snapshot())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}

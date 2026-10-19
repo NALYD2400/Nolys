@@ -45,6 +45,12 @@ export const replayView = {
         this._replayController = mountReplay(host, {
             ready: settled, onFit: height => this.fitPanel('replay', host, height),
             onClose: () => this.collapseIsland({ force: true }), onBack: () => this.setMode('menu'),
+            onPlaybackChange: expanded => {
+                this.el.classList.toggle('island-replay-player', expanded);
+                const width = Math.min(680, window.innerWidth - 40);
+                this.el.style.setProperty('--replay-player-width', `${width}px`);
+                host.style.setProperty('--panel-width', `${expanded ? width : 560}px`);
+            },
             onRender: () => settled.then(() => afterIntro(() => { if (this._replayHost === host) this.syncGlassControls(); })),
         });
     },

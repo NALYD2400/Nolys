@@ -71,6 +71,18 @@ pub async fn files_forget(app: AppHandle, window: WebviewWindow, job_id: String)
 }
 
 #[tauri::command]
+pub fn files_preview(app: AppHandle, window: WebviewWindow, id: String) -> Result<String, String> {
+    authorize(&window)?;
+    let path = app.state::<Store>().paths(&[id])?.remove(0);
+    let extension = path.extension().unwrap_or_default().to_string_lossy().to_lowercase();
+    if !path.is_file() || !["jpg", "jpeg", "png", "webp", "bmp", "gif", "avif", "ico", "svg"].contains(&extension.as_str()) {
+        return Err("L’aperçu de ce format n’est pas disponible.".into());
+    }
+    app.asset_protocol_scope().allow_file(&path).map_err(|_| "L’image ne peut pas être affichée.")?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
 pub async fn files_reveal(app: AppHandle, window: WebviewWindow, id: Option<String>) -> Result<(), String> {
     authorize(&window)?;
     let path = match id {

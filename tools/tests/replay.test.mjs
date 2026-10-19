@@ -47,3 +47,38 @@ test('presets preserve source and privacy choices; elapsed labels remain bounded
     assert.equal(duration(-5), '00:00'); assert.equal(duration(125.9), '02:05');
     assert.equal(activeCapture(snapshot('starting')), true); assert.equal(activeCapture(snapshot('error')), false);
 });
+
+test('failed deletion preserves the clip and a successful deletion blocks stale refreshes', async () => {
+    const old = { ...snapshot('buffering'), clips: [{ id: 'one' }] };
+    const stale = deferred(); let reads = 0, rejected = true;
+    const store = createReplayStore(async command => {
+        if (command === 'replay_snapshot') return ++reads === 1 ? old : stale.promise;
+        if (rejected) throw new Error('Fichier utilisé');
+        return snapshot('buffering');
+    });
+    await store.refresh();
+    assert.equal(await store.deleteClip('one'), false);
+    assert.equal(store.state.snapshot.clips.length, 1);
+    rejected = false; const refresh = store.refresh();
+    assert.equal(await store.deleteClip('one'), true);
+    stale.resolve(old); await refresh;
+    assert.equal(store.state.snapshot.clips.length, 0);
+    assert.equal(store.state.snapshot.phase, 'buffering');
+});
+
+test('renaming preserves a rejected clip and prevents an old snapshot undoing a successful rename', async () => {
+    const old = { ...snapshot(), clips: [{ id: 'one', name: 'Before.mp4' }] };
+    const stale = deferred(); let reads = 0, rejected = true;
+    const store = createReplayStore(async (command, args) => {
+        if (command === 'replay_snapshot') return ++reads === 1 ? old : stale.promise;
+        assert.equal(command, 'replay_rename'); assert.deepEqual(args, { id: 'one', name: 'After' });
+        if (rejected) throw new Error('Ce nom existe déjà');
+        return { ...old, clips: [{ id: 'one', name: 'After.mp4' }] };
+    });
+    await store.refresh(); assert.equal(await store.renameClip('one', 'After'), false);
+    assert.equal(store.state.snapshot.clips[0].name, 'Before.mp4');
+    rejected = false; const refresh = store.refresh();
+    assert.equal(await store.renameClip('one', 'After'), true);
+    stale.resolve(old); await refresh;
+    assert.equal(store.state.snapshot.clips[0].name, 'After.mp4');
+});

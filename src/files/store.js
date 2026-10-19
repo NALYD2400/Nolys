@@ -45,7 +45,8 @@ export async function start(action, overrides = {}) {
             requestId, ids: files.inputs.map(input => input.id), action,
             options: { format: files.format, quality: files.quality, maxEdge: action === 'resize' ? files.maxEdge : 0, background: files.background || null, ...overrides },
         });
-        files.notice = 'Le traitement a été ajouté à la file. Vous pouvez replier l’Island.';
+        files.tab = 'history';
+        files.notice = 'Traitement ajouté à l’activité.';
     } catch (error) { message(error); }
     finally { files.busy = false; notify(); }
 }
@@ -55,7 +56,7 @@ export async function act(command, parameters = {}) {
 }
 export async function copy(ids) {
     files.notice = ''; files.error = '';
-    try { await native.invoke('files_copy', { ids }); files.notice = 'Fichiers copiés. Collez-les dans l’Explorateur ou une application compatible.'; notify(); }
+    try { await native.invoke('files_copy', { ids }); files.notice = 'Fichiers copiés.'; notify(); }
     catch (error) { message(error); }
 }
 export function dragOut(ids) {

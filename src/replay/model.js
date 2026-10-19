@@ -71,6 +71,13 @@ export function createReplayStore(invoke) {
             });
         },
         async reveal(id = null, recovery = false) { try { await invoke('replay_reveal', { id, recovery }); } catch (error) { fail(error); } },
-        async play(id) { try { await invoke('replay_play', { id }); } catch (error) { fail(error); } },
+        async play(id) { try { return await invoke('replay_media', { id }); } catch (error) { fail(error); return null; } },
+        async openExternal(id) { try { await invoke('replay_play', { id }); } catch (error) { fail(error); } },
+        deleteClip(id) {
+            return exclusive(async () => { const snapshot = await invoke('replay_delete', { id }); ++generation; accept(snapshot); });
+        },
+        renameClip(id, name) {
+            return exclusive(async () => { const snapshot = await invoke('replay_rename', { id, name }); ++generation; accept(snapshot); });
+        },
     };
 }

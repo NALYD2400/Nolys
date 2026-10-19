@@ -4,7 +4,7 @@
 
 **Votre musique. Votre bureau. À portée de clic.**
 
-Nolys est le nouveau nom de Liquid Dynamic Island. La version source **2.0.2** intègre l’identité Liquid Glass cuivre/champagne. La dernière version installable publiée est encore [Liquid Dynamic Island 2.0.1](https://github.com/NALYD2400/dynamique-island/releases/tag/v2.0.1).
+Nolys est le nouveau nom de Liquid Dynamic Island. La version **2.5.0** ajoute Fichiers et Replay & REC à la capsule Liquid Glass. [Télécharger la dernière version Windows](https://github.com/NALYD2400/Nolys/releases/latest).
 
 Widget « Dynamic Island » pour Windows : musique (Spotify, navigateurs…), mixeur audio par application, centre de contrôle, notifications, synchronisation du fond d'écran.
 
@@ -14,6 +14,8 @@ Le cœur Tauri 2 / Rust remplace l’ancien assemblage Electron, .NET et PowerSh
 
 - Lecteur musical : suivi des sessions Windows, pochette, progression, volume et historique.
 - [Bibliothèque personnelle](docs/bibliotheque.md) : import de fichiers ou de dossiers sans copie, playlists, favoris et lecture locale qui continue quand l’Island se replie.
+- Fichiers : conversions PNG/JPG/WebP/BMP, dimensions, compression JPG, copies et exports, activité et aperçu des images dans l’Island. Les originaux sont conservés.
+- Replay & REC : sauvegarde des dernières secondes et enregistrement continu, capture écran ou fenêtre, réglages vidéo et audio PC/micro, lecture intégrée, renommage et corbeille des clips. Le moteur FFmpeg compatible est embarqué dans l’installateur.
 - Mixeur audio par application, périphériques de sortie et d’entrée.
 - Retour micro : ta voix dans le casque en direct, avec anti-bruit RNNoise, porte de bruit, coupe-bas et latence réglable.
 - Centre de contrôle : commandes Windows, raccourcis, météo et mesures système.
@@ -33,7 +35,7 @@ La Bibliothèque est accessible depuis le menu des modules. Capture de développ
 
 ![Bibliothèque musicale Nolys](docs/screenshots/19-bibliotheque.png)
 
-Captures du code source 2.0.2, rendues avec un pont Tauri de démonstration. Musique, météo et données Windows sont simulées ; la matière, les contrôles et le logo viennent de l’interface réelle.
+Captures historiques du code source 2.0.2, rendues avec un pont Tauri de démonstration. Musique, météo et données Windows sont simulées ; la matière, les contrôles et le logo viennent de l’interface réelle.
 
 | Lecteur musical | Centre de contrôle |
 |---|---|
@@ -109,10 +111,14 @@ src-tauri/src/               Cœur natif (Rust)
    npm run build
    ```
 
-3. Créer une release GitHub sur `NALYD2400/dynamique-island` (tag `vX.Y.Z`) et y joindre, depuis `src-tauri/target/release/bundle/nsis/` :
+3. Créer une release GitHub sur `NALYD2400/Nolys` (tag `vX.Y.Z`) et y joindre, depuis `src-tauri/target/release/bundle/nsis/` :
    - `Nolys_X.Y.Z_x64-setup.exe`
    - `Nolys_X.Y.Z_x64-setup.exe.sig`
    - un fichier `latest.json` (modèle ci-dessous)
+
+Le moteur Replay est préparé avant le build. Distribuer aussi sa licence, son README et sa provenance (`src-tauri/resources/replay/`) et joindre l’archive source FFmpeg correspondante à la release. Pour le binaire Gyan embarqué en 2.5.0, la référence exacte est indiquée dans `SOURCES.txt`. Un autre build FFmpeg nécessite des informations de provenance correspondantes.
+
+Après génération de `latest.json`, `node tools/verify-release.mjs` vérifie les versions, la signature de mise à jour avec la clé publique existante, le manifeste et les ressources Replay. Publier d’abord une release brouillon avec tous les assets, vérifier tailles et SHA-256, puis la rendre publique comme dernière version.
 
 ```json
 {
@@ -122,7 +128,7 @@ src-tauri/src/               Cœur natif (Rust)
   "platforms": {
     "windows-x86_64": {
       "signature": "<contenu du fichier .sig>",
-      "url": "https://github.com/NALYD2400/dynamique-island/releases/download/vX.Y.Z/Nolys_X.Y.Z_x64-setup.exe"
+      "url": "https://github.com/NALYD2400/Nolys/releases/download/vX.Y.Z/Nolys_X.Y.Z_x64-setup.exe"
     }
   }
 }

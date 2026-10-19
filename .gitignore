@@ -22,3 +22,4 @@ src-tauri/resources/replay/ffmpeg.exe
 src-tauri/resources/replay/build-info.txt
 src-tauri/resources/replay/ffmpeg.sha256
 src-tauri/resources/replay/FFmpeg-LICENSE.txt
+src-tauri/resources/replay/FFmpeg-README.txt

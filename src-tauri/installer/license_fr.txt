@@ -32,4 +32,11 @@ Vous pouvez mettre fin à ce contrat à tout moment en procédant à la
 désinstallation complète de Nolys. Celle-ci peut être
 effectuée depuis les Paramètres de Windows ou via le raccourci de
 désinstallation généré par l'assistant d'installation.
+
+5. COMPOSANTS TIERS
+Le moteur vidéo FFmpeg est distribué séparément dans resources/replay,
+sous GNU GPL version 3. Ses droits et sa licence restent applicables,
+indépendamment du présent contrat. Les fichiers FFmpeg-LICENSE.txt,
+FFmpeg-README.txt et SOURCES.txt accompagnent ce composant et indiquent
+sa provenance, ses dépendances et l'accès à son code source.
 ========================================================================

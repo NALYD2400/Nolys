@@ -25,7 +25,7 @@ export function afterIntro(callback) {
  * internes (nouvelle playlist, confirmation).
  */
 const FITTED_PANELS = {
-    replay: { min: 360, max: 536 },
+    replay: { min: 180, max: 536 },
     files: { min: 280, max: 496 },
     library: { min: 280, max: 496 },
     'music-history': { min: 260, max: 452 },

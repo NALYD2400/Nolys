@@ -1,0 +1,17 @@
+FFmpeg distribué avec Nolys 2.5.0
+
+Version : 8.1.1-full_build-www.gyan.dev (binaire non modifié)
+Provenance : https://www.gyan.dev/ffmpeg/builds/
+Distribution amont : https://github.com/GyanD/codexffmpeg/releases/tag/8.1.1
+Source FFmpeg exacte, indiquée par le fournisseur :
+https://github.com/FFmpeg/FFmpeg/commit/239f2c733d
+Archive source :
+https://github.com/FFmpeg/FFmpeg/archive/239f2c733d.tar.gz
+
+Le fichier FFmpeg-README.txt fourni avec ce binaire décrit les bibliothèques
+incluses, leurs versions et leurs liens amont. FFmpeg-LICENSE.txt contient
+la licence GPL version 3. build-info.txt conserve la configuration de
+compilation et ffmpeg.sha256 identifie le binaire livré.
+
+L'archive source FFmpeg correspondante est également proposée avec la release :
+https://github.com/NALYD2400/Nolys/releases/tag/v2.5.0

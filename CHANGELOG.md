@@ -1,5 +1,16 @@
 # Historique
 
+## 2.5.0 — 19 octobre 2026
+
+- Nouveau module Fichiers : déposer ou sélectionner des fichiers, convertir les images en PNG/JPG/WebP/BMP, redimensionner, compresser en JPG et exporter des copies en conservant les originaux. Les traitements et résultats sont regroupés dans Activité.
+- Aperçu des images sélectionnées et exportées en grand dans l’Island, avec retour par la flèche ou Échap. Copier, afficher dans le dossier et glisser les résultats vers une autre application.
+- Nouveau module Replay & REC : tampon de replay instantané à durée et mémoire configurables, sauvegarde des dernières secondes et enregistrement continu jusqu’à arrêt. Capture d’écran ou de fenêtre via DXGI/WGC et encodage GPU via FFmpeg embarqué.
+- Profils vidéo et réglages de résolution, FPS, débit, encodeur, son du PC et microphone. Le raccourci de sauvegarde fonctionne lorsque le panneau est fermé. Les performances et les formats disponibles dépendent du matériel et des pilotes Windows.
+- Clips : lecteur vidéo intégré dans une Island élargie, renommage du fichier vidéo et suppression via la Corbeille Windows. La hauteur de la liste suit le nombre de clips.
+- Indicateur caméra aux côtés de la capsule pendant une capture, positionné avec les bulles micro et chrono et masqué dans les panneaux ouverts. Bouton d’arrêt teinté de rouge.
+- Réglages des menus : choix des modules visibles, ordre et raccourcis personnels. Correction de la barre de défilement fugitive à l’ouverture du menu.
+- Interfaces Fichiers et Replay simplifiées : actions principales accessibles, détails techniques regroupés dans les réglages et panneaux ajustés à leur contenu.
+
 ## 2.4.0 — 17 octobre 2026
 
 - Réglages ouverts directement dans l’Island, comme la Bibliothèque : la capsule s’agrandit (sa plus grande forme, 680 px de large) au lieu d’ouvrir une fenêtre à part. La fenêtre transparente de l’Island passe de 620 à 720 px de large pour leur faire place ; la pilule reste exactement au même endroit de l’écran. Depuis le menu, le clic droit, l’icône de la barre des tâches ou Ctrl+Alt+P (un second appui les referme) ; l’Island réapparaît si elle était masquée. Échap, ✕ ou un clic ailleurs les referment, le bouton ⊞ revient au menu.

@@ -1,0 +1,44 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { createHash, createPublicKey, verify } from 'node:crypto';
+
+const root = path.resolve(import.meta.dirname, '..');
+const read = file => fs.readFileSync(path.join(root, file), 'utf8').replace(/\r\n/g, '\n');
+const config = JSON.parse(read('src-tauri/tauri.conf.json'));
+const version = JSON.parse(read('package.json')).version;
+assert.equal(config.version, version);
+const lock = JSON.parse(read('package-lock.json'));
+assert.equal(lock.version, version); assert.equal(lock.packages[''].version, version);
+assert.ok(read('src-tauri/Cargo.toml').includes(`version = "${version}"`));
+assert.ok(read('src-tauri/Cargo.lock').includes(`name = "liquid-dynamic-island"\nversion = "${version}"`));
+assert.equal(config.plugins.updater.pubkey.trim(), read('keys/updater.key.pub').trim());
+const folder = path.join(root, 'src-tauri/target/release/bundle/nsis');
+const name = `Nolys_${version}_x64-setup.exe`;
+const installer = fs.readFileSync(path.join(folder, name));
+assert.equal(installer.subarray(0, 2).toString(), 'MZ');
+const signatureText = fs.readFileSync(path.join(folder, `${name}.sig`), 'utf8').trim();
+const lines = Buffer.from(signatureText, 'base64').toString('utf8').trim().split(/\r?\n/);
+const publicLines = Buffer.from(config.plugins.updater.pubkey, 'base64').toString('utf8').trim().split(/\r?\n/);
+const key = Buffer.from(publicLines[1], 'base64');
+const signature = Buffer.from(lines[1], 'base64');
+assert.equal(key.length, 42); assert.equal(signature.length, 74);
+assert.deepEqual(key.subarray(2, 10), signature.subarray(2, 10));
+const publicKey = createPublicKey({ key: Buffer.concat([Buffer.from('302a300506032b6570032100', 'hex'), key.subarray(10)]), format: 'der', type: 'spki' });
+const algorithm = signature.subarray(0, 2).toString();
+assert.ok(['Ed', 'ED'].includes(algorithm));
+const message = algorithm === 'ED' ? createHash('blake2b512').update(installer).digest() : installer;
+assert.ok(verify(null, message, publicKey, signature.subarray(10)), 'Invalid updater signature');
+assert.ok(lines[2].startsWith('trusted comment: '));
+assert.ok(verify(null, Buffer.concat([signature.subarray(10), Buffer.from(lines[2].slice(17))]), publicKey, Buffer.from(lines[3], 'base64')), 'Invalid signed comment');
+const manifest = JSON.parse(fs.readFileSync(path.join(folder, 'latest.json'), 'utf8'));
+assert.equal(manifest.version, version);
+assert.equal(manifest.platforms['windows-x86_64'].signature, signatureText);
+assert.equal(manifest.platforms['windows-x86_64'].url, `https://github.com/NALYD2400/Nolys/releases/download/v${version}/${name}`);
+assert.ok(Number.isFinite(Date.parse(manifest.pub_date)));
+for (const resource of ['ffmpeg.exe', 'FFmpeg-LICENSE.txt', 'FFmpeg-README.txt', 'SOURCES.txt', 'build-info.txt', 'ffmpeg.sha256']) {
+    assert.ok(fs.statSync(path.join(root, 'src-tauri/resources/replay', resource)).size > 0, `Missing resource: ${resource}`);
+}
+const ffmpeg = fs.readFileSync(path.join(root, 'src-tauri/resources/replay/ffmpeg.exe'));
+assert.equal(createHash('sha256').update(ffmpeg).digest('hex'), read('src-tauri/resources/replay/ffmpeg.sha256').trim().split(/\s+/)[0].toLowerCase());
+console.log(JSON.stringify({ version, name, bytes: installer.length, sha256: createHash('sha256').update(installer).digest('hex'), updaterSignature: 'valid', signedComment: 'valid', manifest: 'valid', replayResources: 'present' }, null, 2));
