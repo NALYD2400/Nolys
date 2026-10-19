@@ -38,6 +38,7 @@ function islandFor(t, mode = 'music', isExpanded = false) {
             this.content.innerHTML = 'music';
         },
         renderMenu() { this.content.innerHTML = 'menu'; },
+        sizeModuleMenu: noop,
         renderMixer() { this.content.innerHTML = 'mixer'; },
         renderControl() { this.content.innerHTML = 'control'; },
     };

@@ -12,3 +12,7 @@ dist/
 
 # Cache local du contrôle visuel
 .impeccable/hook.cache.json
+.impeccable/runtime/
+.impeccable/fixtures/
+.impeccable/clipboard-test/
+.impeccable/review/

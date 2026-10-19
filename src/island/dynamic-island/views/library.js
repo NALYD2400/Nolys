@@ -25,6 +25,7 @@ export function afterIntro(callback) {
  * internes (nouvelle playlist, confirmation).
  */
 const FITTED_PANELS = {
+    files: { min: 280, max: 496 },
     library: { min: 280, max: 496 },
     'music-history': { min: 260, max: 452 },
     settings: { min: 380, max: 524 },
@@ -53,7 +54,7 @@ export const libraryView = {
         if (!limits || !Number.isFinite(wanted)) return;
         const height = Math.round(Math.min(limits.max, Math.max(limits.min, wanted)));
         this._panelHeights ??= {};
-        const current = this.mode === mode && this.isExpanded && host?.isConnected && this.content.contains(host);
+        const current = this.mode === mode && this.isExpanded && host?.isConnected && (this.content.contains(host) || (mode === 'files' && this.el.contains(host)));
         if (this._panelHeights[mode] === height && (!current || this.el.style.height === `${height}px`)) return;
         this._panelHeights[mode] = height;
         if (!current || this._layoutEditMode) return;

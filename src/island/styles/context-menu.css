@@ -14,6 +14,8 @@
     z-index: 999999 !important;
     isolation: isolate;
     min-width: 196px;
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
     padding: 5px;
     box-sizing: border-box;
     display: flex;
@@ -38,6 +40,22 @@
     animation: menuOpen 0.22s cubic-bezier(0.2, 0.9, 0.25, 1.15);
     pointer-events: auto !important; /* Ensure context menu is always clickable */
     overflow: hidden;
+}
+
+.context-menu > :not(.context-menu-entries) {
+    flex-shrink: 0;
+}
+
+.context-menu-entries {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.context-menu-entries .context-menu-item {
+    width: 100%;
 }
 
 /* Métal brossé sombre, comme la pilule en matière « métal ». */

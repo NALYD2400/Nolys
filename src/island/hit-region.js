@@ -57,5 +57,6 @@ export function trackHitRegion() {
     island.addEventListener('transitionend', schedule);
     island.addEventListener('animationend', schedule);
     window.addEventListener('resize', schedule);
+    window.addEventListener('nolys-hit-region-changed', schedule);
     schedule();
 }

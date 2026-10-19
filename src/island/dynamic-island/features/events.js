@@ -4,11 +4,13 @@ import { escapeHtml, formatTime } from '../helpers/format.js';
 import { getDisplayMediaArt } from '../helpers/media-art.js';
 import { isHistoryTrack } from '../helpers/music-search.js';
 import { themeLook } from '../../../shared/theme-look.js';
+import { readMenus, visibleMenuEntries } from '../../../shared/menu-config.js';
 
 export const eventMethods = {
     initEvents() {
         // Right-click context menu listener
         this.el.addEventListener('contextmenu', (e) => {
+            if (this.mode === 'files' || this._fileReceiving) { e.preventDefault(); return; }
             if (this.mode === 'library' || this.mode === 'music-history' || this.mode === 'settings') return;
             e.preventDefault();
             e.stopPropagation();
@@ -22,6 +24,7 @@ export const eventMethods = {
         });
 
         this.el.addEventListener('click', (e) => {
+            if (this.mode === 'files' || this._fileReceiving) return;
             if (this._layoutEditMode) return;
             if (this.mode === 'library' || this.mode === 'settings') return;
             if (this.isExpanded && (this.mode === 'search' || this.mode === 'music-search' || this.mode === 'music-history' || this.mode === 'control' || this.mode === 'mixer' || this.mode === 'mic')) return; // Don't toggle expansion on interactive screens
@@ -336,14 +339,16 @@ export const eventMethods = {
 
         const isPlaying = Boolean(this.musicData?.isPlaying ?? this.isPlaying);
         // Les commandes de lecture n'ont de sens que s'il y a un morceau à piloter.
-        const hasMedia = isHistoryTrack(this.musicData || {});
+        const menus = readMenus();
+        const menuEntries = visibleMenuEntries('context', menus);
+        const hasMedia = menus.showMedia && isHistoryTrack(this.musicData || {});
         const micOn = Boolean(this.micConfig?.enabled);
         const isCurrent = (mode) => this.isExpanded && this.mode === mode;
         const item = (action, icon, label, { extraClass = '', badge = '' } = {}) => `
             <button type="button" class="context-menu-item ${extraClass}" role="menuitem" data-action="${action}">
-                <i class="ph ${icon}"></i>
-                <span>${label}</span>
-                ${isCurrent(action) ? '<i class="ph-bold ph-check context-menu-check" aria-label="Affiché"></i>' : badge}
+                <i class="ph ${icon}" aria-hidden="true"></i>
+                <span>${escapeHtml(label)}</span>
+                ${isCurrent(action) ? '<i class="ph-bold ph-check context-menu-check" aria-hidden="true"></i>' : badge}
             </button>`;
         const art = hasMedia ? getDisplayMediaArt(this.musicData) : '';
         // Pochette, titre et artiste : on voit ce que pilotent les boutons juste en dessous.
@@ -380,15 +385,12 @@ export const eventMethods = {
         menu.innerHTML = `
             <div class="context-menu-bg"></div>
             ${mediaSection}
-            ${item('music', 'ph-music-notes', 'Lecteur')}
-            ${item('control', 'ph-squares-four', 'Centre de contrôle')}
-            ${item('mixer', 'ph-sliders-horizontal', 'Mélangeur')}
-            ${item('mic', 'ph-microphone', 'Retour micro', { badge: micOn ? '<span class="context-menu-badge">Activé</span>' : '' })}
-            <div class="context-menu-separator"></div>
-            ${item('layout', 'ph-arrows-out-cardinal', 'Déplacer et redimensionner')}
-            ${item('settings', 'ph-gear-six', 'Réglages…')}
-            <div class="context-menu-separator"></div>
-            ${item('exit', 'ph-power', 'Quitter Nolys', { extraClass: 'danger' })}
+            <div class="context-menu-entries">
+                ${menuEntries.map(entry => item(entry.id, entry.icon, entry.label, {
+                    extraClass: entry.id === 'exit' ? 'danger' : '',
+                    badge: entry.id === 'mic' && micOn ? '<span class="context-menu-badge">Activé</span>' : '',
+                })).join('')}
+            </div>
         `;
 
         if (art) {
@@ -402,7 +404,9 @@ export const eventMethods = {
         // Placement : on mesure le vrai menu et on le garde dans la fenêtre ;
         // l'animation part du coin le plus proche du curseur.
         const margin = 8;
-        const { width, height } = menu.getBoundingClientRect();
+        // Dimensions de mise en page : l'animation d'ouverture applique encore une échelle.
+        const width = menu.offsetWidth;
+        const height = menu.offsetHeight;
         const openLeft = x + width + margin > window.innerWidth;
         const openUp = y + height + margin > window.innerHeight;
         menu.style.left = `${Math.max(margin, openLeft ? x - width : x)}px`;
@@ -411,18 +415,13 @@ export const eventMethods = {
 
         const runAction = (action) => {
             this.closeContextMenu();
-            if (action === 'music' || action === 'control' || action === 'mixer' || action === 'mic') {
-                this.openExpandedMode(action);
-            } else if (action === 'settings') {
-                this.setMode('settings');
-            } else if (action === 'layout') {
-                ipcRenderer.send('set-layout-edit-mode', true);
+            const entry = menuEntries.find(item => item.id === action);
+            if (entry) {
+                this.activateMenuEntry(entry);
             } else if (action === 'play') {
                 window.spotifyControl('toggle');
             } else if (action === 'next' || action === 'prev') {
                 window.spotifyControl(action);
-            } else if (action === 'exit' && ipcRenderer) {
-                ipcRenderer.send('exit-app');
             }
         };
 

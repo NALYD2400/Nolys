@@ -52,6 +52,9 @@ const SURFACES_BY_MODE = {
     'music-history': [
         { selector: '.lib-header .round-btn', options: { material: 'clear', radius: 'circle', interactive: true } },
     ],
+    files: [
+        { selector: '.lib-header .round-btn', options: { material: 'clear', radius: 'circle', interactive: true } },
+    ],
 };
 
 /** Une pochette très sombre teinterait le verre en noir sur fond noir : on l'éclaircit. */
@@ -128,7 +131,7 @@ export const glassMethods = {
             };
 
             // Bibliothèque et Historique vivent dans un shadow DOM : leurs boutons y sont cherchés.
-            const surfaceRoot = { library: this._libraryHost, 'music-history': this._historyHost }[mode]?.shadowRoot ?? this.content;
+            const surfaceRoot = { library: this._libraryHost, 'music-history': this._historyHost, files: this._filesHost }[mode]?.shadowRoot ?? this.content;
             if (!surfaceRoot) return;
             for (const { selector, options, hoverOnly } of SURFACES_BY_MODE[mode]) {
                 for (const element of surfaceRoot.querySelectorAll(selector)) {

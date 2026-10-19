@@ -110,7 +110,7 @@ button {
 /* ---------------------------------------------------------------- Barre latérale */
 
 .sidebar {
-    /* Coins concentriques avec la capsule (rayon 40, marge 12). */
+    /* Même retrait en haut et en bas ; arrondi intérieur plus discret que la coque. */
     margin: 12px 0 12px 12px;
     padding: 12px 8px;
     display: flex;
@@ -253,7 +253,8 @@ button {
     transition: opacity 0.2s ease;
 }
 
-.header-backdrop-inner {
+.header-backdrop-inner,
+.footer-backdrop-inner {
     position: absolute;
     top: 0;
     left: calc(-1 * var(--sidebar-width));
@@ -262,6 +263,24 @@ button {
     height: var(--panel-height, 524px);
     overflow: hidden;
     background: #161618;
+}
+
+.footer-backdrop {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 32px;
+    z-index: 1;
+    overflow: hidden;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 16px);
+    mask-image: linear-gradient(to bottom, transparent, #000 16px);
+}
+
+.footer-backdrop-inner {
+    top: auto;
+    bottom: 0;
 }
 
 .content.is-scrolled .header-backdrop {
@@ -320,9 +339,12 @@ button {
 .page {
     flex: 1;
     overflow-y: auto;
-    padding: 8px 14px 22px 18px;
+    margin: 0 12px 16px 0;
+    padding: 8px 8px 22px 18px;
     overscroll-behavior: contain;
     animation: page-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
 }
 
 /* Barre de défilement discrète : fine, sans rail, visible seulement au survol de la page. */
@@ -351,8 +373,8 @@ button {
 /* Le contenu s'efface en douceur sous l'en-tête, seulement une fois défilé : au repos, le
  * haut de la première carte restait à moitié effacé. */
 .content.is-scrolled .page {
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px);
-    mask-image: linear-gradient(to bottom, transparent 0, #000 14px);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent);
 }
 
 @keyframes page-in {
@@ -531,6 +553,26 @@ button {
     min-width: 200px;
     max-height: 320px;
     overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+/* Barre fine sans rail opaque, comme celle des pages de réglages. */
+.select-menu::-webkit-scrollbar {
+    width: 4px;
+}
+
+.select-menu::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 12px 0;
+}
+
+.select-menu::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.16);
+    border-radius: 4px;
+}
+
+.select-menu::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
 }
 
 .menu-item {
@@ -580,6 +622,133 @@ button {
 .text-input-wide {
     flex: 1;
     width: auto;
+}
+
+/* Personnalisation des menus : ordre, visibilité et destinations. */
+.menu-editor-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.menu-editor-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 52px;
+    padding: 10px 14px;
+}
+
+.menu-editor-row + .menu-editor-row {
+    border-top: 1px solid var(--separator);
+}
+
+.menu-editor-icon {
+    flex: none;
+    font-size: 19px;
+    color: var(--accent);
+}
+
+.menu-editor-name {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    gap: 3px;
+    font-size: 12.5px;
+    overflow-wrap: anywhere;
+}
+
+.menu-editor-name small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.menu-editor-row.is-hidden .menu-editor-name {
+    color: var(--text-secondary);
+}
+
+.menu-editor-actions,
+.menu-editor-icons,
+.menu-editor-form-actions {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: none;
+}
+
+.menu-editor-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 26px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 15px;
+}
+
+.menu-editor-button:hover:not(:disabled),
+.menu-editor-button[aria-pressed="true"] {
+    background: var(--fill-hover);
+    color: var(--accent);
+}
+
+.menu-editor-button:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.menu-editor-button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.menu-editor-lock {
+    width: 32px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.menu-editor-fields {
+    display: grid;
+    gap: 14px;
+    padding: 14px;
+}
+
+.menu-editor-fields label {
+    display: grid;
+    gap: 7px;
+    font-size: 12px;
+}
+
+.menu-editor-fields .text-input {
+    width: 100%;
+}
+
+.menu-editor-icons {
+    flex-wrap: wrap;
+}
+
+.menu-editor-fields .card-footer {
+    margin: 0;
+}
+
+.menu-editor-form-actions {
+    justify-content: flex-end;
+    padding: 0 14px 14px;
+}
+
+.menu-editor-message {
+    padding: 0 14px;
 }
 
 .inline-form {

@@ -13,7 +13,7 @@ use crate::state::AppState;
 use crate::{events, island, platform};
 
 /// Actions reconnues. Les identifiants sont ceux de `HOTKEY_ACTIONS` côté interface.
-const ACTIONS: [&str; 11] = [
+const ACTIONS: [&str; 12] = [
     "toggleVisibility",
     "layoutEdit",
     "openMusic",
@@ -25,6 +25,7 @@ const ACTIONS: [&str; 11] = [
     "quickScreenshot",
     "openMixer",
     "openSettings",
+    "openFiles",
 ];
 
 /// Une action et sa combinaison (`Ctrl+Alt+K`…), telles qu'envoyées par les Réglages.
@@ -69,6 +70,7 @@ fn run(app: &AppHandle, action: &str) {
         "openControl" => open_mode(app, "control"),
         "openMic" => open_mode(app, "mic"),
         "openMixer" => open_mode(app, "mixer"),
+        "openFiles" => open_mode(app, "files"),
         // Les Réglages s'ouvrent dans l'Island ; un second appui les referme.
         "openSettings" => island::open_settings(app, true),
         "mediaToggle" => media_control(app.clone(), "toggle".into()),
@@ -83,6 +85,9 @@ fn run(app: &AppHandle, action: &str) {
 
 /// Ouvre un mode dans l'Island (lecteur, centre de contrôle, retour micro), en l'affichant d'abord si elle est masquée.
 fn open_mode(app: &AppHandle, mode: &str) {
+    if mode == "files" {
+        if let Some(window) = island::window(app) { let _ = window.set_focus(); }
+    }
     if let Some(hwnd) = island::window(app).and_then(|window| window.hwnd().ok()) {
         if !platform::window::is_visible(hwnd) {
             island::toggle_visibility(app, "shortcut-open");
@@ -94,6 +99,8 @@ fn open_mode(app: &AppHandle, mode: &str) {
 /// Remplace tous les raccourcis par `bindings` et renvoie ceux que Windows refuse.
 /// Les anciens sont retirés d'abord : changer une combinaison ne laisse aucun doublon actif.
 pub fn register_all(app: &AppHandle, bindings: &[Binding]) -> Vec<Conflict> {
+    // L'instance de test peut coexister avec Nolys installé sans prendre ses raccourcis.
+    if crate::isolated_dev() { return Vec::new(); }
     let shortcuts = app.global_shortcut();
     if let Err(error) = shortcuts.unregister_all() {
         crate::logger::log(&format!("[Shortcut] Failed to clear hotkeys: {error}"));

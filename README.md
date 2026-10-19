@@ -18,6 +18,7 @@ Le cœur Tauri 2 / Rust remplace l’ancien assemblage Electron, .NET et PowerSh
 - Retour micro : ta voix dans le casque en direct, avec anti-bruit RNNoise, porte de bruit, coupe-bas et latence réglable.
 - Centre de contrôle : commandes Windows, raccourcis, météo et mesures système.
 - Chronomètre, notifications compactes, placement et taille sur plusieurs écrans.
+- Réglages → Menus : boutons visibles, ordre et raccourcis personnels pour les modules et le clic droit ; la bulle adapte sa taille au contenu.
 - Matériaux, transparence, flou, halos et couleurs personnalisables ; synchronisation avec les pochettes et le fond d’écran.
 
 ## Identité

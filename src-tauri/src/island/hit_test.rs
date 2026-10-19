@@ -71,7 +71,9 @@ fn tick(app: &AppHandle) -> bool {
 
     if hovered && click_through {
         super::set_click_through(app, false);
-    } else if !hovered && !click_through && !win::mouse_button_down() {
+    } else if !hovered && !click_through && (!win::mouse_button_down()
+        || app.state::<crate::files::Store>().dragging.load(Ordering::Acquire)
+        || app.state::<crate::files::Store>().outgoing.load(Ordering::Acquire)) {
         // Bouton enfoncé : on attend la fin du glisser (barre de progression, curseurs) avant de relâcher.
         super::set_click_through(app, true);
     }

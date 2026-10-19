@@ -2,6 +2,7 @@
 
 mod commands;
 mod events;
+mod files;
 mod island;
 mod logger;
 mod library;
@@ -20,17 +21,23 @@ use tauri::{AppHandle, Manager};
 
 use state::AppState;
 
+pub(crate) fn isolated_dev() -> bool {
+    cfg!(debug_assertions) && std::env::var_os("NOLYS_DEV_DATA_DIR").is_some()
+}
+
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+    if !isolated_dev() {
         // Une seule instance : relancer l'appli ré-affiche simplement l'Island.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(hwnd) = island::window(app).and_then(|window| window.hwnd().ok()) {
                 if !platform::window::is_visible(hwnd) {
                     island::toggle_visibility(app, "second-instance");
                 }
             }
-        }))
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        }));
+    }
+    builder.plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
@@ -38,6 +45,16 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            files::commands::files_dev_log,
+            files::commands::files_dev_open,
+            files::commands::files_snapshot,
+            files::commands::files_pick,
+            files::commands::files_start,
+            files::commands::files_cancel,
+            files::commands::files_forget,
+            files::commands::files_reveal,
+            files::commands::files_copy,
+            files::commands::files_drag_out,
             library::commands::library_get,
             library::commands::library_import,
             library::commands::library_mutate,
@@ -99,14 +116,18 @@ pub fn run() {
 }
 
 fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    let data_dir = app.path().app_data_dir()?;
+    let dev_data = if cfg!(debug_assertions) { std::env::var_os("NOLYS_DEV_DATA_DIR").map(std::path::PathBuf::from) } else { None };
+    let isolated = dev_data.is_some();
+    let data_dir = dev_data.unwrap_or(app.path().app_data_dir()?);
     std::fs::create_dir_all(&data_dir)?;
     logger::init(data_dir.clone());
     app.manage(library::Store::new(data_dir.clone()));
+    let exports = if isolated { data_dir.join("Exports") } else { app.path().document_dir()?.join("Nolys").join("Exports") };
+    app.manage(files::Store::new(data_dir.clone(), exports));
     logger::log(&format!("[App] Starting Nolys {}", app.package_info().version));
-    migration::import_legacy_files(&data_dir);
+    if !isolated { migration::import_legacy_files(&data_dir); }
     platform::mic_monitor::init(&data_dir);
-    let legacy_settings = migration::legacy_settings_script(&data_dir);
+    let legacy_settings = if isolated { None } else { migration::legacy_settings_script(&data_dir) };
 
     let layout = island::layout::load(app, &data_dir);
     app.manage(AppState::new(data_dir, layout));
@@ -115,6 +136,7 @@ fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     std::thread::spawn(platform::smtc::init);
 
     island::create(app, legacy_settings)?;
+    files::drag::install(app)?;
     tray::create(app)?;
     island::hit_test::start(app.clone());
     island::start_watchdog(app.clone());
@@ -124,16 +146,19 @@ fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         tokio::time::sleep(Duration::from_millis(2500)).await;
         let wallpaper = handle.state::<AppState>().wallpaper.clone();
         tauri::async_runtime::spawn_blocking(move || wallpaper.store_original());
-        updater::check(handle).await;
+        if !isolated { updater::check(handle).await; }
     });
     Ok(())
 }
 
 /// Quitte proprement : restaure le fond d'écran d'origine si la synchro était active.
 pub fn quit(app: &AppHandle) {
+    app.state::<files::Store>().cancel_all();
     let handle = app.clone();
     tauri::async_runtime::spawn(async move {
-        let _ = tauri::async_runtime::spawn_blocking(platform::mic_monitor::shutdown).await;
+        let microphone = tauri::async_runtime::spawn_blocking(platform::mic_monitor::shutdown);
+        files::wait_for_shutdown(&handle).await;
+        let _ = microphone.await;
         let wallpaper = handle.state::<AppState>().wallpaper.clone();
         if wallpaper.is_enabled() {
             let _ = tauri::async_runtime::spawn_blocking(move || wallpaper.restore_original()).await;

@@ -19,6 +19,10 @@ export const notificationMethods = {
 
     showNotification(title, message, icon = 'ph-bell') {
         if (!notificationsAllowed(this)) return;
+        if (this.mode === 'files' || this._fileReceiving) {
+            this.filesNotify(`${title} — ${message}`);
+            return;
+        }
         // Une alerte ne remplace pas le formulaire ou la collection en cours d’utilisation.
         const panel = this.mode === 'library' ? this._libraryController : this.mode === 'music-history' ? this._historyController : null;
         if (panel) {

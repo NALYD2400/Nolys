@@ -19,6 +19,7 @@ export const HOTKEY_ACTIONS = [
     { id: 'mediaNext', group: 'Musique', label: 'Titre suivant', accelerator: 'Ctrl+Alt+L' },
     { id: 'quickScreenshot', group: 'Outils', label: 'Capture d’écran rapide', description: 'Ouvre l’outil Capture d’écran de Windows.', accelerator: 'Ctrl+Alt+S' },
     { id: 'openSettings', group: 'Outils', label: 'Ouvrir les Réglages', accelerator: 'Ctrl+Alt+P' },
+    { id: 'openFiles', group: 'Outils', label: 'Ouvrir les fichiers', accelerator: 'Ctrl+Alt+F' },
 ];
 
 /** `{ [id]: { accelerator, enabled } }` : les réglages par défaut de chaque action. */

@@ -66,6 +66,7 @@ export const navigationMethods = {
 
     /** `force` : fermeture demandée par l'utilisateur (Échap, ✕), même avec un dialogue ouvert. */
     collapseIsland({ force = false } = {}) {
+        if (this.mode === 'files') { this.closeFiles(); return; }
         if (!this.isExpanded) return;
         // Sélecteur de fichiers Windows ouvert : la perte de focus ne doit pas fermer la vue.
         if (this.mode === 'library' && this._libraryController?.busy) return;
@@ -110,8 +111,7 @@ export const navigationMethods = {
         try {
             const rawCommand = String(command).trim();
             if (rawCommand.startsWith('liquid:')) {
-                this.runInternalShortcut(rawCommand);
-                return true;
+                return this.runInternalShortcut(rawCommand);
             }
 
             // `false` : commande introuvable ou refusée par le cœur natif.
@@ -124,47 +124,24 @@ export const navigationMethods = {
 
     runInternalShortcut(command) {
         const action = String(command || '').replace('liquid:', '').trim();
-        this.isExpanded = true;
-
         if (action === 'music-search') {
             this.openMusicSearchPanel();
-            return;
+            return true;
         }
-        if (action === 'music-history') {
-            this.mode = 'music-history';
-            this.renderContent();
-            return;
-        }
-        if (action === 'menu' || action === 'widgets') {
-            this.mode = 'menu';
-            this.renderContent();
-            return;
-        }
-        if (action === 'mixer') {
-            this.mode = 'mixer';
-            this.renderContent();
-            return;
-        }
-        if (action === 'mic') {
-            this.mode = 'mic';
-            this.renderContent();
-            return;
-        }
-        if (action === 'control') {
-            this.mode = 'control';
-            this.renderContent();
-            return;
-        }
-        if (action === 'settings') {
-            this.setMode('settings');
-            return;
-        }
-
-        this.mode = 'music';
-        this.renderContent();
+        const mode = action === 'widgets' ? 'menu' : action;
+        if (!['music', 'music-history', 'menu', 'mixer', 'mic', 'control', 'settings', 'library', 'files', 'timer'].includes(mode)) return false;
+        this.isExpanded = true;
+        this.setMode(mode);
+        return true;
     },
 
     setMode(mode) {
+        if (mode === 'files') { this.openFiles(); return; }
+        if (this.mode === 'files') {
+            if (this._filesController?.busy) return;
+            this.leaveFiles();
+            this._filesReturnState = null;
+        }
         if (mode === 'library') {
             this.openLibrary();
             return;
@@ -214,7 +191,8 @@ export const navigationMethods = {
             'island-mode-mixer',
             'island-mode-mic',
             'island-mode-library',
-            'island-mode-settings'
+            'island-mode-settings',
+            'island-mode-files'
         ];
     },
 
@@ -239,6 +217,8 @@ export const navigationMethods = {
     },
 
     renderContent() {
+        if (this.mode === 'files') { this.renderFiles(); return; }
+        if (this._filesHost) this.leaveFiles();
         if (this.mode !== 'library' || !this.isExpanded) this.leaveLibrary?.();
         if (this.mode !== 'music-history' || !this.isExpanded) this.leaveMusicHistory?.();
         if (this.mode !== 'settings' || !this.isExpanded) this.leaveSettings?.();
@@ -248,7 +228,9 @@ export const navigationMethods = {
 
         // Reset any inline sizing from dynamic modes (e.g. mixer/history autosize)
         try {
-            if (this.isExpanded && this.mode === 'mixer') {
+            if (this.isExpanded && this.mode === 'menu') {
+                this.sizeModuleMenu();
+            } else if (this.isExpanded && this.mode === 'mixer') {
                 const grouped = this.getGroupedSessions ? this.getGroupedSessions(this.audioSessions || []) : [];
                 const count = grouped.length;
                 const visible = Math.max(1, Math.min(count || 1, 5));

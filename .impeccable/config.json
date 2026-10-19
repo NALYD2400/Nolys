@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "createdAt": "2026-10-18T17:33:42.860Z",
+        "reason": "Agent decision: Inter is the existing Nolys typeface in src/settings/styles.css:19 and src/island/index.html; this menu extension preserves the incumbent interface and typography."
+      }
+    ]
+  }
+}

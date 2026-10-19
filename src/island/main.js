@@ -75,6 +75,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Create the exact original DynamicIsland class
     const island = new DynamicIsland();
     window.island = island;
+    // Accès local de développement : les tests isolés n'enregistrent aucun raccourci global.
+    if (import.meta.env.DEV) document.addEventListener('keydown', event => {
+        if (event.key === 'F8' && event.ctrlKey && event.shiftKey) {
+            event.preventDefault();
+            native.invoke('files_dev_open').catch(() => {});
+        }
+    });
     island.localPlayer = new LocalMusicPlayer({
         ...native,
         onMedia: media => { if (media) island.updateMusic(media); else island.updateMediaState(); },
@@ -169,6 +176,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (config.modules.timer !== undefined) localStorage.setItem('liquid_island_timer_enabled', config.modules.timer);
             if (config.modules.control !== undefined) localStorage.setItem('liquid_island_control_enabled', config.modules.control);
             if (config.modules.gameDetection !== undefined) localStorage.setItem('liquid_game_detection_enabled', config.modules.gameDetection);
+        }
+        if (config.menus !== undefined) {
+            localStorage.setItem('liquid_menus', JSON.stringify(config.menus));
         }
         if (config.ecoMode !== undefined && String(config.ecoMode) !== localStorage.getItem('liquid_eco_mode')) {
             window.dispatchEvent(new CustomEvent('liquid-eco-mode-changed', { detail: Boolean(config.ecoMode) }));
@@ -308,6 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Raccourcis « ouvrir le lecteur / centre de contrôle / retour micro » : même ouverture que le clic droit.
     ipcRenderer.on('shortcut-open-mode', (event, mode) => {
+        if (mode === 'files') { window.island?.openFiles(); return; }
         if (window.island && ['music', 'control', 'mic', 'mixer'].includes(mode)) {
             window.island.openExpandedMode(mode);
         }

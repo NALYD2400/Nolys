@@ -1,79 +1,48 @@
-/** Menu des applications. */
+/** Menu des modules et des raccourcis personnels. */
+import { visibleMenuEntries, moduleMenuSize } from '../../../shared/menu-config.js';
+import { ipcRenderer } from '../../../shared/ipc.js';
+import { escapeHtml } from '../helpers/format.js';
+
 export const menuView = {
+    /** Calculé avant le ressort, sans dépendre du contenu de la vue précédente. */
+    sizeModuleMenu() {
+        const count = visibleMenuEntries('modules').length;
+        const top = document.getElementById('dynamic-island-container')?.getBoundingClientRect().top || 50;
+        const size = moduleMenuSize(count, Math.min(328, window.innerWidth - 32), Math.min(496, window.innerHeight - top - 24));
+        this.el.style.width = `${size.width}px`;
+        this.el.style.height = `${size.height}px`;
+        this.el.style.setProperty('--menu-columns', size.columns);
+    },
+
+    async activateMenuEntry(entry) {
+        if (entry.cmd) {
+            const launched = await this.launchShortcut(entry.cmd);
+            if (!launched) this.showNotification('Raccourci indisponible', `Impossible d’ouvrir « ${entry.label} ». Vérifie sa destination dans Réglages → Menus.`, 'ph-warning-circle');
+            else if (!entry.cmd.startsWith('liquid:')) this.collapseIsland();
+        } else if (entry.id === 'layout') {
+            ipcRenderer.send('set-layout-edit-mode', true);
+        } else if (entry.id === 'exit') {
+            ipcRenderer.send('exit-app');
+        } else {
+            this.isExpanded = true;
+            this.setMode(entry.id);
+        }
+    },
+
     renderMenu() {
-        const statsEnabled = localStorage.getItem('liquid_island_stats_enabled') !== 'false';
-        const timerEnabled = localStorage.getItem('liquid_island_timer_enabled') !== 'false';
-        const networkEnabled = localStorage.getItem('liquid_island_network_enabled') !== 'false';
-        const musicEnabled = localStorage.getItem('liquid_music_enabled') !== 'false';
-        const controlEnabled = localStorage.getItem('liquid_island_control_enabled') !== 'false';
-        const searchEnabled = localStorage.getItem('liquid_search_island_sync') !== 'false';
-
-        let itemsHtml = '';
-
-        if (controlEnabled) {
-            itemsHtml += `
-            <div class="island-menu-item" onclick="event.stopPropagation(); window.island.setMode('control')">
-                <div class="menu-icon"><i class="ph ph-sliders"></i></div>
-                <span>Contrôle</span>
-            </div>`;
-        }
-
-        if (musicEnabled) {
-            itemsHtml += `
-            <div class="island-menu-item" onclick="event.stopPropagation(); window.island.setMode('music')">
-                <div class="menu-icon"><i class="ph ph-music-notes"></i></div>
-                <span>Lecteur</span>
-            </div>`;
-
-            itemsHtml += `
-            <div class="island-menu-item" onclick="event.stopPropagation(); window.island.setMode('music-history')">
-                <div class="menu-icon"><i class="ph ph-clock-counter-clockwise"></i></div>
-                <span>Historique</span>
-            </div>`;
-        }
-
-        if (timerEnabled) {
-            itemsHtml += `
-            <div class="island-menu-item" onclick="event.stopPropagation(); window.island.setMode('timer')">
-                <div class="menu-icon"><i class="ph ph-timer"></i></div>
-                <span>Chrono</span>
-            </div>`;
-        }
-
-        // Mixer integration
-        itemsHtml += `
-        <div class="island-menu-item" onclick="event.stopPropagation(); window.island.setMode('mixer')">
-            <div class="menu-icon"><i class="ph ph-sliders-horizontal"></i></div>
-            <span>Mélangeur</span>
+        this.sizeModuleMenu();
+        const entries = visibleMenuEntries('modules');
+        this.content.innerHTML = `<div class="island-menu-grid" role="group" aria-label="Modules">
+            ${entries.map(entry => `<button type="button" class="island-menu-item" data-menu-id="${escapeHtml(entry.id)}" title="${escapeHtml(entry.label)}">
+                <div class="menu-icon"><i class="ph ${entry.icon}" aria-hidden="true"></i></div>
+                <span>${escapeHtml(entry.shortLabel || entry.label)}</span>
+            </button>`).join('')}
         </div>`;
-
-        itemsHtml += `
-        <div class="island-menu-item" onclick="event.stopPropagation(); window.island.setMode('mic')">
-            <div class="menu-icon"><i class="ph ph-microphone"></i></div>
-            <span>Micro</span>
-        </div>`;
-
-        // Réglages integration
-        itemsHtml += `
-        <div class="island-menu-item" onclick="event.stopPropagation(); window.island.setMode('library')">
-            <div class="menu-icon"><i class="ph ph-vinyl-record"></i></div>
-            <span>Bibliothèque</span>
-        </div>`;
-
-        itemsHtml += `
-        <div class="island-menu-item" onclick="event.stopPropagation(); window.island.setMode('settings')">
-            <div class="menu-icon"><i class="ph ph-gear"></i></div>
-            <span>Réglages</span>
-        </div>`;
-
-        if (itemsHtml === '') {
-            itemsHtml = '<div style="grid-column: 1/-1; opacity: 0.5; font-size: 13px;">Aucun module actif</div>';
-        }
-
-        this.content.innerHTML = `
-            <div class="island-menu-grid">
-                ${itemsHtml}
-            </div>
-        `;
+        this.content.querySelector('.island-menu-grid').addEventListener('click', event => {
+            event.stopPropagation();
+            const button = event.target.closest('[data-menu-id]');
+            const entry = entries.find(item => item.id === button?.dataset.menuId);
+            if (entry) this.activateMenuEntry(entry);
+        });
     },
 };

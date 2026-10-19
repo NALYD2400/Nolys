@@ -25,6 +25,18 @@ pub fn window(app: &AppHandle) -> Option<WebviewWindow> {
 pub fn create(app: &AppHandle, legacy_settings: Option<String>) -> tauri::Result<WebviewWindow> {
     let layout = app.state::<AppState>().layout.lock().clone();
     let mut builder = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("island/index.html".into()));
+    if cfg!(debug_assertions) && std::env::var_os("NOLYS_DEV_DATA_DIR").is_some() {
+        builder = builder.data_directory(app.state::<AppState>().data_dir.join("webview"));
+        builder = builder.initialization_script(r#"
+            const report = message => window.__TAURI__?.core.invoke('files_dev_log', {message: String(message)}).catch(() => {});
+            window.addEventListener('error', e => report('Error: ' + e.message + ' at ' + e.filename + ':' + e.lineno));
+            window.addEventListener('unhandledrejection', e => report('Rejection: ' + e.reason));
+            window.addEventListener('DOMContentLoaded', () => setTimeout(() => report(JSON.stringify({mode:window.island?.mode, expanded:window.island?.isExpanded, classes:document.querySelector('#dynamic-island')?.className, content:document.querySelector('.island-content')?.textContent?.slice(0,200)})), 1500));
+        "#);
+        if std::env::var_os("NOLYS_DEV_OPEN_FILES").is_some() {
+            builder = builder.initialization_script("window.addEventListener('DOMContentLoaded', () => setTimeout(() => window.island?.openFiles(), 1000));");
+        }
+    }
     if let Some(script) = legacy_settings {
         builder = builder.initialization_script(script);
     }
@@ -32,7 +44,7 @@ pub fn create(app: &AppHandle, legacy_settings: Option<String>) -> tauri::Result
     // Wry autorise déjà la lecture audio par défaut ; remplacer ses arguments sur
     // cette fenêtre seule empêche les autres WebViews de partager leur profil.
     let window = builder
-        .title("Nolys")
+        .title(if crate::isolated_dev() { "Nolys · Fichiers (dev)" } else { "Nolys" })
         .inner_size(BASE_WIDTH * layout.scale, BASE_HEIGHT * layout.scale)
         .position(layout.x, layout.y)
         .decorations(false)
@@ -41,6 +53,14 @@ pub fn create(app: &AppHandle, legacy_settings: Option<String>) -> tauri::Result
         .resizable(false)
         .always_on_top(true)
         .skip_taskbar(true)
+        .disable_drag_drop_handler()
+        .on_page_load(|window, payload| {
+            if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished) {
+                if let Err(error) = crate::files::drag::install(window.app_handle()) {
+                    crate::logger::log(&format!("[Files] Drop target initialization failed: {error}"));
+                }
+            }
+        })
         // Visible dès la création (sans prendre le focus) : tao doit savoir la fenêtre
         // affichée, sinon il la masque au moindre changement d'état.
         .focused(false)
@@ -54,6 +74,7 @@ pub fn create(app: &AppHandle, legacy_settings: Option<String>) -> tauri::Result
     window.on_window_event(move |event| match event {
         tauri::WindowEvent::Moved(_) => on_moved(&handle),
         tauri::WindowEvent::Focused(false) => schedule_enforce(&handle, "blur", 140),
+        tauri::WindowEvent::Destroyed => crate::files::drag::uninstall(),
         _ => {}
     });
     Ok(window)

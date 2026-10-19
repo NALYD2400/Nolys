@@ -7,6 +7,7 @@
  */
 import { DEFAULT_SHORTCUTS } from './presets.js';
 import { readHotkeys, sanitizeHotkeys } from '../../shared/hotkeys.js';
+import { readMenus, sanitizeMenus, MENU_STORAGE_KEY } from '../../shared/menu-config.js';
 
 const read = (key, fallback = null) => {
     const value = localStorage.getItem(key);
@@ -43,6 +44,7 @@ export function loadSettings() {
         // Plafond des animations continues : 60 par défaut, '0' pour la cadence de l'écran.
         maxFps: read('liquid_max_fps', '60'),
         hotkeys: readHotkeys(),
+        menus: readMenus(),
         activeProfile: read('liquid_active_profile', 'custom'),
 
         // Apparence
@@ -122,6 +124,7 @@ export function buildConfig(s) {
         visualizerMode: s.visualizerMode,
         visualizerSensitivity: s.visualizerSensitivity,
         hotkeys: s.hotkeys,
+        menus: sanitizeMenus(s.menus),
         widgetType: s.widgetType,
         activeProfile: s.activeProfile,
         shortcuts: s.shortcuts,
@@ -193,6 +196,7 @@ export function saveSettings(s) {
         liquid_visualizer_mode: s.visualizerMode,
         liquid_visualizer_sensitivity: s.visualizerSensitivity,
         liquid_hotkeys: JSON.stringify(s.hotkeys),
+        [MENU_STORAGE_KEY]: JSON.stringify(config.menus),
         liquid_control_widget_type: s.widgetType,
         liquid_weather_city: (s.weatherCity || '').trim(),
         liquid_control_shortcuts: JSON.stringify(s.shortcuts),
@@ -235,6 +239,7 @@ export function toSnapshot(s, layout) {
         hotkeys: s.hotkeys,
         shortcuts: s.shortcuts,
         player: config.player,
+        menus: config.menus,
         ecoMode: s.ecoMode,
         maxFps: s.maxFps,
         idleCompactMode: s.idleCompactMode,
@@ -305,6 +310,7 @@ export function fromSnapshot(current, snapshot = {}) {
         playerCoverBg: pick(glow.playerCoverBg, current.playerCoverBg),
         glowBreath: pick(glow.glowBreath, current.glowBreath),
         hotkeys: hotkeysFrom(snapshot, current.hotkeys),
+        menus: sanitizeMenus(snapshot.menus ?? snapshot.appConfig?.menus ?? current.menus),
         shortcuts: Array.isArray(snapshot.shortcuts) ? snapshot.shortcuts : current.shortcuts,
         showTimes: player.showTimes ?? current.showTimes,
         showVisualizer: player.showVisualizer ?? current.showVisualizer,

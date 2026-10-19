@@ -34,6 +34,7 @@ import { glowHaloMethods } from './features/glow-halo.js';
 import { framePacerMethods } from './features/frame-pacer.js';
 import { libraryView } from './views/library.js';
 import { settingsView } from './views/settings.js';
+import { filesView } from './views/files.js';
 
 export class DynamicIsland {
     constructor() {
@@ -102,6 +103,7 @@ export class DynamicIsland {
         this.renderIdle();
         this.applyLayoutConfig(this._layoutConfig);
         this.initEvents();
+        this.initFiles();
         this.initGlowHalo();
         this.initFramePacer();
         this.startMainLoop();
@@ -159,6 +161,7 @@ const METHOD_GROUPS = [
     micMonitorView,
     libraryView,
     settingsView,
+    filesView,
 ];
 
 // Méthodes non énumérables, comme celles déclarées directement dans une classe.

@@ -19,10 +19,12 @@ import Shortcuts from './pages/Shortcuts.jsx';
 import MicMonitor from './pages/MicMonitor.jsx';
 import Position from './pages/Position.jsx';
 import About from './pages/About.jsx';
+import Menus from './pages/Menus.jsx';
 
 const PAGES = [
     { id: 'general', label: 'Général', icon: 'ph-gear-six', color: '#8e8e93', Page: General },
     { id: 'island', label: 'Island', icon: 'ph-pill', color: '#d49460', Page: Island },
+    { id: 'menus', label: 'Menus', icon: 'ph-list-bullets', color: '#d49460', Page: Menus },
     { id: 'appearance', label: 'Apparence', icon: 'ph-paint-brush', color: '#af52de', Page: Appearance },
     { id: 'music', label: 'Musique', icon: 'ph-music-notes', color: '#ff2d55', Page: Music },
     { id: 'wallpaper', label: 'Fond d’écran', icon: 'ph-image', color: '#0a84ff', Page: Wallpaper },
@@ -72,7 +74,7 @@ function neededHeight(pageEl) {
         : bottom + parseFloat(getComputedStyle(pageEl).paddingBottom) + pageEl.scrollTop;
     // Barre latérale : dernière entrée, plus sa marge intérieure et sa marge dans la capsule (12 + 12).
     const sidebar = lastNav.getBoundingClientRect().bottom - view.getBoundingClientRect().top + 24;
-    return Math.ceil(Math.max(header.offsetHeight + content, sidebar));
+    return Math.ceil(Math.max(header.offsetHeight + content + parseFloat(getComputedStyle(pageEl).marginBottom), sidebar));
 }
 
 /** Libellés courts de la barre latérale (la capsule est étroite) ; le titre garde le nom complet. */
@@ -126,7 +128,7 @@ export default function App({ host, initialPage, pageRequest, onBack, onClose, o
         <GlassScene className="window" appearance="dark" maxSurfaces={48}>
             <Backdrop cover={cover} />
 
-            <GlassSurface className="sidebar" material="regular" radius={22}>
+            <GlassSurface className="sidebar" material="regular" radius={18}>
                 <header className="sidebar-header">
                     <img src="/assets/app-logo.png" alt="" />
                     <div>
@@ -185,6 +187,13 @@ export default function App({ host, initialPage, pageRequest, onBack, onClose, o
                 </header>
                 <div className="page" key={page.id} ref={pageRef} onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 2)}>
                     <page.Page store={store} />
+                </div>
+                {/* Les surfaces en verre sont peintes dans le fond de la scène : ce voile
+                    les efface aussi avant l'arrondi inférieur, au-delà de la zone défilante. */}
+                <div className="footer-backdrop" aria-hidden="true">
+                    <div className="footer-backdrop-inner">
+                        <BackdropLayers cover={cover} />
+                    </div>
                 </div>
             </main>
         </GlassScene>
