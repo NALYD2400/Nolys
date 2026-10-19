@@ -28,10 +28,13 @@ export const navigationMethods = {
             this._isTransitioning = true;
 
             // 3. Perform size change (updates parent size classes, starting the CSS width/height morph)
+            const shapeBefore = `${this.el.className}|${this.el.style.width}|${this.el.style.height}`;
             updateFn();
+            const shapeAfter = `${this.el.className}|${this.el.style.width}|${this.el.style.height}`;
 
-            // 4. Wait for the morphing animation to be 70% complete (200ms is the sweet spot!)
-            await new Promise(r => setTimeout(r, 200));
+            // 4. Laisse le ressort bien entamer (un tiers de sa durée, selon Mouvements) avant le
+            // rendu lourd. Même forme qu'avant : pas de ressort, le contenu arrive tout de suite.
+            if (shapeBefore !== shapeAfter) await new Promise(r => setTimeout(r, this.morphLeadTime()));
 
             if (transitionToken !== this._transitionToken) return;
 
@@ -55,6 +58,12 @@ export const navigationMethods = {
                 if (queued) this.transitionState(queued);
             }
         }
+    },
+
+    /** Un tiers du ressort de la capsule (base.css : 0,26 s sobre, 0,6 s normal, 0,72 s vif). */
+    morphLeadTime() {
+        const seconds = parseFloat(globalThis.getComputedStyle?.(this.el).transitionDuration) || 0.6;
+        return Math.round(Math.min(260, Math.max(80, seconds * 1000 / 3)));
     },
 
     toggleExpand() {
@@ -246,9 +255,8 @@ export const navigationMethods = {
                 this.el.style.height = `${Math.round(target)}px`;
                 this.el.style.width = '';
             } else {
-                // Bibliothèque, Historique, Réglages : hauteur de leur contenu (views/library.js).
-                const fitted = this.isExpanded ? this.fittedPanelHeight?.(this.mode) : null;
-                this.el.style.height = fitted ? `${fitted}px` : '';
+                // Taille fixe par module (base.css) : changer d'onglet ne redimensionne pas la capsule.
+                this.el.style.height = '';
                 this.el.style.width = '';
             }
         } catch (e) {

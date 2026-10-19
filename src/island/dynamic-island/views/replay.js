@@ -40,10 +40,10 @@ export const replayView = {
         if (this._replayHost?.isConnected) { this.syncGlassControls(); return; }
         this.leaveReplay();
         const host = document.createElement('div'); host.className = 'island-library-view replay-panel-host';
-        this.applyPanelHeight(host, 'replay'); this.content.replaceChildren(host); this._replayHost = host;
+        this.content.replaceChildren(host); this._replayHost = host;
         const settled = capsuleSettled(this.el);
         this._replayController = mountReplay(host, {
-            ready: settled, onFit: height => this.fitPanel('replay', host, height),
+            ready: settled,
             onClose: () => this.collapseIsland({ force: true }), onBack: () => this.setMode('menu'),
             onPlaybackChange: expanded => {
                 this.el.classList.toggle('island-replay-player', expanded);

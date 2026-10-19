@@ -41,16 +41,16 @@ async function startImport(player, kind) {
 const IMPORT_LABELS = { pick: 'Choisissez votre musique dans la fenêtre Windows…', scan: 'Recherche des fichiers audio…', read: 'Lecture des titres et pochettes', save: 'Enregistrement de la bibliothèque…' };
 
 /** Ouverture fluide dès la première fois (voir warmPanel). */
-export function warmLibrary(player, onFit) {
-    warmPanel(host => mountLibrary(host, { player, onFit }));
+export function warmLibrary(player) {
+    warmPanel(host => mountLibrary(host, { player }));
 }
 
 /**
  * Vue Bibliothèque montée dans l’Island (shadow DOM : ses styles ne débordent pas).
  * La collection et la lecture viennent directement du lecteur local de l’Island.
  */
-export function mountLibrary(host, { player, savedState = {}, ready = Promise.resolve(), onBack = () => {}, onClose = () => {}, onFit = null }) {
-    const panel = createPanel(host, shellMarkup, { onFit });
+export function mountLibrary(host, { player, savedState = {}, ready = Promise.resolve(), onBack = () => {}, onClose = () => {} }) {
+    const panel = createPanel(host, shellMarkup);
     const { root, $, on, toast, openMenu, closeMenu } = panel;
 
     const state = {
@@ -87,8 +87,6 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
         renderList(tracks);
         renderSelection(tracks);
         renderPlayer();
-        // Barre de sélection ou lecteur : le bas de la vue a pu changer de hauteur.
-        if (!waiting) panel.fit({ frozen: Boolean(state.query.trim()) });
         $('#chips .chip.is-active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
 
@@ -100,7 +98,6 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
         if (!tracks.length) {
             list.innerHTML = emptyMarkup({ query: state.query.trim(), playlist: playlist(), view: state.view });
             panel.keepFocus();
-            panel.fit({ frozen: Boolean(state.query.trim()) });
             return;
         }
         const { trackId, isPlaying } = playback();
@@ -111,7 +108,6 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
             index, current: track.id === trackId, playing: isPlaying, selecting: state.selecting, selected: state.selection.has(track.id),
         })).join('') + (tracks.length > count ? `<button type="button" class="pill-btn more" data-action="more">Afficher ${Math.min(PAGE, tracks.length - state.limit)} titres de plus</button>` : '');
         list.scrollTop = scroll;
-        panel.fit({ frozen: Boolean(state.query.trim()) });
         if (focusedKey) list.querySelector(`[data-track="${CSS.escape(focusedKey)}"] [data-action="${CSS.escape(focusedAction || 'play')}"]`)?.focus({ preventScroll: true });
         panel.keepFocus();
     }

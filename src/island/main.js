@@ -89,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     island.localPlayer.init()
         .then(() => (window.requestIdleCallback || setTimeout)(() => {
-            warmLibrary(island.localPlayer, height => island.fitPanel('library', null, height));
+            warmLibrary(island.localPlayer);
             // Réglages : code téléchargé au repos, pour une première ouverture sans attente.
             (window.requestIdleCallback || setTimeout)(warmSettingsView, { timeout: 4000 });
         }, { timeout: 4000 }))

@@ -54,33 +54,10 @@ function Backdrop({ cover }) {
 
 const knownPage = (id) => PAGES.some((page) => page.id === id);
 
-/**
- * Hauteur dont la vue a besoin : la plus grande entre la barre latérale et l'en-tête plus le
- * contenu de la page. Mesures relatives à la page : son animation d'entrée ne les fausse pas.
- */
-function neededHeight(pageEl) {
-    const view = pageEl.closest('.window');
-    const header = view?.querySelector('.content-header');
-    const lastNav = view?.querySelector('.nav-item:last-child');
-    if (!view || !header || !lastNav) return 0;
-    const pageTop = pageEl.getBoundingClientRect().top;
-    let bottom = 0;
-    for (const child of pageEl.querySelectorAll(':scope > *, :scope > .reveal > *')) {
-        const rect = child.getBoundingClientRect();
-        if (rect.height) bottom = Math.max(bottom, rect.bottom - pageTop + parseFloat(getComputedStyle(child).marginBottom));
-    }
-    const content = pageEl.scrollHeight > pageEl.clientHeight + 1
-        ? pageEl.scrollHeight
-        : bottom + parseFloat(getComputedStyle(pageEl).paddingBottom) + pageEl.scrollTop;
-    // Barre latérale : dernière entrée, plus sa marge intérieure et sa marge dans la capsule (12 + 12).
-    const sidebar = lastNav.getBoundingClientRect().bottom - view.getBoundingClientRect().top + 24;
-    return Math.ceil(Math.max(header.offsetHeight + content + parseFloat(getComputedStyle(pageEl).marginBottom), sidebar));
-}
-
 /** Libellés courts de la barre latérale (la capsule est étroite) ; le titre garde le nom complet. */
 const SHORT_LABELS = { control: 'Contrôle' };
 
-export default function App({ host, initialPage, pageRequest, onBack, onClose, onFit }) {
+export default function App({ host, initialPage, pageRequest, onBack, onClose }) {
     const store = useSettings();
     const cover = useCoverTheme(store.settings.coverSync);
     const [pageId, setPageId] = useState(() => {
@@ -94,20 +71,6 @@ export default function App({ host, initialPage, pageRequest, onBack, onClose, o
     const pageRef = useRef(null);
 
     useEffect(() => localStorage.setItem('liquid_settings_page', pageId), [pageId]);
-    // La capsule prend la hauteur de la page affichée (une page courte la rend plus basse).
-    // Seulement à l'ouverture et au changement de page : déplier une option ne la fait pas
-    // bouger sous le pointeur (le contenu défile). Seconde mesure pour les données
-    // chargées juste après (écrans, version, périphériques).
-    useEffect(() => {
-        if (!onFit) return undefined;
-        const measure = () => pageRef.current && onFit(neededHeight(pageRef.current));
-        const frame = requestAnimationFrame(measure);
-        const later = setTimeout(measure, 300);
-        return () => {
-            cancelAnimationFrame(frame);
-            clearTimeout(later);
-        };
-    }, [pageId, onFit]);
     // Page demandée de l'extérieur (retour du mode placement) alors que la vue est ouverte.
     useEffect(() => {
         if (knownPage(pageRequest?.page)) {

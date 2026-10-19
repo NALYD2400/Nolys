@@ -58,8 +58,8 @@ function history() {
     }).join('')}</section>`;
 }
 
-export function mountFiles(host, { onClose, onBack = onClose, ready = Promise.resolve(), onFit = null, onRender = () => {}, onPreviewChange = () => {} }) {
-    const panel = createPanel(host, `<div class="lib files-panel" tabindex="-1" aria-label="Fichiers Nolys"><header class="lib-header"><button type="button" class="round-btn" data-action="back" aria-label="Revenir au panneau précédent" title="Retour"><i class="ph-bold ph-caret-left"></i></button><div class="lib-heading"><span>Fichiers</span></div><button type="button" class="round-btn is-accent" data-action="pick" aria-label="Ajouter des fichiers" title="Ajouter"><i class="ph-bold ph-plus"></i></button><button type="button" class="round-btn" data-action="close" aria-label="Fermer les fichiers" title="Fermer"><i class="ph-bold ph-x"></i></button></header><nav class="lib-chips files-tabs" id="files-tabs" role="tablist" aria-label="Fichiers et activité"></nav><div class="lib-list files-body" id="list"><div class="files-feedback files-notice" role="status" aria-live="polite" id="files-notice"></div><section id="files-content" role="tabpanel"></section></div><footer class="files-footer"><span>Originaux conservés</span>${button('exports', 'Dossier des exports', 'folder-open')}</footer><div class="lib-toast" id="toast" role="status" hidden></div><div class="lib-menu" id="menu" role="menu" hidden></div></div>`, { onFit });
+export function mountFiles(host, { onClose, onBack = onClose, ready = Promise.resolve(), onRender = () => {}, onPreviewChange = () => {} }) {
+    const panel = createPanel(host, `<div class="lib files-panel" tabindex="-1" aria-label="Fichiers Nolys"><header class="lib-header"><button type="button" class="round-btn" data-action="back" aria-label="Revenir au panneau précédent" title="Retour"><i class="ph-bold ph-caret-left"></i></button><div class="lib-heading"><span>Fichiers</span></div><button type="button" class="round-btn is-accent" data-action="pick" aria-label="Ajouter des fichiers" title="Ajouter"><i class="ph-bold ph-plus"></i></button><button type="button" class="round-btn" data-action="close" aria-label="Fermer les fichiers" title="Fermer"><i class="ph-bold ph-x"></i></button></header><nav class="lib-chips files-tabs" id="files-tabs" role="tablist" aria-label="Fichiers et activité"></nav><div class="lib-list files-body" id="list"><div class="files-feedback files-notice" role="status" aria-live="polite" id="files-notice"></div><section id="files-content" role="tabpanel"></section></div><footer class="files-footer"><span>Originaux conservés</span>${button('exports', 'Dossier des exports', 'folder-open')}</footer><div class="lib-toast" id="toast" role="status" hidden></div><div class="lib-menu" id="menu" role="menu" hidden></div></div>`);
     if (!fileSheet) { fileSheet = new CSSStyleSheet(); fileSheet.replaceSync(styles); }
     panel.root.adoptedStyleSheets = [...panel.root.adoptedStyleSheets, fileSheet];
     const root = panel.root;
@@ -116,13 +116,12 @@ export function mountFiles(host, { onClose, onBack = onClose, ready = Promise.re
                 content.innerHTML = `<div class="files-preview"><div class="files-preview-error" role="alert" hidden><p>Cette image ne peut pas être affichée. Vérifiez son format ou son emplacement.</p>${button('reveal-preview', 'Afficher dans le dossier', 'folder-open')}</div></div>`;
                 const image = document.createElement('img');
                 image.id = 'files-preview-image'; image.alt = preview.name; image.decoding = 'async';
-                image.onload = () => { if (!destroyed && image.isConnected) panel.fit(); };
-                image.onerror = () => { if (!destroyed && image.isConnected) { image.hidden = true; content.querySelector('.files-preview-error').hidden = false; panel.fit(); } };
+                image.onerror = () => { if (!destroyed && image.isConnected) { image.hidden = true; content.querySelector('.files-preview-error').hidden = false; } };
                 image.src = preview.src;
                 content.querySelector('.files-preview').prepend(image);
             }
             root.querySelector('.files-body').scrollTop = 0;
-            panel.keepFocus(); panel.fit(); return;
+            panel.keepFocus(); return;
         }
         content.removeAttribute('aria-label');
         const focused = root.activeElement;
@@ -130,7 +129,8 @@ export function mountFiles(host, { onClose, onBack = onClose, ready = Promise.re
         const focusAction = focused?.dataset.action;
         const focusContext = focused?.closest('[data-output], [data-job]');
         const contextSelector = focusContext?.dataset.output ? `[data-output="${CSS.escape(focusContext.dataset.output)}"]` : focusContext?.dataset.job ? `[data-job="${CSS.escape(focusContext.dataset.job)}"]` : '';
-        const scroll = previousTab === files.tab ? root.querySelector('.files-body')?.scrollTop || 0 : 0;
+        const tabChanged = previousTab !== files.tab;
+        const scroll = tabChanged ? 0 : root.querySelector('.files-body')?.scrollTop || 0;
         previousTab = files.tab;
         const openDetails = [...content.querySelectorAll('details[open]')].map(el => el.id);
         root.querySelector('#files-tabs').innerHTML = tabs();
@@ -138,6 +138,7 @@ export function mountFiles(host, { onClose, onBack = onClose, ready = Promise.re
         root.querySelector('#files-notice').textContent = files.notice;
         content.innerHTML = `${files.error ? `<div class="files-feedback files-error" role="alert">${e(files.error)}${button('dismiss-error', 'Fermer le message', 'x', 'aria-label="Fermer le message"')}</div>` : ''}${files.tab === 'history' ? history() : selection() + tools()}`;
         content.setAttribute('aria-labelledby', `files-tab-${files.tab}`);
+        if (tabChanged) panel.tabIn(content);
         openDetails.forEach(id => { const details = content.querySelector(`#${id}`); if (details) details.open = true; });
         content.querySelectorAll('[data-action="preview"]').forEach(button => { button.disabled = files.busy || button.dataset.file === loadingPreview; });
         root.querySelector('[data-action="exports"]').title = files.destination || 'Dossier des exports';
@@ -147,7 +148,7 @@ export function mountFiles(host, { onClose, onBack = onClose, ready = Promise.re
             const replacement = focusKey ? root.querySelector(`#${CSS.escape(focusKey)}`) : focusAction ? root.querySelector(`${contextSelector} [data-action="${CSS.escape(focusAction)}"]`) : null;
             replacement?.focus({ preventScroll: true });
         }
-        panel.keepFocus(); panel.fit();
+        panel.keepFocus();
     }
     const unsubscribe = subscribe(render);
     on(root, 'click', async event => {
@@ -205,7 +206,7 @@ export function mountFiles(host, { onClose, onBack = onClose, ready = Promise.re
         // the transparent WebView. Windows owns movement/cancellation from here.
         dragOut([button.closest('[data-output]').dataset.output]);
     });
-    on(window, 'resize', () => { if (preview) { onPreviewChange(true); panel.fit(); } });
+    on(window, 'resize', () => { if (preview) onPreviewChange(true); });
     render();
     ready.then(() => { if (!destroyed) { panel.startIntro(); panel.focus(); onRender(); } });
     return { destroy() { destroyed = true; ++previewRequest; content.querySelector('img')?.removeAttribute('src'); preview = null; unsubscribe(); abort.abort(); panel.destroy(); }, get busy() { return files.busy || files.outgoing; } };

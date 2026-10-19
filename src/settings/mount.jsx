@@ -36,9 +36,8 @@ export function warmSettings() {
  * @param options.page page à ouvrir (sinon la dernière consultée)
  * @param options.onBack retour au menu de l'Island
  * @param options.onClose repli de l'Island
- * @param options.onFit hauteur demandée à l'Island pour la page affichée
  */
-export function mountSettings(host, { page, onBack = () => {}, onClose = () => {}, onFit = null } = {}) {
+export function mountSettings(host, { page, onBack = () => {}, onClose = () => {} } = {}) {
     const root = host.shadowRoot || host.attachShadow({ mode: 'open' });
     root.adoptedStyleSheets = settingsSheets();
     // Police d'icônes : ses classes doivent exister dans le shadow DOM (la police, elle, est
@@ -65,7 +64,7 @@ export function mountSettings(host, { page, onBack = () => {}, onClose = () => {
     const reactRoot = createRoot(container);
     let request = null;
     const render = () => reactRoot.render(
-        <App host={host} initialPage={page} pageRequest={request} onBack={onBack} onClose={onClose} onFit={onFit} />,
+        <App host={host} initialPage={page} pageRequest={request} onBack={onBack} onClose={onClose} />,
     );
     // Rendu synchrone : la vue est complète dès l'image suivante (pas de cadre vide).
     flushSync(render);

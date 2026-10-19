@@ -500,6 +500,7 @@ button:disabled, [aria-disabled="true"] { cursor: default; }
 .lib-section { animation-delay: 70ms; }
 .lib-player { animation-delay: 140ms; }
 /* Cascade limitée aux lignes visibles, sans flou (un filtre par ligne coûte cher). */
+[role="tabpanel"].is-tab-in { animation: lib-fade 0.18s ease-out; }
 :host([data-intro]) .row:nth-child(-n+10) { animation: lib-row-in 0.45s var(--spring) backwards; animation-delay: calc(100ms + var(--i, 0) * 22ms); }
 
 @keyframes lib-rise { from { opacity: 0; transform: translateY(8px) scale(0.98); } }

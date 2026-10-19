@@ -76,21 +76,18 @@ export const filesView = {
     renderFiles() {
         this.el.classList.remove(...this.getIslandSizeClasses());
         this.el.classList.add('island-expanded', 'island-mode-files');
-        const height = this.fittedPanelHeight('files');
-        this.el.style.height = height ? `${height}px` : ''; this.el.style.width = '';
+        this.el.style.height = ''; this.el.style.width = '';
         const look = themeLook(this._islandConfig, this._coverColors?.primary);
         this.el.style.setProperty('--files-accent', look.accent);
         if (this._filesHost?.isConnected) { this.syncGlassControls(); return; }
         if (this._isTransitioning) return;
         this._filesHost = document.createElement('div');
         this._filesHost.className = 'island-library-view files-panel-host';
-        this.applyPanelHeight(this._filesHost, 'files');
         this.el.append(this._filesHost);
         const host = this._filesHost;
         const settled = capsuleSettled(this.el);
         this._filesController = mountFiles(host, {
             ready: settled,
-            onFit: height => this.fitPanel('files', host, height),
             onClose: () => this.closeFiles(),
             onBack: () => this.closeFiles(),
             onPreviewChange: expanded => {

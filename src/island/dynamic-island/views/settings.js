@@ -44,7 +44,6 @@ export const settingsView = {
         this.leaveSettings();
         const host = document.createElement('div');
         host.className = 'island-library-view island-settings-view';
-        this.applyPanelHeight(host, 'settings');
         this.content.replaceChildren(host);
         this._settingsHost = host;
         const page = this._settingsPage;
@@ -56,7 +55,6 @@ export const settingsView = {
                 page,
                 onBack: () => this.setMode('menu'),
                 onClose: () => this.collapseIsland({ force: true }),
-                onFit: (height) => this.fitPanel('settings', host, height),
             });
         }).catch((error) => {
             console.error('[Settings] Chargement impossible :', error);

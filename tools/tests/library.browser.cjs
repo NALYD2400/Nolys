@@ -167,12 +167,14 @@ function wavFixture() {
         await page.getByRole('button', { name: 'Ajouter Lumière aux favoris', exact: true }).click();
         await inLibrary(() => window.island._libraryHost.shadowRoot.querySelector('.chip[data-view=favorites] small').textContent === '1');
         assert.equal(library.tracks[0].favorite, true);
-        // Peu de titres : la capsule prend la hauteur de son contenu, pas le maximum.
+        // Taille fixe : changer d'onglet (peu de titres) ne redimensionne pas la capsule.
         const previousView = await page.evaluate(() => window.island._libraryHost.shadowRoot.querySelector('.chip.is-active').dataset.view);
+        const libraryHeight = () => page.evaluate(() => window.island.el.getBoundingClientRect().height);
+        const fullHeight = await libraryHeight();
         await page.locator('.chip[data-view=favorites]').click();
-        await page.waitForFunction(() => parseFloat(window.island.el.style.height) < 360);
+        await page.waitForTimeout(700);
+        assert.ok(Math.abs(await libraryHeight() - fullHeight) <= 1, 'hauteur inchangée sur Favoris');
         await page.locator('.chip[data-view=all]').click();
-        await page.waitForFunction(() => window.island.el.style.height === '496px');
         await page.locator(`.chip[data-view="${previousView}"]`).click();
         // L'accent suit celui de l'Island et reste lisible avec une pochette noire.
         const accentLightness = color => page.evaluate(value => {

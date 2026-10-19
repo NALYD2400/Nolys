@@ -11,12 +11,12 @@ const icon = name => `<i class="ph-bold ph-${name}" aria-hidden="true"></i>`;
 const button = (action, label, glyph, extra = '') => `<button type="button" class="pill-btn${extra === 'primary' ? ' is-accent' : ''}" data-action="${action}"${action === 'dismiss' ? ' aria-label="Fermer le message"' : ''}>${icon(glyph)}<span>${label}</span></button>`;
 const labels = { idle: 'Prêt à capturer', starting: 'Préparation de la capture…', buffering: 'Replay actif', stopping: 'Finalisation en cours…', error: 'Capture interrompue' };
 
-export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), onFit, onRender = () => {}, onPlaybackChange = () => {} }) {
-    const panel = createPanel(host, `<div class="lib replay-panel" tabindex="-1" aria-label="Replay et enregistrement Nolys"><header class="lib-header"><button type="button" class="round-btn" data-action="back" title="Menu" aria-label="Revenir au menu">${icon('caret-left')}</button><div class="lib-heading"><span>Replay & REC</span></div><button type="button" class="round-btn" data-action="folder" title="Dossier des vidéos" aria-label="Ouvrir le dossier des vidéos">${icon('folder-open')}</button><button type="button" class="round-btn" data-action="close" title="Fermer" aria-label="Fermer Replay">${icon('x')}</button></header><nav class="lib-chips replay-tabs" role="tablist" aria-label="Replay et enregistrement">${[['capture', 'Capture'], ['settings', 'Réglages'], ['clips', 'Clips']].map(([id, label]) => `<button type="button" class="chip" id="replay-tab-${id}" role="tab" data-tab="${id}" aria-controls="replay-content">${label}</button>`).join('')}</nav><div id="replay-feedback" role="status" aria-live="polite"></div><div class="lib-list replay-body" id="list"><section id="replay-content" role="tabpanel"></section></div><div class="lib-toast" id="toast" role="status" hidden></div><div class="lib-menu" id="menu" role="menu" hidden></div></div>`, { onFit });
+export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), onRender = () => {}, onPlaybackChange = () => {} }) {
+    const panel = createPanel(host, `<div class="lib replay-panel" tabindex="-1" aria-label="Replay et enregistrement Nolys"><header class="lib-header"><button type="button" class="round-btn" data-action="back" title="Menu" aria-label="Revenir au menu">${icon('caret-left')}</button><div class="lib-heading"><span>Replay & REC</span></div><button type="button" class="round-btn" data-action="folder" title="Dossier des vidéos" aria-label="Ouvrir le dossier des vidéos">${icon('folder-open')}</button><button type="button" class="round-btn" data-action="close" title="Fermer" aria-label="Fermer Replay">${icon('x')}</button></header><nav class="lib-chips replay-tabs" role="tablist" aria-label="Replay et enregistrement">${[['capture', 'Capture'], ['settings', 'Réglages'], ['clips', 'Clips']].map(([id, label]) => `<button type="button" class="chip" id="replay-tab-${id}" role="tab" data-tab="${id}" aria-controls="replay-content">${label}</button>`).join('')}</nav><div id="replay-feedback" role="status" aria-live="polite"></div><div class="lib-list replay-body" id="list"><section id="replay-content" role="tabpanel"></section></div><div class="lib-toast" id="toast" role="status" hidden></div><div class="lib-menu" id="menu" role="menu" hidden></div></div>`);
     if (!sheet) { sheet = new CSSStyleSheet(); sheet.replaceSync(styles); }
     panel.root.adoptedStyleSheets = [...panel.root.adoptedStyleSheets, sheet];
     const { root, $, on } = panel;
-    let destroyed = false, signature = '', rendering = false;
+    let destroyed = false, signature = '', rendering = false, shownTab = null;
     let selectedClip = null, mediaSource = '', loadingClip = null, playbackRequest = 0, clipListScroll = 0;
     let renameId = null, renameDraft = '';
     const focusRename = id => root.querySelector(`[data-clip="${CSS.escape(id)}"] [data-action="rename"]`)?.focus({ preventScroll: true });
@@ -126,10 +126,12 @@ export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), 
             const scroll = $('#list').scrollTop;
             $('#replay-content').innerHTML = selectedClip ? `<div class="replay-player"><video id="replay-video" data-clip="${e(selectedClip.id)}" src="${e(mediaSource)}" controls playsinline preload="metadata" aria-label="Lecture de ${e(selectedClip.name)}"></video><div class="replay-player-error" id="replay-player-error" hidden role="alert"><p>Ce clip ne peut pas être lu ici. Le format peut nécessiter un codec Windows.</p>${button('external', 'Ouvrir dans un autre lecteur', 'arrow-square-out')}</div></div>` : draft ? (tab === 'capture' ? capture() : tab === 'settings' ? settings() : clips()) : '<p class="replay-hint">Chargement du module…</p>';
             $('#replay-content').setAttribute('aria-labelledby', `replay-tab-${tab}`);
+            if (shownTab && shownTab !== tab) panel.tabIn($('#replay-content'));
+            shownTab = tab;
             root.querySelectorAll('[role="tab"]').forEach(el => { const selected = el.dataset.tab === tab; el.setAttribute('aria-selected', selected); el.tabIndex = selected ? 0 : -1; el.classList.toggle('is-active', selected); });
             $('#list').scrollTop = scroll; onRender();
         }
-        telemetry(); rendering = false; panel.fit();
+        telemetry(); rendering = false;
     }
     const unsubscribe = replay.subscribe(() => { if (!signature || !$('#replay-content [data-setting]') && replay.state.tab === 'capture') render(true); else render(); });
     on(root, 'input', event => { if (event.target.id === 'replay-rename-name') renameDraft = event.target.value; });
@@ -197,7 +199,7 @@ export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), 
         }
     });
     on(root, 'error', event => { if (event.target.id === 'replay-video' && selectedClip) $('#replay-player-error').hidden = false; }, { capture: true });
-    on(window, 'resize', () => { if (selectedClip) { onPlaybackChange(true); panel.fit(); } });
+    on(window, 'resize', () => { if (selectedClip) onPlaybackChange(true); });
     ready.then(async () => { if (destroyed) return; await initReplay(); if (destroyed) return; render(true); panel.startIntro(); panel.focus(); await replay.loadSources(); if (!destroyed) render(true); });
     render();
     return { get busy() { return replay.state.busy; }, notify: text => panel.toast(text), destroy() { destroyed = true; ++playbackRequest; selectedClip = null; stopVideo(); onPlaybackChange(false); unsubscribe(); panel.destroy(); } };

@@ -116,11 +116,14 @@ const pageShots = process.env.NOLYS_SHOTS;
         }
         assert.deepEqual(overflows, [], 'pas de défilement horizontal');
 
-        // Hauteur selon la page : courte (Fond d'écran) → capsule plus basse ; longue → maximum.
+        // Taille fixe : une page courte (Fond d'écran) ou longue garde la même capsule.
+        const settingsHeight = () => page.evaluate(() => window.island.el.getBoundingClientRect().height);
         await page.locator('.nav-item', { hasText: 'Fond d’écran' }).click();
-        await page.waitForFunction(() => window.island.el.style.height && parseFloat(window.island.el.style.height) < 480);
+        await page.waitForTimeout(700);
+        assert.ok(Math.abs(await settingsHeight() - 526) <= 2, 'page courte : capsule inchangée');
         await page.locator('.nav-item', { hasText: 'Raccourcis' }).click();
-        await page.waitForFunction(() => window.island.el.style.height === '524px');
+        await page.waitForTimeout(700);
+        assert.ok(Math.abs(await settingsHeight() - 526) <= 2, 'page longue : capsule inchangée');
 
         // Menu déroulant : reste dans la capsule ; Échap ferme le menu, puis les Réglages.
         await page.locator('.nav-item', { hasText: 'Position' }).click();

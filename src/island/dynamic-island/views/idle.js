@@ -179,7 +179,12 @@ export const idleView = {
         const MAX = Math.max(180, Math.min(340, Number(this._islandConfig?.pillMaxWidth) || 240));
         const others = this.el.offsetWidth - title.clientWidth; // pochette, onde, marges
         const wanted = Math.ceil(Math.max(text.scrollWidth, text.getBoundingClientRect().width) + others);
-        const width = Math.max(MIN, Math.min(MAX, wanted));
+        // Paliers de 16 px, et un titre à peine plus court garde la largeur actuelle :
+        // la pilule ne bat plus à chaque morceau pour quelques pixels.
+        let width = Math.max(MIN, Math.min(MAX, Math.ceil(wanted / 16) * 16));
+        const previous = this._idlePillWidth;
+        if (previous && previous <= MAX && width < previous && previous - width < 48) width = previous;
+        this._idlePillWidth = width;
         this.el.style.width = `${width}px`;
 
         if (!title.classList.contains('no-scroll')) applyLoopMarquee(title, text, wanted - MAX);
