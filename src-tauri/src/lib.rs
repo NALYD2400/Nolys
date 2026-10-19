@@ -3,6 +3,7 @@
 mod commands;
 mod events;
 mod files;
+mod replay;
 mod island;
 mod logger;
 mod library;
@@ -45,6 +46,13 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            replay::commands::replay_snapshot,
+            replay::commands::replay_sources,
+            replay::commands::replay_configure,
+            replay::commands::replay_action,
+            replay::commands::replay_pick,
+            replay::commands::replay_reveal,
+            replay::commands::replay_play,
             files::commands::files_dev_log,
             files::commands::files_dev_open,
             files::commands::files_snapshot,
@@ -124,6 +132,9 @@ fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(library::Store::new(data_dir.clone()));
     let exports = if isolated { data_dir.join("Exports") } else { app.path().document_dir()?.join("Nolys").join("Exports") };
     app.manage(files::Store::new(data_dir.clone(), exports));
+    let videos = if isolated { data_dir.join("Videos") } else { app.path().video_dir().unwrap_or(app.path().document_dir()?).join("Nolys") };
+    app.manage(replay::Store::new(data_dir.clone(), videos, app.path().resource_dir()?));
+    app.state::<replay::Store>().attach(app.clone());
     logger::log(&format!("[App] Starting Nolys {}", app.package_info().version));
     if !isolated { migration::import_legacy_files(&data_dir); }
     platform::mic_monitor::init(&data_dir);
@@ -153,12 +164,16 @@ fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
 
 /// Quitte proprement : restaure le fond d'écran d'origine si la synchro était active.
 pub fn quit(app: &AppHandle) {
+    app.state::<replay::Store>().request_stop();
     app.state::<files::Store>().cancel_all();
     let handle = app.clone();
     tauri::async_runtime::spawn(async move {
+        let replay_handle = handle.clone();
+        let replay = tauri::async_runtime::spawn_blocking(move || replay_handle.state::<replay::Store>().shutdown());
         let microphone = tauri::async_runtime::spawn_blocking(platform::mic_monitor::shutdown);
         files::wait_for_shutdown(&handle).await;
         let _ = microphone.await;
+        let _ = replay.await;
         let wallpaper = handle.state::<AppState>().wallpaper.clone();
         if wallpaper.is_enabled() {
             let _ = tauri::async_runtime::spawn_blocking(move || wallpaper.restore_original()).await;

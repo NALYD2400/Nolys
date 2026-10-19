@@ -173,7 +173,8 @@
     /* Le centrage des icônes dans les colonnes complète ce retrait :
      * environ 28 px jusqu'aux tuiles, comme les marges verticales. */
     padding: 28px 20px;
-    height: 100%;
+    /* La capsule rebondit autour de sa taille cible ; la grille ne doit pas défiler à chaque creux. */
+    height: var(--menu-height, 100%);
     box-sizing: border-box;
     align-content: start;
     align-items: start;

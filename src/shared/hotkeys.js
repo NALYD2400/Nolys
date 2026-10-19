@@ -20,6 +20,10 @@ export const HOTKEY_ACTIONS = [
     { id: 'quickScreenshot', group: 'Outils', label: 'Capture d’écran rapide', description: 'Ouvre l’outil Capture d’écran de Windows.', accelerator: 'Ctrl+Alt+S' },
     { id: 'openSettings', group: 'Outils', label: 'Ouvrir les Réglages', accelerator: 'Ctrl+Alt+P' },
     { id: 'openFiles', group: 'Outils', label: 'Ouvrir les fichiers', accelerator: 'Ctrl+Alt+F' },
+    { id: 'openReplay', group: 'Replay & REC', label: 'Ouvrir Replay & REC', accelerator: 'Ctrl+Alt+R' },
+    { id: 'saveReplay', group: 'Replay & REC', label: 'Sauvegarder le replay', accelerator: 'Ctrl+Shift+F10' },
+    { id: 'toggleReplay', group: 'Replay & REC', label: 'Activer ou arrêter le replay', accelerator: 'Ctrl+Shift+F9' },
+    { id: 'toggleRecording', group: 'Replay & REC', label: 'Démarrer ou terminer REC', accelerator: 'Ctrl+Shift+F11' },
 ];
 
 /** `{ [id]: { accelerator, enabled } }` : les réglages par défaut de chaque action. */

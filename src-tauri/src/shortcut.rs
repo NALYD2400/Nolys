@@ -13,7 +13,7 @@ use crate::state::AppState;
 use crate::{events, island, platform};
 
 /// Actions reconnues. Les identifiants sont ceux de `HOTKEY_ACTIONS` côté interface.
-const ACTIONS: [&str; 12] = [
+const ACTIONS: [&str; 16] = [
     "toggleVisibility",
     "layoutEdit",
     "openMusic",
@@ -26,6 +26,10 @@ const ACTIONS: [&str; 12] = [
     "openMixer",
     "openSettings",
     "openFiles",
+    "openReplay",
+    "saveReplay",
+    "toggleReplay",
+    "toggleRecording",
 ];
 
 /// Une action et sa combinaison (`Ctrl+Alt+K`…), telles qu'envoyées par les Réglages.
@@ -71,6 +75,11 @@ fn run(app: &AppHandle, action: &str) {
         "openMic" => open_mode(app, "mic"),
         "openMixer" => open_mode(app, "mixer"),
         "openFiles" => open_mode(app, "files"),
+        "openReplay" => open_mode(app, "replay"),
+        "saveReplay" | "toggleReplay" | "toggleRecording" => {
+            let handle=app.clone();let action=match action {"saveReplay"=>"save","toggleReplay"=>"toggle-replay",_=>"toggle-record"};
+            tauri::async_runtime::spawn_blocking(move||{if let Err(error)=crate::replay::commands::perform(&handle,action){handle.state::<crate::replay::Store>().report(error);}});
+        },
         // Les Réglages s'ouvrent dans l'Island ; un second appui les referme.
         "openSettings" => island::open_settings(app, true),
         "mediaToggle" => media_control(app.clone(), "toggle".into()),

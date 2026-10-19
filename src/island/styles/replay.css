@@ -1,0 +1,4 @@
+#dynamic-island.island-mode-replay { width: 560px; height: 536px; border-radius: 40px; cursor: default; }
+.island-satellite-replay { appearance: none; }
+.island-satellite-replay.is-recording .satellite-icon { color: #ff9696; }
+.island-satellite-replay:focus-visible { outline: 2px solid var(--neon-primary); outline-offset: 3px; }

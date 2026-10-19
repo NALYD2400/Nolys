@@ -35,6 +35,7 @@ import { framePacerMethods } from './features/frame-pacer.js';
 import { libraryView } from './views/library.js';
 import { settingsView } from './views/settings.js';
 import { filesView } from './views/files.js';
+import { replayView } from './views/replay.js';
 
 export class DynamicIsland {
     constructor() {
@@ -104,6 +105,7 @@ export class DynamicIsland {
         this.applyLayoutConfig(this._layoutConfig);
         this.initEvents();
         this.initFiles();
+        this.initReplay();
         this.initGlowHalo();
         this.initFramePacer();
         this.startMainLoop();
@@ -162,6 +164,7 @@ const METHOD_GROUPS = [
     libraryView,
     settingsView,
     filesView,
+    replayView,
 ];
 
 // Méthodes non énumérables, comme celles déclarées directement dans une classe.

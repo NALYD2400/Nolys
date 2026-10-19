@@ -67,6 +67,7 @@ export const navigationMethods = {
     /** `force` : fermeture demandée par l'utilisateur (Échap, ✕), même avec un dialogue ouvert. */
     collapseIsland({ force = false } = {}) {
         if (this.mode === 'files') { this.closeFiles(); return; }
+        if (this.mode === 'replay' && this._replayController?.busy && !force) return;
         if (!this.isExpanded) return;
         // Sélecteur de fichiers Windows ouvert : la perte de focus ne doit pas fermer la vue.
         if (this.mode === 'library' && this._libraryController?.busy) return;
@@ -129,13 +130,14 @@ export const navigationMethods = {
             return true;
         }
         const mode = action === 'widgets' ? 'menu' : action;
-        if (!['music', 'music-history', 'menu', 'mixer', 'mic', 'control', 'settings', 'library', 'files', 'timer'].includes(mode)) return false;
+        if (!['music', 'music-history', 'menu', 'mixer', 'mic', 'control', 'settings', 'library', 'files', 'replay', 'timer'].includes(mode)) return false;
         this.isExpanded = true;
         this.setMode(mode);
         return true;
     },
 
     setMode(mode) {
+        if (mode === 'replay') { this.openReplay(); return; }
         if (mode === 'files') { this.openFiles(); return; }
         if (this.mode === 'files') {
             if (this._filesController?.busy) return;
@@ -192,7 +194,8 @@ export const navigationMethods = {
             'island-mode-mic',
             'island-mode-library',
             'island-mode-settings',
-            'island-mode-files'
+            'island-mode-files',
+            'island-mode-replay'
         ];
     },
 
@@ -210,13 +213,16 @@ export const navigationMethods = {
             mixer: 'island-mode-mixer',
             mic: 'island-mode-mic',
             library: 'island-mode-library',
-            settings: 'island-mode-settings'
+            settings: 'island-mode-settings',
+            replay: 'island-mode-replay'
         };
 
         return sizeByMode[this.mode] || 'island-mode-music';
     },
 
     renderContent() {
+        this.syncReplaySatellite?.();
+        if (this.mode !== 'replay' || !this.isExpanded) this.leaveReplay?.();
         if (this.mode === 'files') { this.renderFiles(); return; }
         if (this._filesHost) this.leaveFiles();
         if (this.mode !== 'library' || !this.isExpanded) this.leaveLibrary?.();
@@ -304,6 +310,7 @@ export const navigationMethods = {
             else if (this.mode === 'mic') this.renderMicMonitor();
             else if (this.mode === 'library') this.renderLibrary();
             else if (this.mode === 'settings') this.renderSettings();
+            else if (this.mode === 'replay') this.renderReplay();
         } else if (keepCompactNotification) {
             this.el.classList.add('island-notifying');
             if (this._isTransitioning) {

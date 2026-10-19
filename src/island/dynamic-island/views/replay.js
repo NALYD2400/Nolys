@@ -1,0 +1,54 @@
+import { mountReplay } from '../../../replay/controller.js';
+import { replay, initReplay } from '../../../replay/store.js';
+import { duration, activeCapture } from '../../../replay/model.js';
+import { capsuleSettled, afterIntro } from './library.js';
+
+export const replayView = {
+    initReplay() {
+        const indicator = document.createElement('button');
+        indicator.type = 'button'; indicator.id = 'island-replay-satellite';
+        indicator.className = 'island-satellite island-satellite-replay';
+        indicator.tabIndex = -1; indicator.setAttribute('aria-hidden', 'true');
+        indicator.innerHTML = '<span class="satellite-bg" aria-hidden="true"></span><i class="ph ph-video-camera satellite-icon" aria-hidden="true"></i>';
+        this.el.before(indicator); this._replaySatellite = indicator;
+        indicator.addEventListener('click', event => { event.stopPropagation(); this.openReplay(); });
+        replay.subscribe(({ snapshot }) => {
+            if (!snapshot) return;
+            this.syncReplaySatellite();
+        });
+        initReplay();
+    },
+    syncReplaySatellite() {
+        const indicator = this._replaySatellite;
+        if (!indicator) return;
+        const snapshot = replay.state.snapshot;
+        const visible = activeCapture(snapshot) && !this.isExpanded && !this._layoutEditMode;
+        indicator.classList.toggle('is-visible', visible);
+        indicator.classList.toggle('is-recording', Boolean(snapshot?.recording));
+        indicator.tabIndex = visible ? 0 : -1;
+        indicator.setAttribute('aria-hidden', String(!visible));
+        indicator.title = snapshot?.recording ? `REC ${duration(snapshot.recordingSeconds)} · ouvrir Replay & REC` : snapshot?.phase === 'starting' ? 'Préparation du replay · ouvrir les commandes' : 'Replay actif · ouvrir les commandes';
+        indicator.setAttribute('aria-label', indicator.title);
+        this.positionMicSatellite?.();
+    },
+    openReplay() {
+        if (this._layoutEditMode || (this.mode === 'replay' && this.isExpanded)) return;
+        this.openExpandedMode('replay');
+    },
+    renderReplay() {
+        this.syncReplaySatellite();
+        if (this._replayHost?.isConnected) { this.syncGlassControls(); return; }
+        this.leaveReplay();
+        const host = document.createElement('div'); host.className = 'island-library-view replay-panel-host';
+        this.applyPanelHeight(host, 'replay'); this.content.replaceChildren(host); this._replayHost = host;
+        const settled = capsuleSettled(this.el);
+        this._replayController = mountReplay(host, {
+            ready: settled, onFit: height => this.fitPanel('replay', host, height),
+            onClose: () => this.collapseIsland({ force: true }), onBack: () => this.setMode('menu'),
+            onRender: () => settled.then(() => afterIntro(() => { if (this._replayHost === host) this.syncGlassControls(); })),
+        });
+    },
+    leaveReplay() {
+        this._replayController?.destroy(); this._replayController = null; this._replayHost = null;
+    },
+};

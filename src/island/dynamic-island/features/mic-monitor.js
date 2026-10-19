@@ -43,6 +43,7 @@ export const micMonitorMethods = {
 
         // La bulle suit le bord droit de la pilule, même pendant ses changements de taille.
         new ResizeObserver(() => this.positionMicSatellite()).observe(this.el);
+        window.addEventListener('resize', () => this.positionMicSatellite());
 
         // Même thème que la pilule : couleurs, halo et pochette floutée suivent ses changements.
         const themeObserver = new MutationObserver(() => this.syncSatelliteTheme());
@@ -143,12 +144,36 @@ export const micMonitorMethods = {
         };
         if (this._micSatellite) place(this._micSatellite, 1);
         if (this._timerSatellite) place(this._timerSatellite, -1);
+        const replay = this._replaySatellite;
+        if (replay?.classList.contains('is-visible')) {
+            const micVisible = this._micSatellite?.classList.contains('is-visible');
+            const timerVisible = this._timerSatellite?.classList.contains('is-visible');
+            const timerWidth = this._timerSatellite?.classList.contains('is-hours') ? 66 : this._timerSatellite?.classList.contains('is-wide') ? 54 : 35;
+            const rightGap = micVisible ? 8 + 35 + 8 : 8;
+            const leftGap = timerVisible ? 12 + timerWidth + 8 : 12;
+            const rect = this.el.getBoundingClientRect();
+            const leftSpace = rect.left - leftGap;
+            const rightSpace = window.innerWidth - rect.right - rightGap;
+            const leftFits = leftSpace >= 35;
+            const rightFits = rightSpace >= 35;
+            // Prendre le côté libre, puis la file la plus courte. Si un seul côté
+            // tient dans la fenêtre, il prime sur la préférence de placement.
+            let right = rightGap <= leftGap;
+            if (micVisible && !timerVisible) right = false;
+            if (!micVisible && timerVisible) right = true;
+            if (rightFits !== leftFits) right = rightFits;
+            if (!rightFits && !leftFits) right = rightSpace >= leftSpace;
+            const to = right ? half + rightGap : -(half + leftGap + 35);
+            const from = right ? half - 36 : -(half - 1);
+            replay.style.setProperty('--satellite-to', `${Math.round(to)}px`);
+            replay.style.setProperty('--satellite-from', `${Math.round(from)}px`);
+        }
     },
 
     /** Recopie la matière de la pilule (variables posées par ThemeService, pochette floutée). */
     syncSatelliteTheme() {
         const source = this.el.querySelector('.island-bg-layer');
-        for (const satellite of [this._micSatellite, this._timerSatellite]) {
+        for (const satellite of [this._micSatellite, this._timerSatellite, this._replaySatellite]) {
             if (!satellite) continue;
             for (const name of ['--island-bg', '--island-blur', '--island-glow-size', '--island-glow-rgb', '--island-glow-opacity']) {
                 const value = this.el.style.getPropertyValue(name);
@@ -176,6 +201,7 @@ export const micMonitorMethods = {
             this._micSatellite.classList.toggle('is-visible', satelliteVisible);
             this._micSatellite.classList.toggle('has-error', Boolean(this.micStatus?.error));
         }
+        this.positionMicSatellite();
 
         const wantLoop = enabled && (viewOpen || satelliteVisible);
         if (wantLoop && !this._micLoop) this.startMicLoop();

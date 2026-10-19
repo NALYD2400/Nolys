@@ -319,6 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Raccourcis « ouvrir le lecteur / centre de contrôle / retour micro » : même ouverture que le clic droit.
     ipcRenderer.on('shortcut-open-mode', (event, mode) => {
         if (mode === 'files') { window.island?.openFiles(); return; }
+        if (mode === 'replay') { window.island?.openReplay(); return; }
         if (window.island && ['music', 'control', 'mic', 'mixer'].includes(mode)) {
             window.island.openExpandedMode(mode);
         }

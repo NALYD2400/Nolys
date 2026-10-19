@@ -7,7 +7,7 @@
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
     "beforeDevCommand": "npm run dev:ui",
-    "beforeBuildCommand": "npm run build:ui"
+    "beforeBuildCommand": "npm run prepare:replay && npm run build:ui"
   },
   "app": {
     "withGlobalTauri": true,
@@ -21,6 +21,7 @@
     }
   },
   "bundle": {
+    "resources": ["resources/replay/*"],
     "active": true,
     "targets": [
       "nsis"

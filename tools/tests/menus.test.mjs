@@ -8,9 +8,9 @@ globalThis.localStorage = { getItem: key => data.get(key) ?? null, setItem: (key
 const custom = { id: 'custom-test', enabled: true, name: 'Dossier', cmd: 'C:\\Documents', icon: 'ph-folder' };
 
 test('defaults keep existing modules, and corrupt data falls back without losing settings access', () => {
-    assert.equal(sanitizeMenus().modules.length, 9);
+    assert.equal(sanitizeMenus().modules.length, 10);
     data.set('liquid_menus', '{invalid');
-    assert.equal(readMenus().context.length, 11);
+    assert.equal(readMenus().context.length, 12);
     assert.deepEqual(sanitizeMenus({ modules: [], context: [{ id: 'settings', enabled: false }] }).modules, [{ id: 'settings', enabled: true }]);
     assert.equal(sanitizeMenus({ context: [{ id: 'settings', enabled: false }] }).context[0].enabled, true);
     data.clear();
@@ -29,6 +29,16 @@ test('all modules appear in the context menu, including existing saved menus, wi
     assert.equal(sanitizeMenus(migrated).context.find(entry => entry.id === 'files').enabled, false);
 });
 
+test('Replay joins saved menus once without re-enabling a hidden module', () => {
+    const old = { contextVersion: 1, modules: [{ id: 'files' }, { id: 'mic', enabled: false }, { id: 'settings' }], context: [{ id: 'files' }, { id: 'settings' }] };
+    const next = sanitizeMenus(old);
+    assert.equal(next.modules.filter(item => item.id === 'replay').length, 1);
+    assert.equal(next.context.filter(item => item.id === 'replay').length, 1);
+    assert.equal(next.modules.find(item => item.id === 'mic').enabled, false);
+    next.modules.find(item => item.id === 'replay').enabled = false;
+    assert.deepEqual(sanitizeMenus(next), next);
+});
+
 test('sanitizing rejects duplicate actions, unknown actions and injected icons; preserves order and visibility', () => {
     const value = sanitizeMenus({ modules: [{ id: 'music', enabled: false }, { id: 'music' }, { id: 'exit' }, null, custom, { id: 'custom-unsafe', name: 'Lien', cmd: 'https://example.com', icon: 'x" onclick="alert(1)' }] });
     assert.deepEqual(value.modules.map(entry => entry.id), ['music', 'custom-test', 'custom-unsafe', 'settings']);
@@ -39,8 +49,8 @@ test('sanitizing rejects duplicate actions, unknown actions and injected icons; 
 test('menus honor disabled modules without deleting their configured position', () => {
     const value = sanitizeMenus();
     const disabled = { getItem: key => key === 'liquid_music_enabled' ? 'false' : null };
-    assert.equal(visibleMenuEntries('modules', value, disabled).length, 7);
-    assert.equal(value.modules.length, 9);
+    assert.equal(visibleMenuEntries('modules', value, disabled).length, 8);
+    assert.equal(value.modules.length, 10);
 });
 
 test('adding a ninth module grows the capsule; many items and narrow windows remain bounded', () => {

@@ -12,6 +12,7 @@ export const menuView = {
         this.el.style.width = `${size.width}px`;
         this.el.style.height = `${size.height}px`;
         this.el.style.setProperty('--menu-columns', size.columns);
+        this.el.style.setProperty('--menu-height', `${size.height}px`);
     },
 
     async activateMenuEntry(entry) {

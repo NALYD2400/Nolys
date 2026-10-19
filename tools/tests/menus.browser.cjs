@@ -59,7 +59,7 @@ const fs = require('node:fs');
         };
 
         await openMenu();
-        assert.equal(await page.locator('.island-menu-item').count(), 9);
+        assert.equal(await page.locator('.island-menu-item').count(), 10);
         const height9 = await page.locator('#dynamic-island').evaluate(el => el.offsetHeight);
         const clipped = await page.locator('.island-menu-grid').evaluate(grid => {
             const bounds = grid.getBoundingClientRect();
@@ -81,11 +81,11 @@ const fs = require('node:fs');
         await page.waitForTimeout(100);
         const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('liquid_menus')));
         assert.equal(saved.modules[0].enabled, false);
-        assert.equal(saved.modules[1].id, 'music');
+        assert.ok(saved.modules.findIndex(item => item.id === 'music') < saved.modules.findIndex(item => item.id === 'control'));
         assert.equal(saved.modules.at(-1).name, 'Mon dossier');
 
         await openMenu();
-        assert.equal(await page.locator('.island-menu-item').count(), 9);
+        assert.equal(await page.locator('.island-menu-item').count(), 10);
         assert.equal(await page.locator('[data-menu-id="files"]').count(), 0);
         await page.getByRole('button', { name: 'Mon dossier', exact: true }).click();
         await page.waitForFunction(() => !window.island.isExpanded);

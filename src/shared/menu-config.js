@@ -2,6 +2,7 @@
 export const MENU_STORAGE_KEY = 'liquid_menus';
 export const MENU_ACTIONS = [
     { id: 'files', label: 'Fichiers', icon: 'ph-files' },
+    { id: 'replay', label: 'Replay & REC', shortLabel: 'Replay', icon: 'ph-video-camera' },
     { id: 'control', label: 'Centre de contrôle', shortLabel: 'Contrôle', icon: 'ph-sliders', flag: 'liquid_island_control_enabled' },
     { id: 'music', label: 'Lecteur', icon: 'ph-music-notes', flag: 'liquid_music_enabled' },
     { id: 'music-history', label: 'Historique', icon: 'ph-clock-counter-clockwise', flag: 'liquid_music_enabled' },
@@ -19,7 +20,7 @@ export const SHORTCUT_ICONS = ['ph-arrow-square-out', 'ph-folder', 'ph-globe', '
 const byId = new Map(MENU_ACTIONS.map(action => [action.id, action]));
 const defaults = {
     modules: MENU_ACTIONS.filter(action => !action.contextOnly).map(action => action.id),
-    context: ['files', 'control', 'music', 'music-history', 'timer', 'mixer', 'mic', 'library', 'layout', 'settings', 'exit'],
+    context: ['files', 'replay', 'control', 'music', 'music-history', 'timer', 'mixer', 'mic', 'library', 'layout', 'settings', 'exit'],
 };
 export const MAX_MENU_ITEMS = 40;
 const cleanText = (value, max) => typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -27,7 +28,7 @@ const cleanText = (value, max) => typeof value === 'string' ? value.trim().slice
 /** Les anciens réglages reçoivent aussi les modules ajoutés au clic droit. */
 export function sanitizeMenus(value) {
     const source = value && typeof value === 'object' ? value : {};
-    const result = { contextVersion: 1, showMedia: source.showMedia !== false };
+    const result = { contextVersion: 1, replayVersion: 1, showMedia: source.showMedia !== false };
     for (const surface of ['modules', 'context']) {
         const entries = Array.isArray(source[surface]) ? source[surface] : defaults[surface].map(id => ({ id }));
         const seen = new Set();
@@ -47,6 +48,9 @@ export function sanitizeMenus(value) {
             seen.add(entry.id);
         }
         if (!seen.has('settings')) result[surface].push({ id: 'settings', enabled: true });
+        if (source.replayVersion !== 1 && Array.isArray(source[surface]) && seen.has('files') && !seen.has('replay') && result[surface].length < MAX_MENU_ITEMS) {
+            result[surface].splice(result[surface].findIndex(entry => entry.id === 'files') + 1, 0, { id: 'replay', enabled: true });
+        }
     }
     // Une seule migration : garder ensuite l'ordre et les boutons masqués choisis par l'utilisateur.
     if (source.contextVersion !== 1 && Array.isArray(source.context)) {

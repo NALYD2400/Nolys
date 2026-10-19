@@ -19,6 +19,7 @@ export const notificationMethods = {
 
     showNotification(title, message, icon = 'ph-bell') {
         if (!notificationsAllowed(this)) return;
+        if (this.mode === 'replay') { this._replayController?.notify(`${title} — ${message}`); return; }
         if (this.mode === 'files' || this._fileReceiving) {
             this.filesNotify(`${title} — ${message}`);
             return;

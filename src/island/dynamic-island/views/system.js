@@ -393,6 +393,7 @@ export const systemViews = {
         bubble.style.setProperty('--timer-pct', String(Math.round(remaining)));
         bubble.classList.toggle('is-stopwatch', this.timerMode !== 'countdown');
         bubble.classList.toggle('is-visible', this.isTimerRunning && !this.isExpanded);
+        this.positionMicSatellite?.();
     },
 
     /** Appelé à chaque seconde quand le minuteur atteint zéro. */

@@ -2268,6 +2268,7 @@ name = "liquid-dynamic-island"
 version = "2.4.0"
 dependencies = [
  "base64 0.22.1",
+ "embed-resource",
  "image",
  "lofty",
  "nnnoiseless",

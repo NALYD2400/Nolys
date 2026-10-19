@@ -8,6 +8,7 @@
     "build": "tauri build",
     "dev:ui": "vite",
     "build:ui": "vite build",
+    "prepare:replay": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/prepare-replay-engine.ps1",
     "tauri": "tauri"
   },
   "devDependencies": {
