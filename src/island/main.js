@@ -2,6 +2,8 @@
  * Point d'entrée de la fenêtre de l'Island : services, API globales historiques
  * (`window.island`, `window.spotifyControl`…) et écoute des réglages.
  */
+// En premier : les autres modules lisent les réglages dès leur chargement.
+import '../shared/settings-store.js';
 import { ipcRenderer, native } from '../shared/ipc.js';
 import { LocalMusicPlayer } from '../services/LocalMusicPlayer.js';
 import { warmLibrary } from '../library/controller.js';

@@ -38,7 +38,7 @@ pub fn legacy_settings_script(data_dir: &Path) -> Option<String> {
         return None;
     }
 
-    let entries = match read_local_storage(&source, data_dir) {
+    let entries = match read_local_storage(&source, data_dir, "file://") {
         Ok(entries) => entries,
         Err(error) => {
             log(&format!("[Migration] Could not read legacy settings: {error}"));
@@ -65,8 +65,8 @@ pub fn legacy_settings_script(data_dir: &Path) -> Option<String> {
     ))
 }
 
-/// Lit les clés `localStorage` de l'origine `file://` dans une copie de la base.
-fn read_local_storage(source: &Path, data_dir: &Path) -> Result<BTreeMap<String, String>, String> {
+/// Lit les clés `localStorage` d'une origine (`file://`, `http://tauri.localhost`…) dans une copie de la base.
+pub fn read_local_storage(source: &Path, data_dir: &Path, origin: &str) -> Result<BTreeMap<String, String>, String> {
     // Copie : l'ancienne appli peut tenir le verrou, et LevelDB réécrit ses journaux à l'ouverture.
     let copy = data_dir.join("legacy-leveldb-copy");
     let _ = std::fs::remove_dir_all(&copy);
@@ -82,10 +82,10 @@ fn read_local_storage(source: &Path, data_dir: &Path) -> Result<BTreeMap<String,
         let mut db = DB::open(&copy, options).map_err(|e| e.to_string())?;
         let mut iter = db.new_iter().map_err(|e| e.to_string())?;
         let mut entries = BTreeMap::new();
-        const PREFIX: &[u8] = b"_file://\x00";
+        let prefix = origin_prefix(origin);
         while iter.advance() {
             let Some((key, value)) = iter.current() else { continue };
-            let Some(encoded_key) = key.strip_prefix(PREFIX) else { continue };
+            let Some(encoded_key) = key.strip_prefix(prefix.as_slice()) else { continue };
             if let (Some(k), Some(v)) = (decode(encoded_key), decode(&value)) {
                 entries.insert(k, v);
             }
@@ -95,6 +95,11 @@ fn read_local_storage(source: &Path, data_dir: &Path) -> Result<BTreeMap<String,
 
     let _ = std::fs::remove_dir_all(&copy);
     result
+}
+
+/// Préfixe des clés d'une origine dans la base Chromium : `_<origine>\0`.
+fn origin_prefix(origin: &str) -> Vec<u8> {
+    [b"_", origin.as_bytes(), b"\0"].concat()
 }
 
 /// Chaînes Chromium : octet 0 = UTF-16LE, octet 1 = Latin-1.
@@ -107,5 +112,23 @@ fn decode(bytes: &[u8]) -> Option<String> {
         }
         1 => Some(rest.iter().map(|&b| b as char).collect()),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn origin_prefix_matches_chromium_layout() {
+        assert_eq!(origin_prefix("file://"), b"_file://\x00");
+        assert_eq!(origin_prefix("http://tauri.localhost"), b"_http://tauri.localhost\x00");
+    }
+
+    #[test]
+    fn decodes_both_string_encodings() {
+        assert_eq!(decode(&[1, b'o', b'k']).as_deref(), Some("ok"));
+        assert_eq!(decode(&[0, 0xe9, 0]).as_deref(), Some("é"));
+        assert_eq!(decode(&[2]), None);
     }
 }
