@@ -1,13 +1,10 @@
-/** Vue « Retour micro » : vumètre, seuil de la porte, volume, filtres et périphériques. */
+/**
+ * Vue « Retour micro » : l'essentiel sous la main (marche, vumètre et seuil de la porte, volume,
+ * filtres, périphériques). Balance et latence vivent dans Réglages → Retour micro.
+ */
 import { ipcRenderer } from '../../../shared/ipc.js';
 import { escapeHtml } from '../helpers/format.js';
 import { dbToPct, pctToDb } from '../features/mic-monitor.js';
-
-const LATENCIES = [
-    { id: 'low', label: 'Faible' },
-    { id: 'normal', label: 'Normale' },
-    { id: 'safe', label: 'Sûre' },
-];
 
 /** « Microphone (2- Logitech PRO X) » → « Logitech PRO X » : le nom utile, sans le type ni le numéro. */
 export const cleanDeviceName = (name = '') => {
@@ -16,11 +13,6 @@ export const cleanDeviceName = (name = '') => {
 };
 
 const OUTPUT_ICONS = { headset: 'ph-headset', headphones: 'ph-headphones', speakers: 'ph-speaker-hifi', other: 'ph-speaker-high' };
-
-/** Balance −100 (tout à gauche) … 100 (tout à droite) → position du curseur en %. */
-const balanceToPct = (balance) => ((balance + 100) / 200) * 100;
-/** Libellé court de la balance : « Centre », « G 20 », « D 35 ». */
-const balanceLabel = (balance) => (balance === 0 ? 'Centre' : balance < 0 ? `G ${-balance}` : `D ${balance}`);
 
 export const micMonitorView = {
     /** Rafraîchit ce qui dépend de l'état : la vue micro, ou la tuile du centre de contrôle. */
@@ -41,7 +33,6 @@ export const micMonitorView = {
         const error = enabled ? status.error : null;
         const volume = Number.isFinite(config.volume) ? config.volume : 60;
         const threshold = Number.isFinite(config.gateThreshold) ? config.gateThreshold : -50;
-        const balance = Number.isFinite(config.balance) ? config.balance : 0;
         const speakers = running && status.outputKind === 'speakers';
 
         let state = 'Coupé';
@@ -65,6 +56,7 @@ export const micMonitorView = {
                         <span class="mic-title-main">Retour micro</span>
                         <span class="mic-title-state"><span class="mic-state-dot"></span>${escapeHtml(state)}</span>
                     </div>
+                    <button class="mic-icon-btn" data-mic="settings" title="Plus de réglages (balance, latence, seuil)"><i class="ph-bold ph-sliders-horizontal"></i></button>
                     <button class="mic-icon-btn" data-mic="back" title="Centre de contrôle"><i class="ph-bold ph-squares-four"></i></button>
                     <button class="mic-switch ${enabled ? 'on' : ''}" data-mic="toggle" role="switch" aria-checked="${enabled}" title="${enabled ? 'Couper le retour' : 'Activer le retour'}">
                         <span class="mic-switch-knob"></span>
@@ -87,7 +79,6 @@ export const micMonitorView = {
                         </div>
                         <div class="mic-gate-handle"><span>${Math.round(threshold)} dB</span></div>
                     </div>
-                    <div class="mic-meter-scale"><span>-80</span><span>-60</span><span>-40</span><span>-20</span><span>0 dB</span></div>
                 </section>
 
                 <section class="mic-volume" title="Volume du retour (au-delà de 100 % : amplifié)">
@@ -98,17 +89,6 @@ export const micMonitorView = {
                         <div class="mic-slider-knob"></div>
                     </div>
                     <span class="mic-volume-value">${volume} %</span>
-                </section>
-
-                <section class="mic-volume mic-balance" title="Balance gauche / droite (double-clic : centre)">
-                    <span class="mic-balance-side">G</span>
-                    <div class="mic-slider" data-mic="balance" style="--val: ${balanceToPct(balance)}%">
-                        <div class="mic-slider-fill"></div>
-                        <div class="mic-slider-detent"></div>
-                        <div class="mic-slider-knob"></div>
-                    </div>
-                    <span class="mic-balance-side">D</span>
-                    <span class="mic-volume-value">${balanceLabel(balance)}</span>
                 </section>
 
                 <section class="mic-chips">
@@ -122,13 +102,6 @@ export const micMonitorView = {
                     <button class="mic-chip ${config.highPass ? 'on' : ''}" data-mic="highpass" title="Coupe-bas à 90 Hz (souffle, chocs)">
                         <i class="ph-bold ph-wave-sine"></i>Coupe-bas
                     </button>
-                </section>
-
-                <section class="mic-latency">
-                    <span title="Faible : le plus réactif. Sûre : si tu entends des craquements."><i class="ph-bold ph-timer"></i>Latence</span>
-                    <div class="mic-segment" role="radiogroup" aria-label="Latence">
-                        ${LATENCIES.map((l) => `<button class="${(config.latency || 'normal') === l.id ? 'on' : ''}" data-mic-latency="${l.id}" title="Latence ${l.label.toLowerCase()}">${l.label}</button>`).join('')}
-                    </div>
                 </section>
 
                 <section class="mic-devices">
@@ -154,6 +127,7 @@ export const micMonitorView = {
         const act = {
             toggle: () => this.toggleMicMonitor(),
             back: () => this.setMode('control'),
+            settings: () => this.openSettings('mic'),
             denoise: () => this.micStatus?.denoiseAvailable !== false && this.setMicMonitor({ denoise: !config().denoise }),
             gate: () => this.setMicMonitor({ gateEnabled: !config().gateEnabled }),
             highpass: () => this.setMicMonitor({ highPass: !config().highPass }),
@@ -163,12 +137,6 @@ export const micMonitorView = {
         view.querySelectorAll('[data-mic]').forEach((el) => {
             const action = act[el.dataset.mic];
             if (action) el.addEventListener('click', (e) => { e.stopPropagation(); action(); });
-        });
-        view.querySelectorAll('[data-mic-latency]').forEach((el) => {
-            el.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.setMicMonitor({ latency: el.dataset.micLatency });
-            });
         });
 
         // Volume : glisser horizontal, 0 à 200 %, aimanté à 100 %.
@@ -180,26 +148,6 @@ export const micMonitorView = {
             view.querySelector('.mic-volume-value').textContent = `${volume} %`;
             return { volume };
         });
-
-        // Balance : glisser de gauche à droite, aimantée au centre ; double-clic pour recentrer.
-        const balanceSlider = view.querySelector('[data-mic="balance"]');
-        this.bindMicDrag(balanceSlider, (pct) => {
-            let balance = Math.round((pct - 50) * 2);
-            if (Math.abs(balance) <= 4) balance = 0;
-            balanceSlider.style.setProperty('--val', `${balanceToPct(balance)}%`);
-            view.querySelector('.mic-balance .mic-volume-value').textContent = balanceLabel(balance);
-            return { balance };
-        });
-        balanceSlider.addEventListener('dblclick', (e) => {
-            e.stopPropagation();
-            this.setMicMonitor({ balance: 0 });
-        });
-        balanceSlider.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const balance = Math.max(-100, Math.min(100, (config().balance ?? 0) + (e.deltaY < 0 ? 5 : -5)));
-            this.setMicMonitor({ balance });
-        }, { passive: false });
 
         // Seuil de la porte : on le glisse directement sur le vumètre.
         const meter = view.querySelector('[data-mic="meter"]');

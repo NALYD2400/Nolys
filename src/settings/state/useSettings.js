@@ -270,6 +270,15 @@ export function useMicMonitor() {
     const [outputs, setOutputs] = useState([]);
     const pending = useRef(null);
     const sending = useRef(false);
+    // Niveaux du vumètre : ~15 fois par seconde, transmis au seul vumètre (subscribeLevels).
+    // Le reste de la page ne se redessine que si un réglage ou l'état change vraiment.
+    const levels = useRef({ inputLevel: 0, outputLevel: 0, listeners: new Set() });
+    const statusKey = useRef('');
+    const subscribeLevels = useCallback((listener) => {
+        levels.current.listeners.add(listener);
+        listener(levels.current);
+        return () => levels.current.listeners.delete(listener);
+    }, []);
 
     useEffect(() => {
         let alive = true;
@@ -277,6 +286,12 @@ export function useMicMonitor() {
         // qu'on glisse revient en arrière à chaque rafraîchissement).
         const receive = (next) => {
             if (!alive || !next) return;
+            const { inputLevel = 0, outputLevel = 0 } = next;
+            Object.assign(levels.current, { inputLevel, outputLevel });
+            levels.current.listeners.forEach((listener) => listener(levels.current));
+            const key = JSON.stringify({ ...next, inputLevel: 0, outputLevel: 0 });
+            if (key === statusKey.current) return;
+            statusKey.current = key;
             setStatus((current) => (sending.current && current ? { ...next, config: current.config } : next));
         };
         const refresh = () => ipcRenderer.invoke('get-mic-monitor').then(receive).catch(() => {});
@@ -317,5 +332,5 @@ export function useMicMonitor() {
         }
     }, []);
 
-    return { status, inputs, outputs, update };
+    return { status, inputs, outputs, update, subscribeLevels };
 }

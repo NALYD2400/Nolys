@@ -61,7 +61,7 @@ export const volumeMethods = {
         const groups = {};
         for (const s of sessions) {
             let cleanName = s.name.replace('.exe', '');
-            if (cleanName.toLowerCase() === 'audiodg') cleanName = 'System Sounds';
+            if (cleanName.toLowerCase() === 'audiodg') cleanName = 'Sons système';
             if (cleanName.toLowerCase() === 'msedge') cleanName = 'Microsoft Edge';
             
             const key = cleanName.toLowerCase();

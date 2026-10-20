@@ -259,8 +259,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Re-apply styles
         ThemeService.applyIslandSettings();
         
-        // Force refresh DynamicIsland rendering if expanded
-        if (window.island) {
+        // Nouveau rendu de l'Island, sauf Réglages ouverts : ils la recouvrent, et ce rendu complet
+        // (plus une lecture de l'état média) à chaque cran de curseur saccadait les Réglages.
+        // Il aura lieu à leur fermeture.
+        if (window.island && !(window.island.isExpanded && window.island.mode === 'settings')) {
             window.island.renderContent();
         }
         

@@ -42,9 +42,12 @@ export const replayView = {
         const host = document.createElement('div'); host.className = 'island-library-view replay-panel-host';
         this.content.replaceChildren(host); this._replayHost = host;
         const settled = capsuleSettled(this.el);
-        // Onglet Clips (et clip en lecture) : la capsule suit la liste. Capture et Réglages
-        // gardent la taille du module.
-        const refit = () => this.fitToContent(host, 'replay', Boolean(host.shadowRoot?.querySelector('#replay-tab-clips[aria-selected="true"]')), 536);
+        // Capture et Clips (et clip en lecture) : la capsule suit le contenu. Réglages, long et
+        // défilant, garde la taille du module.
+        const refit = () => {
+            const tab = host.shadowRoot?.querySelector('[role="tab"][aria-selected="true"]')?.dataset.tab;
+            this.fitToContent(host, 'replay', Boolean(tab) && tab !== 'settings', 536);
+        };
         this._replayController = mountReplay(host, {
             ready: settled,
             onClose: () => this.collapseIsland({ force: true }), onBack: () => this.setMode('menu'),
@@ -57,8 +60,15 @@ export const replayView = {
             },
             onRender: () => { refit(); settled.then(() => afterIntro(() => { if (this._replayHost === host) this.syncGlassControls(); })); },
         });
+        // Le contenu change aussi sans nouveau rendu (capture lancée, enregistrement, erreur).
+        this._replayResize = new ResizeObserver(refit);
+        for (const id of ['#replay-content', '#replay-feedback']) {
+            const element = host.shadowRoot?.querySelector(id);
+            if (element) this._replayResize.observe(element);
+        }
     },
     leaveReplay() {
+        this._replayResize?.disconnect(); this._replayResize = null;
         this._replayController?.destroy(); this._replayController = null; this._replayHost = null;
     },
 };

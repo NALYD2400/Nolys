@@ -1,7 +1,7 @@
 /**
  * Briques d'interface des réglages, construites sur les composants Liquid Glass.
  */
-import { useEffect, useState } from 'react';
+import { startTransition, useEffect, useRef, useState } from 'react';
 import {
     GlassButton,
     GlassMenu,
@@ -56,24 +56,70 @@ export function Row({ label, description, children, stacked = false }) {
     );
 }
 
+/**
+ * L'interrupteur bascule tout de suite (état local) ; la mise à jour des réglages suit en
+ * priorité basse : elle redessine toute la page et ne doit pas saccader l'animation.
+ */
 export function Toggle({ label, description, checked, onChange }) {
+    const [optimistic, setOptimistic] = useState(null);
+    useEffect(() => {
+        if (optimistic === null) return undefined;
+        if (optimistic === checked) { setOptimistic(null); return undefined; }
+        // Changement refusé (ou jamais confirmé) : on revient à l'état réel.
+        const timer = setTimeout(() => setOptimistic(null), 1500);
+        return () => clearTimeout(timer);
+    }, [checked, optimistic]);
     return (
         <Row label={label} description={description}>
             <GlassSwitch
                 aria-label={label}
                 tint={SWITCH_TINT}
-                checked={checked}
+                checked={optimistic ?? checked}
                 onCheckedChange={(value) => {
                     playClick();
-                    onChange(value);
+                    setOptimistic(value);
+                    startTransition(() => onChange(value));
                 }}
             />
         </Row>
     );
 }
 
+/** Pendant un glissement : au plus une mise à jour des réglages toutes les 50 ms. */
+const SLIDER_SEND_MS = 50;
+
 /** Curseur continu ; `format` met en forme la valeur affichée. */
 export function SliderRow({ label, description, value, min, max, step = 1, format = (v) => v, onChange }) {
+    // La valeur en cours de glissement vit ici : seul ce curseur se redessine à chaque
+    // mouvement (des centaines par seconde sur un écran rapide), pas toute la page.
+    const [draft, setDraft] = useState(null);
+    const send = useRef({ last: 0, timer: null, value: null, onChange });
+    send.current.onChange = onChange;
+    useEffect(() => () => clearTimeout(send.current.timer), []);
+    // La valeur reçue a rattrapé le glissement (aller-retour natif compris) : on la reprend.
+    useEffect(() => {
+        if (draft === null) return undefined;
+        if (value === draft) { setDraft(null); return undefined; }
+        const timer = setTimeout(() => setDraft(null), 800);
+        return () => clearTimeout(timer);
+    }, [value, draft]);
+
+    const flush = () => {
+        const state = send.current;
+        clearTimeout(state.timer);
+        state.timer = null;
+        state.last = performance.now();
+        state.onChange(state.value);
+    };
+    const change = (next) => {
+        const state = send.current;
+        state.value = Array.isArray(next) ? next[0] : next;
+        setDraft(state.value);
+        const wait = SLIDER_SEND_MS - (performance.now() - state.last);
+        if (wait <= 0) flush();
+        else if (!state.timer) state.timer = setTimeout(flush, wait);
+    };
+    const shown = draft ?? value;
     return (
         <Row label={label} description={description} stacked>
             <div className="slider">
@@ -83,10 +129,14 @@ export function SliderRow({ label, description, value, min, max, step = 1, forma
                     min={min}
                     max={max}
                     step={step}
-                    value={value}
-                    onValueChange={(next) => onChange(Array.isArray(next) ? next[0] : next)}
+                    value={shown}
+                    onValueChange={change}
+                    onValueCommitted={(next) => {
+                        send.current.value = Array.isArray(next) ? next[0] : next;
+                        flush();
+                    }}
                 />
-                <span className="slider-value">{format(value)}</span>
+                <span className="slider-value">{format(shown)}</span>
             </div>
         </Row>
     );

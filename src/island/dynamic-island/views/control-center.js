@@ -662,7 +662,7 @@ export const controlCenterView = {
                                     const muteIcon = getMuteIcon(isMuted, activeVol);
                                     
                                     let cleanName = s.name.replace('.exe', '');
-                                    if (cleanName.toLowerCase() === 'audiodg') cleanName = 'System Sounds';
+                                    if (cleanName.toLowerCase() === 'audiodg') cleanName = 'Sons système';
                                     
                                     return `
                                         <div class="ic-mixer-row">

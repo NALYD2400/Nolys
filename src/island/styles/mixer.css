@@ -27,11 +27,51 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
-    letter-spacing: 0.5px;
     color: #fff;
-    text-transform: uppercase;
+}
+
+/* Titre et, dessous, la sortie en cours : un clic ouvre la liste des sorties. */
+.mixer-heading {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    min-width: 0;
+}
+
+.mixer-output-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 230px;
+    padding: 2px 6px 2px 2px;
+    margin-left: -2px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.55);
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.mixer-output-btn span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mixer-output-btn:hover,
+.mixer-output-btn.active {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.mixer-output-btn .ph-caret-down {
+    font-size: 9px;
 }
 
 .mixer-title i {

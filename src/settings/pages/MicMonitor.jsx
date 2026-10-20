@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, Reveal, Row, Segmented, Select, SliderRow, Toggle } from '../components/controls.jsx';
 import { useMicMonitor } from '../state/useSettings.js';
 
@@ -23,20 +23,21 @@ const deviceOptions = (devices, defaultLabel, current) => [
 const FALLBACK_NOTE = 'Débranché : celui de Windows prend le relais, retour automatique dès qu’il revient.';
 
 /** Vumètre : entrée du micro en transparence, ce qui part dans le casque par-dessus, seuil de la porte. */
-function LevelMeter({ status }) {
-    const config = status.config;
+function LevelMeter({ config, subscribeLevels }) {
+    const [levels, setLevels] = useState({ inputLevel: 0, outputLevel: 0 });
+    useEffect(() => subscribeLevels(({ inputLevel, outputLevel }) => setLevels({ inputLevel, outputLevel })), [subscribeLevels]);
     const gate = toPct(10 ** ((config.gateThreshold ?? -50) / 20));
     return (
         <div className="mic-level" aria-hidden="true">
-            <div className="mic-level-in" style={{ width: `${toPct(status.inputLevel)}%` }} />
-            <div className="mic-level-out" style={{ width: `${toPct(status.outputLevel)}%` }} />
+            <div className="mic-level-in" style={{ width: `${toPct(levels.inputLevel)}%` }} />
+            <div className="mic-level-out" style={{ width: `${toPct(levels.outputLevel)}%` }} />
             {config.gateEnabled && <div className="mic-level-gate" style={{ left: `${gate}%` }} />}
         </div>
     );
 }
 
 export default function MicMonitor() {
-    const { status, inputs, outputs, update } = useMicMonitor();
+    const { status, inputs, outputs, update, subscribeLevels } = useMicMonitor();
     const [satellite, setSatellite] = useState(() => localStorage.getItem('liquid_mic_satellite') !== 'false');
 
     if (!status) return null;
@@ -58,7 +59,7 @@ export default function MicMonitor() {
                     onChange={(enabled) => update({ enabled })}
                 />
                 <Row label="État" description={state}>
-                    <LevelMeter status={status} />
+                    <LevelMeter config={config} subscribeLevels={subscribeLevels} />
                 </Row>
             </Card>
 

@@ -2,8 +2,8 @@
 
 .island-mode-mic {
     width: 404px;
-    height: 360px;
-    border-radius: 40px;
+    height: 268px;
+    border-radius: var(--shell-radius);
 }
 
 .mic-view {
@@ -127,13 +127,12 @@
 /* Retour coupé : les réglages restent accessibles mais passent au second plan. */
 .mic-view:not(.is-on) .mic-meter-card,
 .mic-view:not(.is-on) .mic-volume,
-.mic-view:not(.is-on) .mic-chips,
-.mic-view:not(.is-on) .mic-latency {
+.mic-view:not(.is-on) .mic-chips {
     opacity: 0.45;
     transition: opacity 0.3s ease;
 }
 
-.mic-view:not(.is-on) :is(.mic-meter-card, .mic-volume, .mic-chips, .mic-latency):hover {
+.mic-view:not(.is-on) :is(.mic-meter-card, .mic-volume, .mic-chips):hover {
     opacity: 0.8;
 }
 
@@ -350,15 +349,6 @@
     transform: translateX(-50%) translateY(0);
 }
 
-.mic-meter-scale {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 3px;
-    font-size: 8.5px;
-    opacity: 0.35;
-    font-variant-numeric: tabular-nums;
-}
-
 /* ---------------------------------------------------------------- Volume */
 
 .mic-volume {
@@ -380,33 +370,6 @@
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     opacity: 0.85;
-}
-
-/* Balance : même curseur que le volume, mais le remplissage part du centre
- * et le gain au-delà de 100 % n'existe pas ici. */
-.mic-balance-side {
-    font-size: 10px;
-    font-weight: 700;
-    opacity: 0.45;
-    width: 8px;
-    text-align: center;
-}
-
-.mic-balance .mic-volume-value {
-    width: 56px;
-}
-
-.mic-balance .mic-slider::after {
-    display: none;
-}
-
-.mic-balance .mic-slider-fill {
-    left: min(50%, var(--val));
-    width: abs(var(--val) - 50%);
-}
-
-.mic-balance .mic-slider-detent {
-    background: rgba(255, 255, 255, 0.5);
 }
 
 .mic-slider {
@@ -557,58 +520,12 @@
     cursor: not-allowed;
 }
 
-.mic-latency {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-left: 2px;
-}
-
-.mic-latency > span {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    font-size: 11px;
-    font-weight: 600;
-    opacity: 0.6;
-}
-
 /* Icônes posées à côté d'un libellé en minuscules : le texte paraît 1 px plus bas que le centre de sa ligne,
- * on descend donc l'icône du même cran (chips, latence, périphériques). */
-.mic-latency > span i,
+ * on descend donc l'icône du même cran (chips, périphériques). */
 .mic-chip i,
 .mic-device > i:first-child {
     position: relative;
     top: 1px;
-}
-
-.mic-latency > span i {
-    font-size: 14px;
-}
-
-.mic-segment {
-    display: inline-flex;
-    padding: 2px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.mic-segment button {
-    height: 24px;
-    padding: 0 9px;
-    border: none;
-    border-radius: 999px;
-    background: transparent;
-    color: rgba(255, 255, 255, 0.55);
-    font: 600 10.5px 'Inter', sans-serif;
-    cursor: pointer;
-    transition: background 0.25s ease, color 0.25s ease;
-}
-
-.mic-segment button.on {
-    background: rgba(255, 255, 255, 0.92);
-    color: #111;
 }
 
 /* ---------------------------------------------------------------- Périphériques */

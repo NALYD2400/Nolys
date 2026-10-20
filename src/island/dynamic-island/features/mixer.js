@@ -3,6 +3,20 @@ import { ipcRenderer } from '../../../shared/ipc.js';
 import { escapeHtml } from '../helpers/format.js';
 import { getInputDeviceIcon, getMixerIcon, getMuteIcon, getOutputDeviceIcon } from '../helpers/mixer-icons.js';
 
+/** Nom lisible d'une application (« audiodg » = sons de Windows). */
+export function sessionName(name = '') {
+    const clean = name.replace(/\.exe$/i, '');
+    const known = { audiodg: 'Sons système', msedge: 'Microsoft Edge' };
+    return known[clean.toLowerCase()] || clean;
+}
+
+/** Titre de fenêtre utile sous le nom, ou rien (vide, ou simple répétition du nom). */
+export function sessionSubtitle(session) {
+    const title = (session.title || '').trim();
+    if (!title) return '';
+    return title.toLowerCase() === sessionName(session.name).toLowerCase() ? '' : title;
+}
+
 export const mixerMethods = {
     updateMixerScrub(e) {
         if (!this.activeMixerSlider || !this.isScrubbingMixer) return;
@@ -39,14 +53,22 @@ export const mixerMethods = {
         
         // Update local session state immediately so next tick doesn't snap it back
         const session = this.audioSessions.find(s => s.pid === pid);
+        const wasMuted = Boolean(session?.muted);
         if (session) {
             session.volume = clickPct;
             session.muted = (clickPct === 0);
         }
-        
-        
+
         if (ipcRenderer) {
-            ipcRenderer.invoke('set-session-volume', { pid, volume: clickPct });
+            if (wasMuted && clickPct > 0) ipcRenderer.invoke('set-session-muted', { pid, muted: false });
+            // L'affichage suit chaque mouvement, mais Windows reçoit au plus un volume toutes les
+            // 40 ms (le dernier) : sur un écran rapide, des centaines d'appels par seconde saccadaient.
+            this._mixerSend = { pid, volume: clickPct, timer: this._mixerSend?.timer };
+            this._mixerSend.timer ??= setTimeout(() => {
+                const { pid: target, volume } = this._mixerSend;
+                this._mixerSend.timer = null;
+                ipcRenderer.invoke('set-session-volume', { pid: target, volume });
+            }, 40);
         }
     },
 
@@ -83,9 +105,9 @@ export const mixerMethods = {
             const badge = row.querySelector('.mixer-app-vol-badge, .ic-mixer-vol');
             const muteBtn = row.querySelector('.mixer-mute-btn, .ic-mixer-mute');
             const visibleVolume = mustMute ? 0 : targetVolume;
-            
-            if (slider) slider.value = visibleVolume;
-            if (badge) badge.innerText = `${visibleVolume}%`;
+
+            if (slider) slider.value = mustMute ? Math.round(sessions[0].volume || targetVolume) : targetVolume;
+            if (badge) badge.innerText = mustMute ? 'Muet' : `${visibleVolume}%`;
             if (muteBtn) {
                 if (mustMute) {
                     muteBtn.classList.add('muted');
@@ -200,6 +222,8 @@ export const mixerMethods = {
         // Update header icon
         const btnIcon = this.content.querySelector('.device-select-btn i');
         if (btnIcon) btnIcon.className = `ph ${getOutputDeviceIcon(activeDevice?.name)}`;
+        const btnName = this.content.querySelector('.device-select-btn span');
+        if (btnName) btnName.textContent = activeDevice?.name || 'Sortie par défaut';
 
         // Render items list
         const listContainer = this.content.querySelector('.audio-device-list-container');
@@ -380,7 +404,8 @@ export const mixerMethods = {
                 const icon = s.icon || getMixerIcon(s.name, s.title);
                 const isMuted = s.volume === 0 || s.muted;
                 const activeVol = isMuted ? 0 : Math.round(s.volume);
-                
+                const sliderVol = Math.round(s.volume);
+
                 let iconHtml = '';
                 if (icon) {
                     iconHtml = `
@@ -395,12 +420,9 @@ export const mixerMethods = {
                 const rowMutedClass = isMuted ? 'muted' : '';
                 const btnMutedClass = isMuted ? 'muted' : '';
                 
-                let cleanName = s.name.replace('.exe', '');
-                if (cleanName.toLowerCase() === 'audiodg') cleanName = 'System Sounds';
-                if (cleanName.toLowerCase() === 'msedge') cleanName = 'Microsoft Edge';
-                
-                const displayTitle = s.title && s.title.trim().length > 0 ? s.title : 'Flux audio actif';
-                
+                const cleanName = sessionName(s.name);
+                const displayTitle = sessionSubtitle(s);
+
                 return `
                     <div class="mixer-session-row ${rowMutedClass}">
                         <div class="mixer-app-icon-wrapper">
@@ -409,11 +431,11 @@ export const mixerMethods = {
                         <div class="mixer-details">
                             <div class="mixer-app-name-row">
                                 <span class="mixer-app-name">${escapeHtml(cleanName)}</span>
-                                <span class="mixer-app-vol-badge">${activeVol}%</span>
+                                <span class="mixer-app-vol-badge">${isMuted ? 'Muet' : `${activeVol}%`}</span>
                             </div>
-                            <span class="mixer-title-text" title="${escapeHtml(displayTitle)}">${escapeHtml(displayTitle)}</span>
+                            ${displayTitle ? `<span class="mixer-title-text" title="${escapeHtml(displayTitle)}">${escapeHtml(displayTitle)}</span>` : ''}
                             <div class="mixer-slider-wrapper">
-                                <input type="range" class="mixer-volume-slider" data-pid="${s.pid}" min="0" max="100" value="${activeVol}">
+                                <input type="range" class="mixer-volume-slider" data-pid="${s.pid}" min="0" max="100" value="${sliderVol}" aria-label="Volume de ${escapeHtml(cleanName)}">
                             </div>
                         </div>
                         <button class="mixer-mute-btn ${btnMutedClass}" data-pid="${s.pid}" title="${isMuted ? 'Réactiver le son' : 'Couper le son'}" aria-label="${isMuted ? 'Réactiver le son' : 'Couper le son'}">
@@ -441,12 +463,14 @@ export const mixerMethods = {
         this.content.innerHTML = `
             <div class="mixer-container">
                 <div class="mixer-header">
-                    <span class="mixer-title"><i class="ph ph-sliders"></i> Mélangeur Audio</span>
-                    <div class="music-action-cluster">
-                        <button class="island-action-btn device-select-btn ${activeOutBtnClass}" data-island-action="toggleAudioDeviceDropdown" title="Périphérique de sortie">
-                            <i class="ph ${headerIcon}"></i>
+                    <div class="mixer-heading">
+                        <span class="mixer-title"><i class="ph ph-sliders"></i> Mélangeur</span>
+                        <button type="button" class="mixer-output-btn device-select-btn ${activeOutBtnClass}" data-island-action="toggleAudioDeviceDropdown" title="Changer la sortie audio">
+                            <i class="ph ${headerIcon}"></i><span>${escapeHtml(activeDevice?.name || 'Sortie par défaut')}</span><i class="ph-bold ph-caret-down"></i>
                         </button>
-                        <button class="island-action-btn mic-select-btn ${activeMicBtnClass}" data-island-action="toggleMicDeviceDropdown" title="Entrée audio / Micro">
+                    </div>
+                    <div class="music-action-cluster">
+                        <button class="island-action-btn mic-select-btn ${activeMicBtnClass}" data-island-action="toggleMicDeviceDropdown" title="Changer de micro">
                             <i class="ph ph-microphone"></i>
                         </button>
                         <button class="island-action-btn menu-btn" data-island-action="setMode" data-arg="menu" title="Menu des modules">
@@ -461,7 +485,7 @@ export const mixerMethods = {
                     
                     <div class="audio-device-dropdown" id="audio-device-dropdown">
                         <div class="audio-device-dropdown-header">
-                            <span class="audio-device-dropdown-title">Sortie Audio</span>
+                            <span class="audio-device-dropdown-title">Sortie audio</span>
                             <button class="audio-device-dropdown-close" title="Fermer" aria-label="Fermer" data-island-action="toggleAudioDeviceDropdown">
                                 <i class="ph ph-x"></i>
                             </button>
@@ -473,7 +497,7 @@ export const mixerMethods = {
 
                     <div class="audio-device-dropdown" id="mic-device-dropdown">
                         <div class="audio-device-dropdown-header">
-                            <span class="audio-device-dropdown-title">Entrée Audio / Micro</span>
+                            <span class="audio-device-dropdown-title">Micro</span>
                             <button class="audio-device-dropdown-close" title="Fermer" aria-label="Fermer" data-island-action="toggleMicDeviceDropdown">
                                 <i class="ph ph-x"></i>
                             </button>
@@ -525,18 +549,19 @@ export const mixerMethods = {
             
             const isMuted = s.volume === 0 || s.muted;
             const activeVol = isMuted ? 0 : Math.round(s.volume);
-            
-            if (slider && parseInt(slider.value) !== activeVol) {
-                slider.value = activeVol;
+
+            if (slider && parseInt(slider.value) !== Math.round(s.volume)) {
+                slider.value = Math.round(s.volume);
             }
             if (badge) {
-                badge.innerText = `${activeVol}%`;
+                badge.innerText = isMuted ? 'Muet' : `${activeVol}%`;
             }
             if (title) {
-                const displayTitle = s.title && s.title.trim().length > 0 ? s.title : 'Flux audio actif';
+                const displayTitle = sessionSubtitle(s);
                 if (title.innerText !== displayTitle) {
                     title.innerText = displayTitle;
                     title.title = displayTitle;
+                    title.hidden = !displayTitle;
                 }
             }
             
