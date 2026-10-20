@@ -1,5 +1,33 @@
 # Historique
 
+## 2.6.0 — 20 octobre 2026
+
+### Réglages
+
+- Les réglages de l’interface sont rangés dans un fichier commun : la version de développement, l’appli installée et ses mises à jour partagent les mêmes réglages (ceux de l’appli installée sont repris au premier lancement). Fini l’impression de « remise à zéro ».
+- Bien plus fluides : interrupteurs qui basculent tout de suite, curseurs qui suivent le doigt (environ 26 → 360 images par seconde mesurées sur un écran rapide), plus de verre recalculé à chaque image. L’Island ne se redessine plus à chaque réglage tant que les Réglages sont ouverts.
+- Apparence : aperçu de l’Island en direct (opacité, matière, grain, halo, flou). L’opacité n’apparaît qu’avec le Verre, la seule matière où elle agit. « Flou d’arrière-plan », qui n’agissait sur rien, devient « Flou de la pochette » (fond de la pilule et du lecteur).
+- Tous les menus déroulants ont le même style : intitulé, icône devant chaque choix, une ligne par choix.
+
+### Island
+
+- Coins continus façon Liquid Glass (squircle), concentriques d’une forme à l’autre (barre latérale des Réglages, mini-lecteur, cartes du centre de contrôle). Plus de liseré sombre sur le bord, et la capsule redevient ronde dès le début du repli.
+- Chaque module garde sa taille quand on change d’onglet. Seuls le clip ou l’image en lecture, les onglets Capture et Clips de Replay et Fichiers s’ajustent à leur contenu, et s’ouvrent directement à la bonne hauteur.
+- Transitions calées sur la durée réelle du ressort ; changement d’onglet en fondu court ; la pilule ne change plus de largeur pour quelques pixels à chaque morceau.
+- Mélangeur : sortie audio en cours affichée et modifiable d’un clic, une application coupée garde son volume, glisser son curseur rétablit vraiment le son, sous-titres inutiles retirés.
+- Retour micro : module allégé (balance et latence restent dans les Réglages, accessibles par un nouveau bouton).
+- Changements de morceau et de lecture détectés par événement Windows : réaction immédiate et moins de sondage quand l’Island est repliée.
+
+### Fond d’écran
+
+- Correction : le bureau pouvait rester bloqué sur une pochette quand l’ancien fond avait été déplacé ou supprimé. Nolys retrouve le vrai fond dans l’historique de Windows (ou le fond par défaut) et le remet au démarrage si besoin.
+- Rendu à la taille du plus grand écran et en meilleure qualité : plus d’image agrandie ou de bandes dans le flou sur un écran large.
+
+### Sécurité
+
+- Correction d’une faille : le titre d’une page web (ou d’une fenêtre) qui joue du son était inséré sans échappement dans le mélangeur et pouvait y exécuter du code. Tous ces textes sont désormais échappés.
+- Politique de sécurité du contenu (CSP) stricte et plus aucun script en ligne dans l’interface.
+
 ## 2.5.0 — 19 octobre 2026
 
 - Nouveau module Fichiers : déposer ou sélectionner des fichiers, convertir les images en PNG/JPG/WebP/BMP, redimensionner, compresser en JPG et exporter des copies en conservant les originaux. Les traitements et résultats sont regroupés dans Activité.
