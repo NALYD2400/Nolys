@@ -2,7 +2,7 @@
 import { ThemeService } from '../../../services/ThemeService.js';
 import { publishCover } from '../../../shared/cover-bus.js';
 import { blendHexColors, hexToRgb, rgbToHex } from '../helpers/color.js';
-import { getDisplayMediaArt, getRawDisplayMediaArt, isSocialFallbackIcon } from '../helpers/media-art.js';
+import { coverBlurPx, getDisplayMediaArt, getRawDisplayMediaArt, isSocialFallbackIcon } from '../helpers/media-art.js';
 import { getMusicHistoryKey } from '../helpers/music-search.js';
 
 export const coverThemeMethods = {
@@ -252,7 +252,7 @@ export const coverThemeMethods = {
             if (coverUrl && coverUrl.length > 0) {
                 bgLayer.style.backgroundImage = `url("${coverUrl}")`;
                 bgLayer.style.opacity = String(this.getPlayerCoverOpacity());
-                bgLayer.style.filter = 'blur(24px) saturate(180%)';
+                bgLayer.style.filter = `blur(${coverBlurPx(0.8)}px) saturate(180%)`;
             } else {
                 bgLayer.style.backgroundImage = 'none';
                 bgLayer.style.opacity = '0';
@@ -322,7 +322,7 @@ export const coverThemeMethods = {
             if (islandConfig.bgImage) {
                 bgLayer.style.backgroundImage = `url('${islandConfig.bgImage.replace(/\\/g, '/')}')`;
                 bgLayer.style.opacity = (islandConfig.imgOpacity || 100) / 100;
-                bgLayer.style.filter = `blur(${islandConfig.blur || 30}px)`;
+                bgLayer.style.filter = `blur(${islandConfig.blur ?? 30}px)`;
             } else {
                 bgLayer.style.backgroundImage = 'none';
                 bgLayer.style.opacity = '0';
@@ -352,7 +352,7 @@ export const coverThemeMethods = {
                 const cleanCover = effectiveArt.replace(/\\/g, '/');
                 bgLayer.style.backgroundImage = `url("${cleanCover}")`;
                 bgLayer.style.opacity = String(this.getPlayerCoverOpacity());
-                bgLayer.style.filter = 'blur(24px) saturate(180%)';
+                bgLayer.style.filter = `blur(${coverBlurPx(0.8)}px) saturate(180%)`;
             }
         } else {
             // No active media, restore standard theme and default background
@@ -362,7 +362,7 @@ export const coverThemeMethods = {
                 if (islandConfig.bgImage) {
                     bgLayer.style.backgroundImage = `url('${islandConfig.bgImage.replace(/\\/g, '/')}')`;
                     bgLayer.style.opacity = (islandConfig.imgOpacity || 100) / 100;
-                    bgLayer.style.filter = `blur(${islandConfig.blur || 30}px)`;
+                    bgLayer.style.filter = `blur(${islandConfig.blur ?? 30}px)`;
                 } else {
                     bgLayer.style.backgroundImage = 'none';
                     bgLayer.style.opacity = '0';

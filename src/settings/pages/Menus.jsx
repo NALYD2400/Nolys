@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { GlassSwitch } from '@glass-sdk/liquid-glass';
-import { Button, Card, Icon, Row, Segmented, Select, SWITCH_TINT, Toggle } from '../components/controls.jsx';
+import { Button, Card, Icon, Row, Segmented, Select, Switch, Toggle } from '../components/controls.jsx';
 import { MENU_ACTIONS, MAX_MENU_ITEMS, menuEntry, sanitizeMenus, SHORTCUT_ICONS } from '../../shared/menu-config.js';
 import { SHORTCUT_PRESETS } from '../state/presets.js';
 
@@ -92,7 +91,7 @@ export default function Menus({ store }) {
                                     <button type="button" className="menu-editor-button" disabled={index === 0} title={`Monter ${action.label}`} aria-label={`Monter ${action.label}`} onClick={() => move(index, -1)}><Icon name="ph-arrow-up" /></button>
                                     <button type="button" className="menu-editor-button" disabled={index === entries.length - 1} title={`Descendre ${action.label}`} aria-label={`Descendre ${action.label}`} onClick={() => move(index, 1)}><Icon name="ph-arrow-down" /></button>
                                     {entry.id === 'settings' ? <Icon name="ph-lock-simple" className="menu-editor-lock" /> :
-                                        <GlassSwitch aria-label={`Afficher ${action.label}`} tint={SWITCH_TINT} checked={entry.enabled !== false}
+                                        <Switch aria-label={`Afficher ${action.label}`} checked={entry.enabled !== false}
                                             onCheckedChange={enabled => setEntries(entries.map(item => item.id === entry.id ? { ...item, enabled } : item))} />}
                                     {custom && <button type="button" className="menu-editor-button" title={`Retirer ${action.label}`} aria-label={`Retirer ${action.label}`}
                                         onClick={() => { setEntries(entries.filter(item => item.id !== entry.id)); if (editing === entry.id) clearDraft(); }}><Icon name="ph-trash" /></button>}

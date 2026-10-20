@@ -76,16 +76,20 @@ export const filesView = {
     renderFiles() {
         this.el.classList.remove(...this.getIslandSizeClasses());
         this.el.classList.add('island-expanded', 'island-mode-files');
-        this.el.style.height = this._mediaFit?.mode === 'files' ? `${this._mediaFit.height}px` : ''; this.el.style.width = '';
+        const fitted = this.fittedHeight('files');
+        this.el.style.height = fitted ? `${fitted}px` : ''; this.el.style.width = '';
         const look = themeLook(this._islandConfig, this._coverColors?.primary);
         this.el.style.setProperty('--files-accent', look.accent);
         if (this._filesHost?.isConnected) { this.syncGlassControls(); return; }
         if (this._isTransitioning) return;
         this._filesHost = document.createElement('div');
         this._filesHost.className = 'island-library-view files-panel-host';
+        this.applyFittedHeight(this._filesHost, 'files');
         this.el.append(this._filesHost);
         const host = this._filesHost;
         const settled = capsuleSettled(this.el);
+        // La capsule suit le contenu (liste, activité, aperçu), au plus la taille du module.
+        const refit = () => this.fitToContent(host, 'files', true, 496);
         this._filesController = mountFiles(host, {
             ready: settled,
             onClose: () => this.closeFiles(),
@@ -95,10 +99,16 @@ export const filesView = {
                 const width = Math.min(680, window.innerWidth - 40);
                 this.el.style.setProperty('--files-preview-width', `${width}px`);
                 host.style.setProperty('--panel-width', `${expanded ? width : 560}px`);
-                this.fitToContent(host, 'files', expanded, 496);
+                refit();
             },
-            onRender: () => settled.then(() => afterIntro(() => { if (this._filesHost === host && this.mode === 'files') this.syncGlassControls(); })),
+            onRender: () => { refit(); settled.then(() => afterIntro(() => { if (this._filesHost === host && this.mode === 'files') this.syncGlassControls(); })); },
         });
+        // Contenu qui change sans nouveau rendu complet (fichiers ajoutés, tâche, message).
+        this._filesResize = new ResizeObserver(refit);
+        for (const id of ['#files-content', '#files-notice']) {
+            const element = host.shadowRoot?.querySelector(id);
+            if (element) this._filesResize.observe(element);
+        }
         window.dispatchEvent(new Event('nolys-hit-region-changed'));
     },
     closeFiles() {
@@ -110,6 +120,7 @@ export const filesView = {
         });
     },
     leaveFiles() {
+        this._filesResize?.disconnect(); this._filesResize = null;
         this._filesController?.destroy(); this._filesController = null;
         this._filesHost?.remove(); this._filesHost = null;
         this.el.classList.remove('island-mode-files', 'island-files-preview');

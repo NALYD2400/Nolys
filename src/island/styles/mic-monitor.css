@@ -3,7 +3,7 @@
 .island-mode-mic {
     width: 404px;
     height: 268px;
-    border-radius: var(--shell-radius);
+    border-radius: calc(var(--shell-radius) * var(--corner-k));
 }
 
 .mic-view {

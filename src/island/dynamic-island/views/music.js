@@ -1,7 +1,7 @@
 /** Lecteur musical déplié. */
 import { applyLoopMarquee } from '../helpers/marquee.js';
 import { escapeHtml, formatTime } from '../helpers/format.js';
-import { APP_LOGO_ART, getDisplayMediaArt, getFallbackIcon, getRawDisplayMediaArt, getServiceArtStyle, shouldPreferServiceIcon } from '../helpers/media-art.js';
+import { APP_LOGO_ART, getDisplayMediaArt, getFallbackIcon, getRawDisplayMediaArt, coverBlurPx, getServiceArtStyle, shouldPreferServiceIcon } from '../helpers/media-art.js';
 import { getMusicHistoryKey } from '../helpers/music-search.js';
 
 export const musicView = {
@@ -129,13 +129,13 @@ export const musicView = {
             if (effectiveBgArt && effectiveBgArt.length > 0) {
                 bgLayer.style.backgroundImage = `url(${effectiveBgArt.replace(/\\/g, '/')})`;
                 bgLayer.style.opacity = String(this.getPlayerCoverOpacity());
-                bgLayer.style.filter = 'blur(24px) saturate(180%)';
+                bgLayer.style.filter = `blur(${coverBlurPx(0.8)}px) saturate(180%)`;
             } else {
                 const islandConfig = JSON.parse(localStorage.getItem('liquid_island_config') || '{}');
                 if (islandConfig.bgImage) {
                     bgLayer.style.backgroundImage = `url('${islandConfig.bgImage.replace(/\\/g, '/')}')`;
                     bgLayer.style.opacity = (islandConfig.imgOpacity || 100) / 100;
-                    bgLayer.style.filter = `blur(${islandConfig.blur || 30}px)`;
+                    bgLayer.style.filter = `blur(${islandConfig.blur ?? 30}px)`;
                 } else {
                     bgLayer.style.backgroundImage = 'none';
                 }

@@ -59,6 +59,16 @@ pub struct WallpaperSync {
     apply_lock: Mutex<()>,
 }
 
+/// Dernier recours : le fond fourni avec Windows, plutôt qu'une pochette laissée sur le bureau.
+fn default_wallpaper() -> Option<String> {
+    let root = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into());
+    ["img0.jpg", "img19.jpg"]
+        .iter()
+        .map(|name| Path::new(&root).join("Web").join("Wallpaper").join("Windows").join(name))
+        .find(|path| path.exists())
+        .map(|path| path.to_string_lossy().into_owned())
+}
+
 const TEMP_MARKERS: [&str; 5] =
     ["current_wallpaper", "processed_wallpaper", "liquid-dynamic-island", "liquid dynamic island", "com.nalyd.liquid-dynamic-island"];
 
@@ -106,27 +116,44 @@ impl WallpaperSync {
             self.state.lock().original = current;
             return;
         }
+        match self.find_original() {
+            Some(found) => self.state.lock().original = found,
+            None => log("[Wallpaper Sync] No real wallpaper found (backup, Windows history)."),
+        }
+    }
 
+    /// Fond d'origine introuvable dans le registre (le bureau montre une pochette) : copie de
+    /// sauvegarde, sinon historique de Windows. Une sauvegarde qui pointe vers un fichier
+    /// supprimé ne bloque plus la recherche (le bureau restait sinon coincé sur une pochette).
+    fn find_original(&self) -> Option<String> {
         if let Ok(backed_up) = std::fs::read_to_string(self.backup_path()) {
             let backed_up = backed_up.trim().to_string();
-            if !backed_up.is_empty() && Path::new(&backed_up).exists() {
+            if !backed_up.is_empty() && Path::new(&backed_up).exists() && !self.is_temp_wallpaper(&backed_up) {
                 log(&format!("[Wallpaper Sync] Restored original wallpaper path from backup file: {backed_up}"));
-                self.state.lock().original = backed_up;
-            } else {
-                log(&format!("[Wallpaper Sync] Backup file path does not exist on disk: {backed_up}"));
+                return Some(backed_up);
             }
+            log(&format!("[Wallpaper Sync] Backup file path does not exist on disk: {backed_up}"));
+        }
+        let found = system::wallpaper_history().into_iter().find(|p| Path::new(p).exists() && !self.is_temp_wallpaper(p))?;
+        let _ = std::fs::write(self.backup_path(), &found);
+        log(&format!("[Wallpaper Sync] Recovered original wallpaper from Windows history: {found}"));
+        Some(found)
+    }
+
+    /// Démarrage, synchro coupée : si le bureau montre encore une pochette (application
+    /// fermée de force, ancienne version), on remet le vrai fond.
+    pub fn restore_orphan(&self) {
+        let current = system::current_wallpaper();
+        if current.is_empty() || !self.is_temp_wallpaper(&current) {
             return;
         }
-
-        log("[Wallpaper Sync] No backup file found. Querying Windows wallpaper history...");
-        match system::wallpaper_history().into_iter().find(|p| Path::new(p).exists() && !self.is_temp_wallpaper(p)) {
-            Some(found) => {
-                let _ = std::fs::write(self.backup_path(), &found);
-                log(&format!("[Wallpaper Sync] Recovered original wallpaper from Windows history: {found}"));
+        log(&format!("[Wallpaper Sync] Desktop still shows a cover while sync is off: {current}"));
+        if self.state.lock().original.is_empty() {
+            if let Some(found) = self.find_original() {
                 self.state.lock().original = found;
             }
-            None => log("[Wallpaper Sync] No real wallpaper found in registry history."),
         }
+        self.restore_original();
     }
 
     /// Annule toute pochette encore en attente et renvoie la génération à passer à
@@ -151,11 +178,13 @@ impl WallpaperSync {
         if self.generation.load(Ordering::SeqCst) != generation {
             return;
         }
-        if !original.is_empty() && Path::new(&original).exists() {
-            system::set_wallpaper(&original);
-            log("[Wallpaper Sync] Restored original wallpaper");
-        } else {
-            log("[Wallpaper Sync] Original wallpaper path missing or invalid, skipping restore command");
+        let original = if !original.is_empty() && Path::new(&original).exists() { Some(original) } else { self.find_original() };
+        match original.or_else(default_wallpaper) {
+            Some(path) => {
+                system::set_wallpaper(&path);
+                log(&format!("[Wallpaper Sync] Restored original wallpaper: {path}"));
+            }
+            None => log("[Wallpaper Sync] No wallpaper to restore (original, history and Windows default missing)"),
         }
         self.state.lock().last_cover.clear();
     }

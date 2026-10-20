@@ -3,7 +3,7 @@ import { useLayout } from '../state/useSettings.js';
 
 export default function Position() {
     const { layout, displays, stepScale, setDisplay, toggleEditMode, recenter } = useLayout();
-    const displayOptions = displays.map((display) => ({ value: display.id, label: display.label }));
+    const displayOptions = displays.map((display) => ({ value: display.id, label: display.label, icon: 'ph-monitor' }));
     const scale = Math.round((layout.scale || 1) * 100);
 
     return (
@@ -11,7 +11,7 @@ export default function Position() {
             <Card footer="Les Réglages suivent la taille de l’Island.">
                 {displayOptions.length > 1 && (
                     <Row label="Écran">
-                        <Select value={layout.displayId} options={displayOptions} onChange={setDisplay} />
+                        <Select title="Écrans" value={layout.displayId} options={displayOptions} onChange={setDisplay} />
                     </Row>
                 )}
                 {/* Boutons plutôt qu'un curseur : la taille zoome toute la fenêtre de l'Island,

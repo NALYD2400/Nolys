@@ -1,10 +1,9 @@
 /**
  * Réglages, ouverts dans l'Island (mode `settings`, voir mount.jsx) : barre latérale en
- * verre, pages à droite, et en fond la pochette du morceau en cours, réfractée par les
- * surfaces Liquid Glass.
+ * verre, pages à droite, et en fond la pochette du morceau en cours, floutée.
+ * (CSS statique, sans verre réfracté : le défilement reste fluide).
  */
 import { useEffect, useRef, useState } from 'react';
-import { GlassContent, GlassScene, GlassSurface } from '@glass-sdk/liquid-glass';
 import { themeLook } from '../shared/theme-look.js';
 import { Icon } from './components/controls.jsx';
 import { useCoverTheme, useSettings } from './state/useSettings.js';
@@ -46,9 +45,9 @@ function BackdropLayers({ cover }) {
 
 function Backdrop({ cover }) {
     return (
-        <GlassContent className="backdrop">
+        <div className="backdrop">
             <BackdropLayers cover={cover} />
-        </GlassContent>
+        </div>
     );
 }
 
@@ -88,11 +87,11 @@ export default function App({ host, initialPage, pageRequest, onBack, onClose })
     }, [host, look.accent, look.material]);
 
     return (
-        <GlassScene className="window" appearance="dark" maxSurfaces={48}>
+        <div className="window">
             <Backdrop cover={cover} />
 
             {/* Concentrique à la coque : 40 − 12 de retrait. */}
-            <GlassSurface className="sidebar" material="regular" radius={28}>
+            <div className="sidebar glass">
                 <header className="sidebar-header">
                     <img src="/assets/app-logo.png" alt="" />
                     <div>
@@ -123,7 +122,7 @@ export default function App({ host, initialPage, pageRequest, onBack, onClose })
                         </button>
                     ))}
                 </nav>
-            </GlassSurface>
+            </div>
 
             <main className={`content${scrolled ? ' is-scrolled' : ''}`}>
                 {/* Copie exacte du fond de la fenêtre, derrière le titre : le verre des cartes
@@ -160,6 +159,6 @@ export default function App({ host, initialPage, pageRequest, onBack, onClose })
                     </div>
                 </div>
             </main>
-        </GlassScene>
+        </div>
     );
 }

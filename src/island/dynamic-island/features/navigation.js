@@ -257,7 +257,7 @@ export const navigationMethods = {
             } else {
                 // Taille fixe par module (base.css) : changer d'onglet ne redimensionne pas la capsule.
                 // Exceptions : clip ou image en lecture, liste des clips (fitToContent, views/library.js).
-                const media = this.isExpanded && this._mediaFit?.mode === this.mode ? this._mediaFit.height : null;
+                const media = this.isExpanded ? this.fittedHeight?.(this.mode) : null;
                 this.el.style.height = media ? `${media}px` : '';
                 this.el.style.width = '';
             }

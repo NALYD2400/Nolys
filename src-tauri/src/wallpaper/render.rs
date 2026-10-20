@@ -46,7 +46,7 @@ pub fn apply_blurred(image_path: &Path, style: &str, passes: u32, darken_percent
 }
 
 fn render(image_path: &Path, style: &str, passes: u32, darken_percent: u32) -> Result<PathBuf, String> {
-    let (target_w, target_h) = system::primary_screen_size();
+    let (target_w, target_h) = system::largest_screen_size();
     // Format détecté d'après le contenu : les pochettes SMTC sont souvent des PNG nommés .jpg.
     let original = image::ImageReader::open(image_path)
         .and_then(|reader| reader.with_guessed_format())
@@ -93,7 +93,11 @@ fn render(image_path: &Path, style: &str, passes: u32, darken_percent: u32) -> R
     let suffix = if image_path.to_string_lossy().contains("_2.jpg") { "_2" } else { "_1" };
     let output = dir.join(format!("processed_wallpaper{suffix}.jpg"));
     let _ = std::fs::remove_file(&output);
-    canvas.save_with_format(&output, image::ImageFormat::Jpeg).map_err(|e| e.to_string())?;
+    // Qualité 92 : à 75 (par défaut), les grands dégradés du flou se marquaient en bandes.
+    let file = std::fs::File::create(&output).map_err(|e| e.to_string())?;
+    image::codecs::jpeg::JpegEncoder::new_with_quality(std::io::BufWriter::new(file), 92)
+        .encode_image(&canvas)
+        .map_err(|e| e.to_string())?;
     Ok(output)
 }
 

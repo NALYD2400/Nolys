@@ -51,7 +51,7 @@
     /* Rayon de la coque dépliée, en rayon « Lisse » (celui du verre du SDK). */
     --shell-radius: 40px;
     /* Bascule arc ↔ squircle, en fraction du ressort (voir le bloc squircle en fin de fichier). */
-    --corner-delay: 0.55;
+    --corner-delay: 0;
 
     background: var(--island-bg);
     backdrop-filter: blur(var(--island-blur));
@@ -456,13 +456,13 @@ body.motion-vivid .inner-action-btn:hover {
 .island-expanded {
     width: 380px;
     height: 215px;
-    border-radius: var(--shell-radius);
+    border-radius: calc(var(--shell-radius) * var(--corner-k));
 }
 
 .island-large {
     width: 380px;
     height: 410px;
-    border-radius: var(--shell-radius);
+    border-radius: calc(var(--shell-radius) * var(--corner-k));
 }
 
 /* Nouvelle classe pour une notification temporaire allongée */
@@ -477,63 +477,63 @@ body.motion-vivid .inner-action-btn:hover {
 .island-mode-music {
     width: 380px;
     height: 196px;
-    border-radius: var(--shell-radius);
+    border-radius: calc(var(--shell-radius) * var(--corner-k));
 }
 
 #dynamic-island.island-mode-notification {
     --shell-radius: 28px;
     width: 380px;
     height: 148px;
-    border-radius: var(--shell-radius);
+    border-radius: calc(var(--shell-radius) * var(--corner-k));
 }
 
 .island-mode-timer {
     width: 340px;
     height: 215px;
-    border-radius: var(--shell-radius);
+    border-radius: calc(var(--shell-radius) * var(--corner-k));
 }
 
 .island-mode-network {
     width: 360px;
     height: 230px;
-    border-radius: var(--shell-radius);
+    border-radius: calc(var(--shell-radius) * var(--corner-k));
 }
 
 .island-mode-menu {
     width: 328px;
     height: 198px;
-    border-radius: var(--shell-radius);
+    border-radius: calc(var(--shell-radius) * var(--corner-k));
 }
 
 .island-mode-search {
     width: 390px;
     height: 230px;
-    border-radius: var(--shell-radius);
+    border-radius: calc(var(--shell-radius) * var(--corner-k));
 }
 
 .island-mode-music-search {
     width: 390px;
     height: 200px;
-    border-radius: var(--shell-radius);
+    border-radius: calc(var(--shell-radius) * var(--corner-k));
 }
 
 /* Même famille que la Bibliothèque, un peu plus compacte. */
 .island-mode-music-history {
     width: 500px;
     height: 452px;
-    border-radius: var(--shell-radius);
+    border-radius: calc(var(--shell-radius) * var(--corner-k));
 }
 
 .island-mode-control {
     width: 392px;
     height: 370px;
-    border-radius: var(--shell-radius);
+    border-radius: calc(var(--shell-radius) * var(--corner-k));
 }
 
 .island-mode-mixer {
     width: 430px;
     height: 380px;
-    border-radius: var(--shell-radius);
+    border-radius: calc(var(--shell-radius) * var(--corner-k));
 }
 
 /* Grande forme de la capsule, toujours dans la fenêtre de l'Island (720 × 600)
@@ -541,7 +541,7 @@ body.motion-vivid .inner-action-btn:hover {
 .island-mode-library {
     width: 560px;
     height: 496px;
-    border-radius: var(--shell-radius);
+    border-radius: calc(var(--shell-radius) * var(--corner-k));
     cursor: default;
 }
 
@@ -551,7 +551,7 @@ body.motion-vivid .inner-action-btn:hover {
 .island-mode-settings {
     width: 680px;
     height: 524px;
-    border-radius: var(--shell-radius);
+    border-radius: calc(var(--shell-radius) * var(--corner-k));
     cursor: default;
 }
 
@@ -638,13 +638,13 @@ body.focus-mode-active #dynamic-island.island-idle:not(:hover) {
         --corner-k: 1.8;
     }
 
-    /* Coque dépliée seulement : la pilule au repos reste une vraie capsule. Le squircle arrive tout
-     * de suite à l'ouverture, et ne repart qu'en fin de repli, quand la capsule est déjà petite
-     * (sinon les grands arcs ronds sautaient aux yeux au début du repli). */
+    /* Coque dépliée seulement : la pilule au repos reste une vraie capsule. Le squircle arrive quand la
+     * capsule a déjà grandi (30 % du ressort) et repart dès le début du repli : sur une petite capsule,
+     * il donne des coins carrés avant de redevenir ronde d'un coup. */
     #dynamic-island.island-expanded,
     #dynamic-island.island-large {
         corner-shape: squircle;
         border-radius: calc(var(--shell-radius) * var(--corner-k));
-        --corner-delay: 0.1;
+        --corner-delay: 0.3;
     }
 }

@@ -135,10 +135,10 @@ export const THEME_PRESETS = [
 ];
 
 export const COMPACT_MODE_OPTIONS = [
-    { value: 'cover', label: 'Pochette et visualiseur' },
-    { value: 'title', label: 'Titre du morceau' },
-    { value: 'volume', label: 'Volume de l’application' },
-    { value: 'progress', label: 'Progression' },
+    { value: 'cover', label: 'Pochette et visualiseur', icon: 'ph-vinyl-record' },
+    { value: 'title', label: 'Titre du morceau', icon: 'ph-text-aa' },
+    { value: 'volume', label: 'Volume de l’application', icon: 'ph-speaker-high' },
+    { value: 'progress', label: 'Progression', icon: 'ph-timer' },
 ];
 
 export const WALLPAPER_STYLE_OPTIONS = [

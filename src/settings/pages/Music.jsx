@@ -19,6 +19,7 @@ export default function Music({ store }) {
                 <Card title="Lecteur">
                     <Row label="Pilule réduite" description="Ce qui s’affiche quand l’Island est repliée.">
                         <Select
+                            title="Affichage"
                             value={settings.idleCompactMode}
                             options={COMPACT_MODE_OPTIONS}
                             onChange={(idleCompactMode) => update({ idleCompactMode })}

@@ -14,10 +14,10 @@ const toPct = (linear) => {
 };
 
 /** Le périphérique choisi reste dans la liste même débranché (Windows ne liste que les actifs). */
-const deviceOptions = (devices, defaultLabel, current) => [
-    { value: '', label: defaultLabel },
-    ...devices.map((device) => ({ value: device.id, label: device.name })),
-    ...(current && !devices.some((device) => device.id === current) ? [{ value: current, label: 'Choix précédent (débranché)' }] : []),
+const deviceOptions = (devices, defaultLabel, current, icon) => [
+    { value: '', label: defaultLabel, icon: 'ph-windows-logo' },
+    ...devices.map((device) => ({ value: device.id, label: device.name, icon })),
+    ...(current && !devices.some((device) => device.id === current) ? [{ value: current, label: 'Choix précédent (débranché)', icon: 'ph-plugs' }] : []),
 ];
 
 const FALLBACK_NOTE = 'Débranché : celui de Windows prend le relais, retour automatique dès qu’il revient.';
@@ -65,6 +65,7 @@ export default function MicMonitor() {
 
             <Card title="Son">
                 <SliderRow
+                    live
                     label="Volume du retour"
                     description="Au-delà de 100 %, la voix est amplifiée (avec une saturation douce)."
                     value={config.volume ?? 60}
@@ -75,6 +76,7 @@ export default function MicMonitor() {
                     onChange={(volume) => update({ volume: Math.round(volume) })}
                 />
                 <SliderRow
+                    live
                     label="Balance"
                     value={config.balance ?? 0}
                     min={-100}
@@ -100,6 +102,7 @@ export default function MicMonitor() {
                 />
                 <Reveal when={Boolean(config.gateEnabled)}>
                     <SliderRow
+                        live
                         label="Seuil"
                         description="Le repère blanc sur le vumètre. Tu peux aussi le glisser dans l’Island."
                         value={config.gateThreshold ?? -50}
@@ -128,15 +131,17 @@ export default function MicMonitor() {
             <Card title="Périphériques">
                 <Row label="Micro" description={running && status.inputFallback ? FALLBACK_NOTE : undefined}>
                     <Select
+                        title="Micros"
                         value={config.inputId || ''}
-                        options={deviceOptions(inputs, 'Par défaut de Windows', config.inputId)}
+                        options={deviceOptions(inputs, 'Par défaut de Windows', config.inputId, 'ph-microphone')}
                         onChange={(inputId) => update({ inputId })}
                     />
                 </Row>
                 <Row label="Sortie du retour" description={running && status.outputFallback ? FALLBACK_NOTE : 'Le casque dans lequel tu veux t’entendre.'}>
                     <Select
+                        title="Sorties"
                         value={config.outputId || ''}
-                        options={deviceOptions(outputs, 'Par défaut de Windows', config.outputId)}
+                        options={deviceOptions(outputs, 'Par défaut de Windows', config.outputId, 'ph-headphones')}
                         onChange={(outputId) => update({ outputId })}
                     />
                 </Row>

@@ -3,7 +3,7 @@
 #dynamic-island.island-mode-files {
     width: 560px;
     height: 496px;
-    border-radius: var(--shell-radius);
+    border-radius: calc(var(--shell-radius) * var(--corner-k));
     cursor: default;
 }
 #dynamic-island.island-mode-files > .island-content { visibility: hidden; pointer-events: none; }

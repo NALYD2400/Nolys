@@ -40,6 +40,7 @@ export const replayView = {
         if (this._replayHost?.isConnected) { this.syncGlassControls(); return; }
         this.leaveReplay();
         const host = document.createElement('div'); host.className = 'island-library-view replay-panel-host';
+        this.applyFittedHeight(host, 'replay');
         this.content.replaceChildren(host); this._replayHost = host;
         const settled = capsuleSettled(this.el);
         // Capture et Clips (et clip en lecture) : la capsule suit le contenu. Réglages, long et

@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { GlassSwitch } from '@glass-sdk/liquid-glass';
-import { Button, Card, Row, ShortcutRecorder, SWITCH_TINT } from '../components/controls.jsx';
+import { Button, Card, Row, ShortcutRecorder, Switch } from '../components/controls.jsx';
 import { DEFAULT_HOTKEYS, HOTKEY_ACTIONS } from '../../shared/hotkeys.js';
 import { playClick } from '../state/sound.js';
 
@@ -55,9 +54,8 @@ export default function Shortcuts({ store }) {
                                         off={!enabled}
                                         onChange={(next) => apply(action.id, { accelerator: next })}
                                     />
-                                    <GlassSwitch
+                                    <Switch
                                         aria-label={`Activer : ${action.label}`}
-                                        tint={SWITCH_TINT}
                                         checked={enabled}
                                         onCheckedChange={(value) => {
                                             playClick();

@@ -8,7 +8,6 @@
  */
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import sdkStyles from '@glass-sdk/liquid-glass/styles.css?inline';
 import settingsStyles from './styles.css?inline';
 import App from './App.jsx';
 import { isBusy, onBusyChange } from './state/busy.js';
@@ -17,7 +16,7 @@ import { isBusy, onBusyChange } from './state/busy.js';
 let sheets = null;
 function settingsSheets() {
     if (!sheets) {
-        sheets = [sdkStyles, settingsStyles].map((css) => {
+        sheets = [settingsStyles].map((css) => {
             const sheet = new CSSStyleSheet();
             sheet.replaceSync(css);
             return sheet;

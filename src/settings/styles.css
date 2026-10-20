@@ -496,7 +496,7 @@ button {
     gap: 12px;
 }
 
-.slider > .lg-slider {
+.slider > .slider-input {
     flex: 1;
     width: auto;
 }
@@ -552,7 +552,10 @@ button {
 }
 
 .select-menu {
+    /* Largeur du contenu (comme le menu de la page Menus) : un choix tient sur une ligne. */
+    width: max-content;
     min-width: 200px;
+    max-width: 320px;
     max-height: 320px;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -581,6 +584,12 @@ button {
     display: flex;
     align-items: center;
     gap: 8px;
+    white-space: nowrap;
+}
+
+.menu-item span {
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .menu-item i:first-child {
@@ -593,6 +602,17 @@ button {
     margin-left: auto;
     font-size: 13px;
     color: var(--accent);
+}
+
+/* Un peu d'air entre les choix : le surlignage du choix actif et celui du survol ne se touchent pas. */
+.select-menu [role='group'] {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.select-menu [role='group'] + [role='group'] {
+    margin-top: 4px;
 }
 
 .menu-group-label {
@@ -1122,4 +1142,396 @@ div.profile {
     font-variant-numeric: tabular-nums;
     font-size: 12.5px;
     color: var(--text-secondary);
+}
+
+/* ---------------------------------------------------------------- Aperçu de l'Island (Apparence) */
+
+/* Fausse fenêtre de bureau derrière une capsule : la transparence se voit vraiment. */
+.island-preview {
+    position: relative;
+    height: 132px;
+    margin: 4px 0 14px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: calc(12px * var(--corner-k, 1));
+    corner-shape: squircle;
+    box-shadow: inset 0 0 0 1px var(--separator);
+}
+
+.island-preview-desk {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(60% 90% at 15% 20%, #3a6fd8 0%, transparent 60%),
+        radial-gradient(55% 80% at 85% 85%, #d8653a 0%, transparent 60%),
+        linear-gradient(135deg, #2b2f45, #4a3a5c);
+}
+
+.island-preview-window {
+    position: absolute;
+    left: 14%;
+    top: 22%;
+    width: 34%;
+    height: 56%;
+    border-radius: 8px;
+    background:
+        linear-gradient(#ffffffd9 0 14%, transparent 14%),
+        repeating-linear-gradient(transparent 0 9px, #ffffff2e 9px 11px),
+        #f4f4f8;
+    opacity: 0.9;
+}
+
+.island-preview-window.is-second {
+    left: 54%;
+    top: 14%;
+    width: 30%;
+    height: 48%;
+    background:
+        linear-gradient(#202024 0 16%, transparent 16%),
+        linear-gradient(135deg, #ffd166, #ef476f);
+}
+
+.island-preview-capsule {
+    --pv-bg: rgba(10, 10, 15, var(--pv-opacity, 0.92));
+    position: relative;
+    width: 280px;
+    height: 70px;
+    overflow: hidden;
+    border-radius: calc(28px * var(--corner-k, 1));
+    corner-shape: squircle;
+    background: var(--pv-bg);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        0 8px 24px rgba(0, 0, 0, 0.42),
+        0 0 calc(var(--pv-glow-size) * 0.8) rgba(var(--pv-glow-rgb), 0.42),
+        0 0 calc(var(--pv-glow-size) * 1.8) rgba(var(--pv-glow-rgb), 0.22),
+        0 0 0 1px rgba(var(--pv-glow-rgb), 0.22);
+}
+
+/* Mêmes fonds que l'Island (styles/base.css) : Métal et Holo ne tiennent pas compte de l'opacité. */
+.island-preview[data-material='metal'] .island-preview-capsule {
+    background:
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.012) 0px, rgba(255, 255, 255, 0.012) 1px, transparent 1px, transparent 4px),
+        linear-gradient(135deg, #101012 0%, #1a1a1d 50%, #121214 100%);
+}
+
+.island-preview[data-material='holo'] .island-preview-capsule {
+    background: linear-gradient(135deg, rgba(12, 10, 24, 0.82) 0%, rgba(18, 12, 36, 0.82) 100%);
+}
+
+.island-preview[data-material='holo'] .island-preview-capsule::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(45deg, rgba(0, 243, 255, 0.14), rgba(188, 19, 254, 0.14), rgba(255, 45, 85, 0.14));
+}
+
+.island-preview[data-grain='light'] .island-preview-capsule::after,
+.island-preview[data-grain='medium'] .island-preview-capsule::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='1' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.075'/%3E%3C/svg%3E");
+}
+
+.island-preview[data-grain='light'] .island-preview-capsule::after {
+    opacity: 0.5;
+}
+
+.island-preview-cover-bg {
+    position: absolute;
+    inset: -30px;
+    background-size: cover;
+    background-position: center;
+    filter: blur(var(--pv-blur, 24px)) saturate(180%);
+    opacity: 0.55;
+}
+
+.island-preview-content {
+    position: relative;
+    z-index: 1;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 18px 0 14px;
+}
+
+.island-preview-art {
+    width: 42px;
+    height: 42px;
+    flex: none;
+    object-fit: cover;
+    border-radius: calc(9px * var(--corner-k, 1));
+    corner-shape: squircle;
+}
+
+.island-preview-art.is-empty {
+    display: grid;
+    place-items: center;
+    color: #fff;
+    background: linear-gradient(135deg, var(--accent), #8a5cff);
+}
+
+.island-preview-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.island-preview-text strong {
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+}
+
+.island-preview-text small {
+    font-size: 10.5px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.island-preview-bars {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 18px;
+}
+
+.island-preview-bars i {
+    width: 3px;
+    border-radius: 2px;
+    background: var(--accent);
+}
+
+.island-preview-bars i:nth-child(1) { height: 8px; }
+.island-preview-bars i:nth-child(2) { height: 16px; }
+.island-preview-bars i:nth-child(3) { height: 11px; }
+.island-preview-bars i:nth-child(4) { height: 6px; }
+
+/* ---------------------------------------------------------------- Surfaces sans verre réfracté
+ * Les surfaces étaient en Liquid Glass (WebGPU) : la lentille était recalculée à chaque image,
+ * et le défilement des pages traînait derrière le doigt. Ici, le même aspect en CSS statique :
+ * un voile translucide, un liseré et un reflet haut. Rien ne se recalcule au défilement. */
+.glass {
+    background: rgba(255, 255, 255, 0.085);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.sidebar.glass {
+    border-radius: 28px;
+    background: rgba(24, 24, 28, 0.66);
+}
+
+.card-surface.glass {
+    border-radius: 16px;
+    background: rgba(24, 24, 28, 0.5);
+}
+
+.button.glass {
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.button.glass:hover {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.button.glass:active {
+    transform: scale(0.97);
+}
+
+/* Interrupteur (iOS) : piste, bouton rond et couleur « activé ». */
+.switch {
+    position: relative;
+    flex: none;
+    width: 44px;
+    height: 26px;
+    padding: 0;
+    border: 0;
+    border-radius: 13px;
+    background: rgba(120, 120, 128, 0.36);
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.switch.is-on {
+    background: #30d158;
+}
+
+.switch-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s ease;
+}
+
+.switch.is-on .switch-knob {
+    transform: translateX(18px);
+}
+
+.switch:focus-visible {
+    outline: 2px solid rgb(from var(--accent) r g b / 0.75);
+    outline-offset: 2px;
+}
+
+/* Curseur : rail rempli jusqu'à la valeur (--fill), pouce blanc. */
+.slider-input {
+    flex: 1;
+    min-width: 0;
+    height: 4px;
+    margin: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    border-radius: 2px;
+    background: linear-gradient(to right, #e5e5ea var(--fill, 50%), rgba(255, 255, 255, 0.16) var(--fill, 50%));
+    outline: none;
+    cursor: pointer;
+}
+
+.slider-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 0;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.slider-input::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border: 0;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.slider-input:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 3px rgb(from var(--accent) r g b / 0.6);
+}
+
+/* Choix segmenté : une pastille claire sous l'option choisie. */
+.segmented {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.segment {
+    padding: 4px 10px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.segment:hover {
+    color: var(--text);
+}
+
+.segment.is-selected {
+    background: rgba(255, 255, 255, 0.18);
+    color: var(--text);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.segment:focus-visible {
+    outline: 2px solid rgb(from var(--accent) r g b / 0.75);
+    outline-offset: 1px;
+}
+
+/* Menu déroulant : le menu flotte sous le bouton, au-dessus du reste de la page. */
+.select {
+    position: relative;
+    display: inline-flex;
+    max-width: 200px;
+}
+
+.select-trigger {
+    border-radius: 999px;
+    cursor: pointer;
+}
+
+.select-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 30;
+    padding: 6px;
+    border-radius: 14px;
+    background: #1e1e22;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+/* Pas assez de place sous le bouton : le menu s'ouvre vers le haut. */
+.select-menu.is-up {
+    top: auto;
+    bottom: calc(100% + 6px);
+}
+
+.menu-item {
+    width: 100%;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    font-size: 12.5px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.menu-item:hover {
+    background: var(--fill-hover);
+}
+
+.menu-item.is-selected {
+    background: var(--fill);
+}
+
+.menu-group-label {
+    background: none;
+    color: var(--text-tertiary);
+}
+
+.shortcut.glass {
+    border-radius: 999px;
+    cursor: pointer;
+}
+
+/* Le fond est un calque derrière la grille (il occupait une colonne avant le retrait du SDK). */
+.window {
+    position: relative;
+}
+
+.backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+}
+
+.sidebar,
+.content {
+    position: relative;
+    z-index: 1;
 }

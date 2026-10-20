@@ -151,3 +151,16 @@ export function getDisplayMediaArt(data) {
     if (!data) return "";
     return data.displayCover || getRawDisplayMediaArt(data);
 }
+
+/**
+ * Flou de la pochette en fond (Réglages → Apparence → Flou de la pochette). La valeur par défaut,
+ * 30, donne 24 px derrière le lecteur (`scale` 0,8) et 16 px dans la pilule (0,55).
+ */
+export function coverBlurPx(scale) {
+    let blur = 30;
+    try {
+        const value = JSON.parse(localStorage.getItem('liquid_island_config') || '{}').blur;
+        if (Number.isFinite(value)) blur = value;
+    } catch { /* réglage illisible : valeur par défaut */ }
+    return Math.round(blur * scale);
+}

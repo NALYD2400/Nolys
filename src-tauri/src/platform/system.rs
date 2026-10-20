@@ -6,8 +6,9 @@ use std::time::Instant;
 use parking_lot::Mutex;
 use rand::Rng;
 use serde::Serialize;
-use windows::core::{HSTRING, PCWSTR};
-use windows::Win32::Foundation::FILETIME;
+use windows::core::{BOOL, HSTRING, PCWSTR};
+use windows::Win32::Foundation::{FILETIME, LPARAM, RECT};
+use windows::Win32::Graphics::Gdi::{EnumDisplayMonitors, GetMonitorInfoW, HDC, HMONITOR, MONITORINFO};
 use windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
 use windows::Win32::System::Threading::GetSystemTimes;
@@ -212,6 +213,25 @@ pub fn set_wallpaper(path: &str) {
             SPIF_UPDATEINIFILE | SPIF_SENDCHANGE,
         );
     }
+}
+
+/// Plus grand écran branché (en pixels) : le fond est rendu à sa taille, puis Windows le recadre
+/// pour les autres. Rendu à la taille de l'écran principal, il était agrandi (flou) sur un grand écran.
+pub fn largest_screen_size() -> (u32, u32) {
+    unsafe extern "system" fn collect(monitor: HMONITOR, _: HDC, _: *mut RECT, data: LPARAM) -> BOOL {
+        let sizes = &mut *(data.0 as *mut Vec<(u32, u32)>);
+        let mut info = MONITORINFO { cbSize: std::mem::size_of::<MONITORINFO>() as u32, ..Default::default() };
+        if GetMonitorInfoW(monitor, &mut info).as_bool() {
+            let r = info.rcMonitor;
+            sizes.push(((r.right - r.left).max(0) as u32, (r.bottom - r.top).max(0) as u32));
+        }
+        BOOL(1)
+    }
+    let mut sizes: Vec<(u32, u32)> = Vec::new();
+    unsafe {
+        let _ = EnumDisplayMonitors(None, None, Some(collect), LPARAM(&mut sizes as *mut _ as isize));
+    }
+    sizes.into_iter().filter(|(w, h)| *w > 0 && *h > 0).max_by_key(|(w, h)| u64::from(*w) * u64::from(*h)).unwrap_or_else(primary_screen_size)
 }
 
 pub fn primary_screen_size() -> (u32, u32) {

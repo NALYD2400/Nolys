@@ -1,43 +1,24 @@
 /**
- * Briques d'interface des réglages, construites sur les composants Liquid Glass.
+ * Briques d'interface des réglages. Tout est en HTML et CSS simples (styles.css) : pas de
+ * verre réfracté. Un verre recalculé à chaque image faisait traîner le défilement des pages.
  */
 import { startTransition, useEffect, useRef, useState } from 'react';
-import {
-    GlassButton,
-    GlassMenu,
-    GlassMenuContent,
-    GlassMenuGroup,
-    GlassMenuGroupLabel,
-    GlassMenuItem,
-    GlassMenuTrigger,
-    GlassSlider,
-    GlassSurface,
-    GlassSwitch,
-    GlassTabsIndicator,
-    GlassTabsList,
-    GlassTabsRoot,
-    GlassTabsTrigger,
-} from '@glass-sdk/liquid-glass';
 import { playClick } from '../state/sound.js';
 
 /** Vert « activé » façon iOS : l'état reste lisible quelle que soit la pochette. */
 export const SWITCH_TINT = '#30d158';
-/** Remplissage neutre des curseurs (comme le centre de contrôle macOS). */
-const SLIDER_TINT = '#e5e5ea';
 
 /** Une seule graisse pour toute l'interface : régulière (`ph`). `weight="bold"` seulement pour les coches. */
 export const Icon = ({ name, weight = 'regular', className = '' }) => (
     <i className={`${weight === 'regular' ? 'ph' : `ph-${weight}`} ${name} ${className}`} aria-hidden="true" />
 );
 
-/** Groupe de réglages sur une surface de verre. */
+/** Groupe de réglages sur une surface sombre. */
 export function Card({ title, footer, children }) {
     return (
         <section className="card">
             {title && <h2 className="card-title">{title}</h2>}
-            <GlassSurface className="card-surface" material="regular" radius={16}>
-                {children}
-            </GlassSurface>
+            <div className="card-surface glass">{children}</div>
             {footer && <p className="card-footer">{footer}</p>}
         </section>
     );
@@ -56,6 +37,22 @@ export function Row({ label, description, children, stacked = false }) {
     );
 }
 
+/** Interrupteur à deux états (role="switch"). */
+export function Switch({ checked, onCheckedChange, ...props }) {
+    return (
+        <button
+            type="button"
+            role="switch"
+            aria-checked={checked}
+            className={`switch${checked ? ' is-on' : ''}`}
+            onClick={() => onCheckedChange(!checked)}
+            {...props}
+        >
+            <span className="switch-knob" />
+        </button>
+    );
+}
+
 /**
  * L'interrupteur bascule tout de suite (état local) ; la mise à jour des réglages suit en
  * priorité basse : elle redessine toute la page et ne doit pas saccader l'animation.
@@ -71,9 +68,8 @@ export function Toggle({ label, description, checked, onChange }) {
     }, [checked, optimistic]);
     return (
         <Row label={label} description={description}>
-            <GlassSwitch
+            <Switch
                 aria-label={label}
-                tint={SWITCH_TINT}
                 checked={optimistic ?? checked}
                 onCheckedChange={(value) => {
                     playClick();
@@ -85,16 +81,19 @@ export function Toggle({ label, description, checked, onChange }) {
     );
 }
 
-/** Pendant un glissement : au plus une mise à jour des réglages toutes les 50 ms. */
+/** Curseur `live` : pendant un glissement, au plus une mise à jour toutes les 50 ms. */
 const SLIDER_SEND_MS = 50;
 
 /** Curseur continu ; `format` met en forme la valeur affichée. */
-export function SliderRow({ label, description, value, min, max, step = 1, format = (v) => v, onChange }) {
+export function SliderRow({ label, description, value, min, max, step = 1, format = (v) => v, onChange, onPreview, live = false }) {
     // La valeur en cours de glissement vit ici : seul ce curseur se redessine à chaque
-    // mouvement (des centaines par seconde sur un écran rapide), pas toute la page.
+    // mouvement, pas toute la page. Elle n'est envoyée qu'au lâcher. `live` : envoi pendant
+    // le glissement (le volume du retour micro, qu'on doit entendre changer).
     const [draft, setDraft] = useState(null);
-    const send = useRef({ last: 0, timer: null, value: null, onChange });
+    const send = useRef({ last: 0, timer: null, value: null, onChange, onPreview });
     send.current.onChange = onChange;
+    // `onPreview` : chaque position, sans passer par les réglages (aperçu qui suit le doigt).
+    send.current.onPreview = onPreview;
     useEffect(() => () => clearTimeout(send.current.timer), []);
     // La valeur reçue a rattrapé le glissement (aller-retour natif compris) : on la reprend.
     useEffect(() => {
@@ -113,8 +112,10 @@ export function SliderRow({ label, description, value, min, max, step = 1, forma
     };
     const change = (next) => {
         const state = send.current;
-        state.value = Array.isArray(next) ? next[0] : next;
-        setDraft(state.value);
+        state.value = next;
+        setDraft(next);
+        state.onPreview?.(next);
+        if (!live) return;
         const wait = SLIDER_SEND_MS - (performance.now() - state.last);
         if (wait <= 0) flush();
         else if (!state.timer) state.timer = setTimeout(flush, wait);
@@ -123,18 +124,18 @@ export function SliderRow({ label, description, value, min, max, step = 1, forma
     return (
         <Row label={label} description={description} stacked>
             <div className="slider">
-                <GlassSlider
+                <input
+                    type="range"
+                    className="slider-input"
                     aria-label={label}
-                    tint={SLIDER_TINT}
                     min={min}
                     max={max}
                     step={step}
                     value={shown}
-                    onValueChange={change}
-                    onValueCommitted={(next) => {
-                        send.current.value = Array.isArray(next) ? next[0] : next;
-                        flush();
-                    }}
+                    style={{ '--fill': `${((shown - min) / (max - min)) * 100}%` }}
+                    onChange={(event) => change(Number(event.target.value))}
+                    onPointerUp={() => { send.current.value = shown; flush(); }}
+                    onKeyUp={() => { send.current.value = shown; flush(); }}
                 />
                 <span className="slider-value">{format(shown)}</span>
             </div>
@@ -142,26 +143,31 @@ export function SliderRow({ label, description, value, min, max, step = 1, forma
     );
 }
 
-/** Choix exclusif court, en contrôle segmenté à lentille de verre. */
+/** Choix exclusif court, en contrôle segmenté. */
 export function Segmented({ label, description, value, options, onChange }) {
     return (
         <Row label={label} description={description}>
-            <GlassTabsRoot
-                value={value}
-                onValueChange={(next) => {
-                    playClick();
-                    onChange(next);
-                }}
-            >
-                <GlassTabsList size="sm" aria-label={label}>
-                    <GlassTabsIndicator />
-                    {options.map((option) => (
-                        <GlassTabsTrigger key={option.value} value={option.value}>
+            <div className="segmented" role="radiogroup" aria-label={label}>
+                {options.map((option) => {
+                    const selected = option.value === value;
+                    return (
+                        <button
+                            key={option.value}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            className={`segment${selected ? ' is-selected' : ''}`}
+                            onClick={() => {
+                                if (selected) return;
+                                playClick();
+                                onChange(option.value);
+                            }}
+                        >
                             {option.label}
-                        </GlassTabsTrigger>
-                    ))}
-                </GlassTabsList>
-            </GlassTabsRoot>
+                        </button>
+                    );
+                })}
+            </div>
         </Row>
     );
 }
@@ -191,45 +197,90 @@ export function ChoiceGrid({ value, options, onChange, columns = options.length 
     );
 }
 
-/** Menu déroulant en verre. `groups` : [{ label, options: [{ value, label, icon }] }]. */
-export function Select({ value, options, groups, onChange, placeholder = 'Choisir…' }) {
-    const allOptions = groups ? groups.flatMap((group) => group.options) : options;
+/** Place à garder sous un bouton pour que son menu s'ouvre vers le bas (hauteur du menu, marge). */
+const MENU_SPACE = 260;
+
+/**
+ * Menu déroulant, le même partout : intitulé de section et icône devant chaque choix.
+ * `groups` : [{ label, options: [{ value, label, icon }] }] ; ou `options` avec `title` (une seule section).
+ */
+export function Select({ value, options, groups, title, onChange, placeholder = 'Choisir…' }) {
+    const [open, setOpen] = useState(false);
+    // Menu ouvert vers le haut quand il n'a pas la place sous le bouton (fin de page).
+    const [up, setUp] = useState(false);
+    const root = useRef(null);
+    const sections = groups ?? [{ label: title, options }];
+    const allOptions = sections.flatMap((group) => group.options);
     const current = allOptions.find((option) => option.value === value);
+
+    // Fermeture au clic ailleurs et à Échap.
+    useEffect(() => {
+        if (!open) return undefined;
+        // Le chemin composé traverse le shadow DOM : `target` vaudrait l'hôte, et le menu se
+        // fermerait avant que le clic sur un de ses choix ne soit reçu.
+        const onPointer = (event) => { if (root.current && !event.composedPath().includes(root.current)) setOpen(false); };
+        const onKey = (event) => { if (event.key === 'Escape') setOpen(false); };
+        document.addEventListener('pointerdown', onPointer, true);
+        document.addEventListener('keydown', onKey);
+        return () => {
+            document.removeEventListener('pointerdown', onPointer, true);
+            document.removeEventListener('keydown', onKey);
+        };
+    }, [open]);
+
     const renderItems = (items) =>
-        items.map((option) => (
-            <GlassMenuItem
-                key={option.value}
-                className={option.value === value ? 'menu-item is-selected' : 'menu-item'}
-                onClick={() => {
-                    playClick();
-                    onChange(option.value);
-                }}
-            >
-                {option.icon && <Icon name={option.icon.replace(/^ph(-fill|-bold)? /, '')} />}
-                <span>{option.label}</span>
-                {option.value === value && <Icon name="ph-check" weight="bold" className="menu-check" />}
-            </GlassMenuItem>
-        ));
+        items.map((option) => {
+            const selected = option.value === value;
+            return (
+                <button
+                    key={option.value}
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    className={selected ? 'menu-item is-selected' : 'menu-item'}
+                    onClick={() => {
+                        playClick();
+                        setOpen(false);
+                        onChange(option.value);
+                    }}
+                >
+                    {option.icon && <Icon name={option.icon.replace(/^ph(-fill|-bold)? /, '')} />}
+                    <span>{option.label}</span>
+                    {selected && <Icon name="ph-check" weight="bold" className="menu-check" />}
+                </button>
+            );
+        });
 
     return (
-        <GlassMenu>
-            <GlassSurface render={<GlassMenuTrigger />} className="select-trigger" radius="capsule" interactive>
+        <div className="select" ref={root}>
+            <button
+                type="button"
+                className="select-trigger glass"
+                aria-haspopup="listbox"
+                aria-expanded={open}
+                onClick={(event) => {
+                    if (!open) {
+                        const rect = event.currentTarget.getBoundingClientRect();
+                        const below = window.innerHeight - rect.bottom;
+                        setUp(below < MENU_SPACE && rect.top > below);
+                    }
+                    setOpen((state) => !state);
+                }}
+            >
                 <span>{current?.label ?? placeholder}</span>
                 <Icon name="ph-caret-up-down" />
-            </GlassSurface>
-            {/* « detach » : le menu se détache du bouton comme une goutte, le bouton reste visible
-                (par défaut, le bouton devenait le menu et disparaissait pendant l'ouverture). */}
-            <GlassMenuContent className="select-menu" align="end" morph="detach">
-                {groups
-                    ? groups.map((group) => (
-                          <GlassMenuGroup key={group.label}>
-                              <GlassMenuGroupLabel className="menu-group-label">{group.label}</GlassMenuGroupLabel>
-                              {renderItems(group.options)}
-                          </GlassMenuGroup>
-                      ))
-                    : renderItems(options)}
-            </GlassMenuContent>
-        </GlassMenu>
+            </button>
+            {open && (
+                <div className={`select-menu glass${up ? ' is-up' : ''}`} role="listbox">
+                    {sections.map((group, index) => (
+                        <div key={group.label ?? index} role="group" aria-label={group.label}>
+                            {group.label && <div className="menu-group-label">{group.label}</div>}
+                            {renderItems(group.options)}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
     );
 }
 
@@ -245,8 +296,9 @@ export function ColorSwatch({ label, value, onChange }) {
 
 export function Button({ children, icon, tone, ...props }) {
     return (
-        <GlassButton
-            className={`button${tone ? ` button-${tone}` : ''}`}
+        <button
+            type="button"
+            className={`button glass${tone ? ` button-${tone}` : ''}`}
             {...props}
             onClick={(event) => {
                 playClick();
@@ -255,7 +307,7 @@ export function Button({ children, icon, tone, ...props }) {
         >
             {icon && <Icon name={icon} />}
             {children}
-        </GlassButton>
+        </button>
     );
 }
 
@@ -321,8 +373,9 @@ export function ShortcutRecorder({ value, onChange, label, off = false }) {
     }, [recording, onChange]);
 
     return (
-        <GlassButton
-            className={`shortcut${recording ? ' is-recording' : ''}${off ? ' is-off' : ''}`}
+        <button
+            type="button"
+            className={`shortcut glass${recording ? ' is-recording' : ''}${off ? ' is-off' : ''}`}
             aria-label={label ? `Raccourci : ${label}` : undefined}
             onClick={() => {
                 playClick();
@@ -336,7 +389,7 @@ export function ShortcutRecorder({ value, onChange, label, off = false }) {
         >
             {recording && (hint || 'Appuie sur les touches…')}
             {!recording && (value ? value.split('+').map((part) => <kbd key={part}>{part}</kbd>) : 'Aucune')}
-        </GlassButton>
+        </button>
     );
 }
 

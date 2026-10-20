@@ -2,7 +2,7 @@
 import { ThemeService } from '../../../services/ThemeService.js';
 import { escapeHtml, formatTime } from '../helpers/format.js';
 import { applyLoopMarquee } from '../helpers/marquee.js';
-import { APP_LOGO_ART, getDisplayMediaArt, getFallbackIcon, getServiceArtStyle, shouldPreferServiceIcon } from '../helpers/media-art.js';
+import { APP_LOGO_ART, coverBlurPx, getDisplayMediaArt, getFallbackIcon, getServiceArtStyle, shouldPreferServiceIcon } from '../helpers/media-art.js';
 
 export const idleView = {
     renderIdle() {
@@ -23,13 +23,13 @@ export const idleView = {
                 const cleanCover = effectiveIdleArt.replace(/\\/g, '/');
                 bgLayer.style.backgroundImage = `url("${cleanCover}")`;
                 bgLayer.style.opacity = '0.55'; // Vibrant visibility for tiny capsule
-                bgLayer.style.filter = 'blur(16px) saturate(200%)';
+                bgLayer.style.filter = `blur(${coverBlurPx(0.55)}px) saturate(200%)`;
             } else {
                 const islandConfig = JSON.parse(localStorage.getItem('liquid_island_config') || '{}');
                 if (islandConfig.bgImage && (!this.musicData || !this.musicData.isPlaying)) {
                     bgLayer.style.backgroundImage = `url('${islandConfig.bgImage.replace(/\\/g, '/')}')`;
                     bgLayer.style.opacity = (islandConfig.imgOpacity || 100) / 100;
-                    bgLayer.style.filter = `blur(${islandConfig.blur || 30}px)`;
+                    bgLayer.style.filter = `blur(${islandConfig.blur ?? 30}px)`;
                 } else {
                     bgLayer.style.backgroundImage = 'none';
                     bgLayer.style.opacity = '0';

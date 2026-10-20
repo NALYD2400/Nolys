@@ -116,6 +116,10 @@ pub fn wallpaper_sync_status(app: AppHandle, status: Value, style: Option<String
     let cover = state.media.lock().current().active_cover().to_string();
     if enabled && !cover.is_empty() {
         state.wallpaper.update(cover);
+    } else if !enabled {
+        // Synchro coupée mais bureau resté sur une pochette (fermeture forcée, ancienne version).
+        let wallpaper = state.wallpaper.clone();
+        tauri::async_runtime::spawn_blocking(move || wallpaper.restore_orphan());
     }
 }
 

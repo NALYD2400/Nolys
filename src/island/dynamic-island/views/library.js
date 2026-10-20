@@ -14,6 +14,28 @@ export function capsuleSettled(el) {
     });
 }
 
+/**
+ * Dernière hauteur mesurée pour un mode, gardée d'une session à l'autre : sans elle, la
+ * première ouverture après le lancement partait de la hauteur par défaut puis se rétrécissait
+ * jusqu'à la bonne taille (les suivantes, déjà mesurées, s'ouvraient directement).
+ */
+const fitKey = (mode) => `liquid_fit_height_${mode}`;
+function readStoredFit(mode) {
+    try {
+        const value = Number(localStorage.getItem(fitKey(mode)));
+        return Number.isFinite(value) && value > 0 ? value : null;
+    } catch {
+        return null;
+    }
+}
+function writeStoredFit(mode, height) {
+    try {
+        localStorage.setItem(fitKey(mode), String(height));
+    } catch {
+        // Stockage indisponible : la hauteur reste mesurée à chaque ouverture, comme avant.
+    }
+}
+
 /** Verre posé une fois la cascade des lignes jouée : sa première initialisation GPU est lourde. */
 export function afterIntro(callback) {
     (window.requestIdleCallback || setTimeout)(callback, { timeout: 700 });
@@ -27,11 +49,27 @@ export const libraryView = {
      * retenu pour que renderContent le réapplique. La vue reste calée en haut : l'en-tête ne
      * bouge pas pendant que le bas de la capsule suit.
      */
+    /** Hauteur à donner à la capsule pour ce mode : mesure en cours, ou la dernière connue (ouverture). */
+    fittedHeight(mode) {
+        if (this._mediaFit?.mode === mode) return this._mediaFit.height;
+        return this._fitCache?.[mode] ?? readStoredFit(mode);
+    },
+
+    /** Hôte neuf : il prend tout de suite la hauteur retenue (l'en-tête ne bouge pas à la mesure). */
+    applyFittedHeight(host, mode) {
+        const height = this.fittedHeight(mode);
+        if (!height) return;
+        host.classList.add('is-top-anchored');
+        host.style.setProperty('--panel-height', `${height}px`);
+    },
+
     fitToContent(host, mode, expanded, max) {
         this._mediaFit = null;
+        this._fitCache ??= {};
         // Une mesure encore en attente ne doit pas écraser une demande plus récente.
         const token = this._fitToken = (this._fitToken || 0) + 1;
         if (!expanded) {
+            this._fitCache[mode] = null;
             host.style.removeProperty('--panel-height');
             if (this.mode === mode) this.el.style.height = '';
             return;
@@ -45,6 +83,9 @@ export const libraryView = {
                 + list.scrollTop + parseFloat(getComputedStyle(list).paddingBottom);
             const height = Math.min(max, Math.ceil(lib.clientHeight - list.clientHeight + content));
             this._mediaFit = { mode, height };
+            // Retenue : la prochaine ouverture part directement de cette hauteur, sans se rétrécir ensuite.
+            this._fitCache[mode] = height;
+            writeStoredFit(mode, height);
             host.classList.add('is-top-anchored');
             host.style.setProperty('--panel-height', `${height}px`);
             this.el.style.height = `${height}px`;
