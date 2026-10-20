@@ -37,6 +37,8 @@ pub fn create(app: &AppHandle, legacy_settings: Option<String>) -> tauri::Result
             builder = builder.initialization_script("window.addEventListener('DOMContentLoaded', () => setTimeout(() => window.island?.openFiles(), 1000));");
         }
     }
+    // Réglages de l'interface, lus avant le premier script de la page (src/shared/settings-store.js).
+    builder = builder.initialization_script(app.state::<crate::ui_settings::Store>().init_script());
     if let Some(script) = legacy_settings {
         builder = builder.initialization_script(script);
     }

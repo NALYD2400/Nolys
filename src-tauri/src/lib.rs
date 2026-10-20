@@ -13,6 +13,7 @@ mod platform;
 mod shortcut;
 mod state;
 mod tray;
+mod ui_settings;
 mod updater;
 mod wallpaper;
 
@@ -118,6 +119,8 @@ pub fn run() {
             commands::app::wallpaper_sync_status,
             commands::app::trigger_notification,
             commands::app::save_settings_file,
+            ui_settings::ui_settings_write,
+            ui_settings::ui_settings_seed,
             commands::updates::get_update_status,
             commands::updates::check_for_updates,
             commands::updates::download_update,
@@ -143,6 +146,9 @@ fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     if !isolated { migration::import_legacy_files(&data_dir); }
     platform::mic_monitor::init(&data_dir);
     let legacy_settings = if isolated { None } else { migration::legacy_settings_script(&data_dir) };
+    let ui_settings = ui_settings::Store::load(&data_dir);
+    if !isolated { ui_settings::import_installed_settings(app, &ui_settings, &data_dir); }
+    app.manage(ui_settings);
 
     let layout = island::layout::load(app, &data_dir);
     app.manage(AppState::new(data_dir, layout));
