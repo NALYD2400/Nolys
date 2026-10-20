@@ -38,13 +38,13 @@ const SURFACES_BY_MODE = {
                 return { material: active ? 'regular' : 'clear', radius: 12, interactive: true, tint: active ? TILE_TINTS[element.id] : undefined };
             },
         },
-        { selector: '.ic-now-playing-card, .ic-launchpad-card, .ic-stats-card, .ic-weather-card, .ic-mixer-card, .ic-machine-card', options: { material: 'clear', radius: 14 } },
+        { selector: '.ic-now-playing-card, .ic-launchpad-card, .ic-stats-card, .ic-weather-card, .ic-mixer-card, .ic-machine-card', options: { material: 'clear', radius: 18 } },
         { selector: '.ic-np-btn.play', options: (_, coverTint) => ({ material: 'regular', radius: 'circle', interactive: true, tint: coverTint }) },
-        { selector: '.ic-vertical-slider', options: { material: 'clear', radius: 18 } },
+        { selector: '.ic-vertical-slider', options: { material: 'clear', radius: 20 } },
     ],
     // Mini-lecteur et boutons ronds de la Bibliothèque (dans son shadow DOM, voir surfaceRoot).
     library: [
-        { selector: '.lib-player', options: { material: 'clear', radius: 20 } },
+        { selector: '.lib-player', options: { material: 'clear', radius: 24 } },
         { selector: '.lib-header .round-btn', options: { material: 'clear', radius: 'circle', interactive: true } },
         { selector: '.player-controls .ctl-btn:not(.is-play)', options: { material: 'clear', radius: 'circle', interactive: true }, hoverOnly: true },
         { selector: '.player-controls .ctl-btn.is-play', options: (_, coverTint) => ({ material: 'regular', radius: 'circle', interactive: true, tint: legibleTint(coverTint) }) },

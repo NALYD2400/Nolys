@@ -2,7 +2,7 @@
 .replay-panel { --muted: #b8b2bd; }
 .replay-tabs { margin: 2px 0 4px; flex-shrink: 0; }
 .replay-tabs .chip { padding-right: 14px; }
-.replay-body { min-height: 0; overflow-y: auto; mask-image: none; padding-bottom: 6px; }
+.replay-body { min-height: 0; overflow-y: auto; }
 #replay-content { flex: 0 0 auto; }
 #replay-feedback:empty { display: none; }
 .replay-panel button:disabled { opacity: .5; cursor: default; }
@@ -79,7 +79,7 @@
 .replay-error > span { flex: 1; max-height: 90px; overflow-y: auto; overflow-wrap: anywhere; }
 .replay-error .pill-btn { flex-shrink: 0; padding: 0 8px; }
 .replay-error .pill-btn span { display: none; }
-.replay-player video { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #000; border-radius: 16px; }
+.replay-player video { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #000; border-radius: calc(16px * var(--corner-k, 1)); corner-shape: squircle; }
 .is-playing .replay-body { padding-bottom: 0; }
 .is-playing .lib-heading > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .replay-player-error { margin-top: 12px; font-size: 12px; }

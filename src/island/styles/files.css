@@ -3,7 +3,7 @@
 #dynamic-island.island-mode-files {
     width: 560px;
     height: 496px;
-    border-radius: 40px;
+    border-radius: var(--shell-radius);
     cursor: default;
 }
 #dynamic-island.island-mode-files > .island-content { visibility: hidden; pointer-events: none; }
@@ -11,7 +11,7 @@
 #dynamic-island.animating > .files-panel-host { opacity: 0; transition: opacity .1s ease-in-out; }
 .files-panel-host { text-align: left; opacity: 1; transition: opacity .2s ease-in-out; }
 .island-file-receiver { display: none; position: absolute; inset: 0; padding: 16px 18px; color: #fff; z-index: 10; font: 500 12px/1.35 'Inter', system-ui, sans-serif; }
-#dynamic-island.island-file-receiving { width: 500px !important; height: 185px !important; border-radius: 40px !important; }
+#dynamic-island.island-file-receiving { width: 500px !important; height: 185px !important; border-radius: calc(var(--shell-radius) * var(--corner-k)) !important; corner-shape: squircle; }
 .island-file-receiving > :is(.island-content, .files-panel-host) { visibility: hidden; pointer-events: none; }
 .island-file-receiving > .island-file-receiver { display: flex; flex-direction: column; gap: 14px; }
 body:not(.motion-sober) .island-file-receiving .files-receiver-label { animation: diContentIn .46s cubic-bezier(.2, .9, .25, 1) backwards; }
@@ -23,7 +23,7 @@ body:not(.motion-sober) .island-file-receiving .files-receiver-targets > div { a
 .files-receiver-label > strong { font-size: 13px; }
 .files-receiver-label > span { color: rgba(255,255,255,.6); font-size: 11px; }
 .files-receiver-targets { display: flex; gap: 10px; flex: 1; }
-.files-receiver-targets > div { flex: 1; border: 1px solid rgba(255,255,255,.08); border-radius: 18px; background: rgba(255,255,255,.055); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; transition: background .18s ease, border-color .18s ease; }
+.files-receiver-targets > div { flex: 1; border: 1px solid rgba(255,255,255,.08); border-radius: calc(18px * var(--corner-k, 1)); corner-shape: squircle; background: rgba(255,255,255,.055); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; transition: background .18s ease, border-color .18s ease; }
 .files-receiver-targets i { color: var(--neon-primary); font-size: 23px; }
 .files-receiver-targets strong { font-size: 11px; font-weight: 700; }
 .files-receiver-targets > .is-targeted { border-color: rgb(from var(--neon-primary) r g b / .45); background: rgb(from var(--neon-primary) r g b / .18); }

@@ -214,7 +214,8 @@
 
 .mic-meter-card {
     padding: 10px 12px 8px;
-    border-radius: 16px;
+    border-radius: calc(16px * var(--corner-k, 1));
+    corner-shape: squircle;
     background: rgba(255, 255, 255, 0.045);
     border: 1px solid rgba(255, 255, 255, 0.06);
 }

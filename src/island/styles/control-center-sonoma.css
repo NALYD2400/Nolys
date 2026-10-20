@@ -140,7 +140,8 @@
     height: 100%;
     background: rgba(255, 255, 255, 0.12);
     border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 18px;
+    border-radius: calc(20px * var(--corner-k, 1));
+    corner-shape: squircle;
     position: relative;
     overflow: hidden;
     cursor: pointer;

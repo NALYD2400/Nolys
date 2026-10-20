@@ -91,7 +91,8 @@ export default function App({ host, initialPage, pageRequest, onBack, onClose })
         <GlassScene className="window" appearance="dark" maxSurfaces={48}>
             <Backdrop cover={cover} />
 
-            <GlassSurface className="sidebar" material="regular" radius={18}>
+            {/* Concentrique à la coque : 40 − 12 de retrait. */}
+            <GlassSurface className="sidebar" material="regular" radius={28}>
                 <header className="sidebar-header">
                     <img src="/assets/app-logo.png" alt="" />
                     <div>

@@ -173,6 +173,7 @@
     border: 0;
     outline: 1px solid var(--neon-primary, #d49460);
     border-radius: inherit;
+    corner-shape: inherit;
     background: rgba(0, 0, 0, 0.35);
     color: #fff;
     font: inherit;

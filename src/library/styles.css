@@ -188,7 +188,8 @@ button:disabled, [aria-disabled="true"] { cursor: default; }
     flex-direction: column;
     gap: 8px;
     padding: 10px 12px;
-    border-radius: 14px;
+    border-radius: calc(14px * var(--corner-k, 1));
+    corner-shape: squircle;
     background: linear-gradient(90deg, rgb(from var(--accent) r g b / 0.14), rgba(255, 255, 255, 0.045));
     border: 1px solid rgb(from var(--accent) r g b / 0.28);
     animation: lib-rise 0.4s var(--spring) backwards;
@@ -203,6 +204,7 @@ button:disabled, [aria-disabled="true"] { cursor: default; }
     inset: 0 auto 0 0;
     width: var(--pct);
     border-radius: inherit;
+    corner-shape: inherit;
     background: var(--accent);
     box-shadow: 0 0 10px rgb(from var(--accent) r g b / 0.7);
     transition: width 0.25s ease;
@@ -219,9 +221,11 @@ button:disabled, [aria-disabled="true"] { cursor: default; }
     flex-direction: column;
     gap: 5px;
     margin: 0 -4px;
-    padding: 0 4px 4px;
+    padding: 0 4px 18px;
     overflow-y: auto;
     overscroll-behavior: contain;
+    /* Le contenu passe sous le bas de la capsule en fondu au lieu d'être tranché net. */
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
 }
 
 .row {
@@ -235,7 +239,8 @@ button:disabled, [aria-disabled="true"] { cursor: default; }
     gap: 4px;
     min-height: 50px;
     padding: 0 6px 0 0;
-    border-radius: 14px;
+    border-radius: calc(14px * var(--corner-k, 1));
+    corner-shape: squircle;
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.06);
     transition: background 0.16s ease, border-color 0.16s ease;
@@ -304,7 +309,7 @@ button:disabled, [aria-disabled="true"] { cursor: default; }
 /* ------------------------------------------------------------------ États vides */
 
 .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 10px 24px; text-align: center; }
-.empty-icon { width: 54px; height: 54px; border-radius: 18px; display: grid; place-items: center; margin-bottom: 6px; font-size: 28px; color: var(--accent); background: rgb(from var(--accent) r g b / 0.12); border: 1px solid rgb(from var(--accent) r g b / 0.24); }
+.empty-icon { width: 54px; height: 54px; border-radius: calc(18px * var(--corner-k, 1)); corner-shape: squircle; display: grid; place-items: center; margin-bottom: 6px; font-size: 28px; color: var(--accent); background: rgb(from var(--accent) r g b / 0.12); border: 1px solid rgb(from var(--accent) r g b / 0.24); }
 .empty strong { font-size: 15px; font-weight: 700; }
 .empty p { max-width: 300px; margin: 0; font-size: 11px; line-height: 1.6; color: var(--muted); text-wrap: pretty; }
 .empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 10px; }
@@ -314,7 +319,8 @@ button:disabled, [aria-disabled="true"] { cursor: default; }
 
 .lib-player, .lib-selection {
     flex: 0 0 auto;
-    border-radius: 20px;
+    border-radius: calc(24px * var(--corner-k, 1));
+    corner-shape: squircle;
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid var(--line);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -408,7 +414,8 @@ button:disabled, [aria-disabled="true"] { cursor: default; }
     display: flex;
     flex-direction: column;
     gap: 1px;
-    border-radius: 16px;
+    border-radius: calc(16px * var(--corner-k, 1));
+    corner-shape: squircle;
     background: rgba(22, 22, 28, 0.97);
     border: 0.5px solid rgba(255, 255, 255, 0.16);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 16px 40px rgba(0, 0, 0, 0.5);
@@ -434,6 +441,7 @@ button:disabled, [aria-disabled="true"] { cursor: default; }
     place-items: center;
     padding: 20px;
     border-radius: inherit;
+    corner-shape: inherit;
     background: rgba(6, 6, 10, 0.55);
     backdrop-filter: blur(6px);
     animation: lib-fade 0.22s ease backwards;
@@ -441,7 +449,8 @@ button:disabled, [aria-disabled="true"] { cursor: default; }
 .lib-sheet-card {
     width: min(340px, 100%);
     padding: 20px;
-    border-radius: 24px;
+    border-radius: calc(24px * var(--corner-k, 1));
+    corner-shape: squircle;
     background: rgba(24, 24, 30, 0.97);
     border: 0.5px solid rgba(255, 255, 255, 0.16);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 24px 60px rgba(0, 0, 0, 0.55);

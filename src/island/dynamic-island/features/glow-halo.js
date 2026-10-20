@@ -68,6 +68,7 @@ export const glowHaloMethods = {
         halo.style.width = `${box.width}px`;
         halo.style.height = `${box.height}px`;
         halo.style.borderRadius = style.borderRadius;
+        halo.style.cornerShape = style.cornerShape || '';
         halo.style.transform = style.transform === 'none' ? '' : style.transform;
         halo.style.transformOrigin = style.transformOrigin;
         for (const name of HALO_VARS) {

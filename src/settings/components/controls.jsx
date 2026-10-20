@@ -35,7 +35,7 @@ export function Card({ title, footer, children }) {
     return (
         <section className="card">
             {title && <h2 className="card-title">{title}</h2>}
-            <GlassSurface className="card-surface" material="regular" radius={14}>
+            <GlassSurface className="card-surface" material="regular" radius={16}>
                 {children}
             </GlassSurface>
             {footer && <p className="card-footer">{footer}</p>}

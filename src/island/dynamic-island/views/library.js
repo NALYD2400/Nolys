@@ -21,6 +21,37 @@ export function afterIntro(callback) {
 
 /** Bibliothèque : un mode de l’Island comme les autres. Le son vit dans `localPlayer`. */
 export const libraryView = {
+    /**
+     * Exceptions à la taille fixe des modules : clip en lecture, aperçu d'une image, liste des
+     * clips. La capsule épouse le contenu, au plus `max`. Mesuré après le rendu de la vue, et
+     * retenu pour que renderContent le réapplique. La vue reste calée en haut : l'en-tête ne
+     * bouge pas pendant que le bas de la capsule suit.
+     */
+    fitToContent(host, mode, expanded, max) {
+        this._mediaFit = null;
+        // Une mesure encore en attente ne doit pas écraser une demande plus récente.
+        const token = this._fitToken = (this._fitToken || 0) + 1;
+        if (!expanded) {
+            host.style.removeProperty('--panel-height');
+            if (this.mode === mode) this.el.style.height = '';
+            return;
+        }
+        requestAnimationFrame(() => {
+            const lib = host.shadowRoot?.querySelector('.lib');
+            const list = host.shadowRoot?.querySelector('#list');
+            if (token !== this._fitToken || !lib || !list?.lastElementChild || !host.isConnected || this.mode !== mode) return;
+            // scrollHeight vaut au moins la hauteur visible : on mesure le contenu lui-même.
+            const content = list.lastElementChild.getBoundingClientRect().bottom - list.getBoundingClientRect().top
+                + list.scrollTop + parseFloat(getComputedStyle(list).paddingBottom);
+            const height = Math.min(max, Math.ceil(lib.clientHeight - list.clientHeight + content));
+            this._mediaFit = { mode, height };
+            host.classList.add('is-top-anchored');
+            host.style.setProperty('--panel-height', `${height}px`);
+            this.el.style.height = `${height}px`;
+        });
+    },
+
+
     openLibrary() {
         if (this._layoutEditMode || (this.mode === 'library' && this.isExpanded)) return;
         this.openExpandedMode('library');

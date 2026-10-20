@@ -21,7 +21,8 @@
     display: flex;
     flex-direction: column;
     gap: 1px;
-    border-radius: 16px;
+    border-radius: calc(16px * var(--corner-k, 1));
+    corner-shape: squircle;
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 42%),
         rgba(22, 22, 28, 0.86);
@@ -79,6 +80,7 @@
     inset: 0;
     z-index: -1;
     border-radius: inherit;
+    corner-shape: inherit;
     background: linear-gradient(45deg, rgba(0, 243, 255, 0.1), rgba(188, 19, 254, 0.1), rgba(255, 45, 85, 0.1), rgba(0, 243, 255, 0.1));
     background-size: 300% 300%;
     animation: holoGradientShift 6s ease infinite;
@@ -313,7 +315,8 @@ body.motion-sober .context-menu {
     background: rgba(10, 10, 15, 0.4);
     backdrop-filter: blur(16px) saturate(120%);
     -webkit-backdrop-filter: blur(16px) saturate(120%);
-    border-radius: 20px;
+    border-radius: calc(20px * var(--corner-k, 1));
+    corner-shape: squircle;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -339,7 +342,8 @@ body.motion-sober .context-menu {
     max-width: 250px;
     background: rgba(30, 30, 35, 0.85);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
+    border-radius: calc(16px * var(--corner-k, 1));
+    corner-shape: squircle;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
     padding: 16px;
     display: flex;

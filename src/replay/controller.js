@@ -198,7 +198,7 @@ export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), 
             root.querySelector('[role="tab"][aria-selected="true"]').focus();
         }
     });
-    on(root, 'error', event => { if (event.target.id === 'replay-video' && selectedClip) $('#replay-player-error').hidden = false; }, { capture: true });
+    on(root, 'error', event => { if (event.target.id === 'replay-video' && selectedClip) { $('#replay-player-error').hidden = false; onPlaybackChange(true); } }, { capture: true });
     on(window, 'resize', () => { if (selectedClip) onPlaybackChange(true); });
     ready.then(async () => { if (destroyed) return; await initReplay(); if (destroyed) return; render(true); panel.startIntro(); panel.focus(); await replay.loadSources(); if (!destroyed) render(true); });
     render();

@@ -48,6 +48,10 @@
     --island-glow-size: 20px;
     --island-glow-rgb: 0, 243, 255;
     --island-glow-opacity: 1;
+    /* Rayon de la coque dépliée, en rayon « Lisse » (celui du verre du SDK). */
+    --shell-radius: 40px;
+    /* Bascule arc ↔ squircle, en fraction du ressort (voir le bloc squircle en fin de fichier). */
+    --corner-delay: 0.55;
 
     background: var(--island-bg);
     backdrop-filter: blur(var(--island-blur));
@@ -57,6 +61,7 @@
     transition: width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1),
         height 0.6s cubic-bezier(0.2, 0.8, 0.2, 1),
         border-radius 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+        corner-shape 0.1s linear calc(var(--corner-delay) * 0.6s),
         background-color 0.3s ease,
         box-shadow 0.25s ease;
     pointer-events: auto;
@@ -122,6 +127,7 @@
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
     border-radius: inherit;
+    corner-shape: inherit;
     background: linear-gradient(45deg, rgba(0, 243, 255, 0.14), rgba(188, 19, 254, 0.14), rgba(255, 45, 85, 0.14), rgba(0, 243, 255, 0.14));
     background-size: 300% 300%;
     animation: holoGradientShift 6s ease infinite;
@@ -142,6 +148,7 @@
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
     border-radius: inherit;
+    corner-shape: inherit;
     /* High Performance: numOctaves='1' (instead of 3) achieves buttery-smooth 60fps rendering */
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='1' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.038'/%3E%3C/svg%3E");
     z-index: 2;
@@ -154,6 +161,7 @@
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
     border-radius: inherit;
+    corner-shape: inherit;
     /* High Performance: numOctaves='1' (instead of 3) achieves buttery-smooth 60fps rendering */
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='1' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.075'/%3E%3C/svg%3E");
     z-index: 2;
@@ -263,7 +271,8 @@ body.layout-edit-mode #layout-edit-toolbar {
     position: relative;
     z-index: 30;
     -webkit-app-region: no-drag;
-    border-radius: 18px;
+    border-radius: calc(18px * var(--corner-k, 1));
+    corner-shape: squircle;
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 45%),
         rgba(22, 22, 28, 0.88);
@@ -416,6 +425,7 @@ body.motion-sober #dynamic-island {
     transition: width 0.26s ease,
         height 0.26s ease,
         border-radius 0.22s ease,
+        corner-shape 0.1s linear calc(var(--corner-delay) * 0.26s),
         background-color 0.2s ease,
         box-shadow 0.2s ease;
 }
@@ -433,6 +443,7 @@ body.motion-vivid #dynamic-island {
     transition: width 0.72s cubic-bezier(0.18, 0.95, 0.2, 1),
         height 0.72s cubic-bezier(0.18, 0.95, 0.2, 1),
         border-radius 0.5s cubic-bezier(0.18, 0.95, 0.2, 1),
+        corner-shape 0.1s linear calc(var(--corner-delay) * 0.72s),
         background-color 0.28s ease,
         box-shadow 0.28s ease;
 }
@@ -445,13 +456,13 @@ body.motion-vivid .inner-action-btn:hover {
 .island-expanded {
     width: 380px;
     height: 215px;
-    border-radius: 45px;
+    border-radius: var(--shell-radius);
 }
 
 .island-large {
     width: 380px;
     height: 410px;
-    border-radius: 45px;
+    border-radius: var(--shell-radius);
 }
 
 /* Nouvelle classe pour une notification temporaire allongée */
@@ -466,62 +477,63 @@ body.motion-vivid .inner-action-btn:hover {
 .island-mode-music {
     width: 380px;
     height: 196px;
-    border-radius: 45px;
+    border-radius: var(--shell-radius);
 }
 
 #dynamic-island.island-mode-notification {
+    --shell-radius: 28px;
     width: 380px;
     height: 148px;
-    border-radius: 26px;
+    border-radius: var(--shell-radius);
 }
 
 .island-mode-timer {
     width: 340px;
     height: 215px;
-    border-radius: 42px;
+    border-radius: var(--shell-radius);
 }
 
 .island-mode-network {
     width: 360px;
     height: 230px;
-    border-radius: 42px;
+    border-radius: var(--shell-radius);
 }
 
 .island-mode-menu {
     width: 328px;
     height: 198px;
-    border-radius: 38px;
+    border-radius: var(--shell-radius);
 }
 
 .island-mode-search {
     width: 390px;
     height: 230px;
-    border-radius: 38px;
+    border-radius: var(--shell-radius);
 }
 
 .island-mode-music-search {
     width: 390px;
     height: 200px;
-    border-radius: 38px;
+    border-radius: var(--shell-radius);
 }
 
 /* Même famille que la Bibliothèque, un peu plus compacte. */
 .island-mode-music-history {
     width: 500px;
     height: 452px;
-    border-radius: 40px;
+    border-radius: var(--shell-radius);
 }
 
 .island-mode-control {
     width: 392px;
     height: 370px;
-    border-radius: 42px;
+    border-radius: var(--shell-radius);
 }
 
 .island-mode-mixer {
     width: 430px;
     height: 380px;
-    border-radius: 38px;
+    border-radius: var(--shell-radius);
 }
 
 /* Grande forme de la capsule, toujours dans la fenêtre de l'Island (720 × 600)
@@ -529,7 +541,7 @@ body.motion-vivid .inner-action-btn:hover {
 .island-mode-library {
     width: 560px;
     height: 496px;
-    border-radius: 40px;
+    border-radius: var(--shell-radius);
     cursor: default;
 }
 
@@ -539,7 +551,7 @@ body.motion-vivid .inner-action-btn:hover {
 .island-mode-settings {
     width: 680px;
     height: 524px;
-    border-radius: 40px;
+    border-radius: var(--shell-radius);
     cursor: default;
 }
 
@@ -557,6 +569,13 @@ body.motion-vivid .inner-action-btn:hover {
     contain: strict;
 }
 
+/* Vue ajustée à son contenu (fitToContent) : la vue reste calée en haut pendant que la capsule
+ * s'ajuste à sa hauteur, sans décalage de l'en-tête. */
+.island-library-view.is-top-anchored {
+    top: 0;
+    translate: -50% 0;
+}
+
 #dynamic-island.island-mode-settings .island-library-view {
     --panel-width: 680px;
     --panel-height: 524px;
@@ -568,11 +587,10 @@ body.motion-vivid .inner-action-btn:hover {
 }
 
 .island-bg-layer {
+    /* Débord caché par la capsule : le flou de la pochette s'estompe vers ses bords, qui
+     * restent ainsi hors champ (sinon un liseré sombre fait le tour de la capsule). */
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    inset: -40px;
     background-size: cover;
     background-position: center;
     opacity: 0;
@@ -589,6 +607,7 @@ body.motion-vivid .inner-action-btn:hover {
     z-index: 0;
     overflow: hidden;
     border-radius: inherit;
+    corner-shape: inherit;
     pointer-events: none;
 }
 
@@ -604,4 +623,28 @@ body.motion-vivid .inner-action-btn:hover {
 body.focus-mode-active #dynamic-island.island-idle:not(:hover) {
     opacity: 0.45;
     transition: opacity 0.4s ease;
+}
+
+/* Coins continus (squircle) façon Liquid Glass. À rayon égal, un squircle CSS creuse moins le
+ * coin qu'un arc : × 1,8 donne la même profondeur que la courbe Lisse du verre du SDK (rayon 40
+ * → 72). Les rayons « Lisse » restent la référence : `calc(R * var(--corner-k))` partout, et
+ * sans prise en charge (--corner-k = 1) on retombe sur les arcs d'avant. */
+:root {
+    --corner-k: 1;
+}
+
+@supports (corner-shape: squircle) {
+    :root {
+        --corner-k: 1.8;
+    }
+
+    /* Coque dépliée seulement : la pilule au repos reste une vraie capsule. Le squircle arrive tout
+     * de suite à l'ouverture, et ne repart qu'en fin de repli, quand la capsule est déjà petite
+     * (sinon les grands arcs ronds sautaient aux yeux au début du repli). */
+    #dynamic-island.island-expanded,
+    #dynamic-island.island-large {
+        corner-shape: squircle;
+        border-radius: calc(var(--shell-radius) * var(--corner-k));
+        --corner-delay: 0.1;
+    }
 }

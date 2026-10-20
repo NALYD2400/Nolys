@@ -1,4 +1,4 @@
-#dynamic-island.island-mode-replay { width: 560px; height: 536px; border-radius: 40px; cursor: default; }
+#dynamic-island.island-mode-replay { width: 560px; height: 536px; border-radius: var(--shell-radius); cursor: default; }
 #dynamic-island.island-mode-replay .island-library-view { --panel-height: 536px; }
 #dynamic-island.island-mode-replay.island-replay-player { width: var(--replay-player-width, 680px); }
 .island-satellite-replay { appearance: none; }

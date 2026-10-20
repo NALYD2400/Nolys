@@ -76,7 +76,7 @@ export const filesView = {
     renderFiles() {
         this.el.classList.remove(...this.getIslandSizeClasses());
         this.el.classList.add('island-expanded', 'island-mode-files');
-        this.el.style.height = ''; this.el.style.width = '';
+        this.el.style.height = this._mediaFit?.mode === 'files' ? `${this._mediaFit.height}px` : ''; this.el.style.width = '';
         const look = themeLook(this._islandConfig, this._coverColors?.primary);
         this.el.style.setProperty('--files-accent', look.accent);
         if (this._filesHost?.isConnected) { this.syncGlassControls(); return; }
@@ -95,6 +95,7 @@ export const filesView = {
                 const width = Math.min(680, window.innerWidth - 40);
                 this.el.style.setProperty('--files-preview-width', `${width}px`);
                 host.style.setProperty('--panel-width', `${expanded ? width : 560}px`);
+                this.fitToContent(host, 'files', expanded, 496);
             },
             onRender: () => settled.then(() => afterIntro(() => { if (this._filesHost === host && this.mode === 'files') this.syncGlassControls(); })),
         });

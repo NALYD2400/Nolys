@@ -11,7 +11,7 @@
 .files-preview-error p { margin: 0 0 16px; }
 .is-preview .files-body { overflow: hidden; }
 :host(:not([data-intro])) .files-tabs { animation: none; }
-.files-body { min-height: 0; overflow-y: auto; mask-image: none; }
+.files-body { min-height: 0; overflow-y: auto; }
 .files-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
 .files-footer .pill-btn { font-size: 10px; }
 .files-empty { min-height: 180px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 11px; text-align: center; padding: 20px; }

@@ -195,6 +195,7 @@
     width: 100%;
     height: 100%;
     border-radius: inherit;
+    corner-shape: inherit;
     object-fit: cover;
     display: block;
 }
@@ -351,7 +352,8 @@ body.motion-sober .marquee-track {
     gap: 9px;
     min-height: 28px;
     padding: 5px 8px;
-    border-radius: 14px;
+    border-radius: calc(14px * var(--corner-k, 1));
+    corner-shape: squircle;
     background: rgba(255, 255, 255, 0.045);
     border: 1px solid rgba(255, 255, 255, 0.07);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
@@ -778,7 +780,8 @@ body.eco-mode .music-viz-canvas {
     gap: 9px;
     min-height: 44px;
     padding: 0 10px 0 13px;
-    border-radius: 16px;
+    border-radius: calc(16px * var(--corner-k, 1));
+    corner-shape: squircle;
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.12);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
@@ -833,7 +836,8 @@ body.eco-mode .music-viz-canvas {
     width: 100%;
     min-width: 0;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 14px;
+    border-radius: calc(14px * var(--corner-k, 1));
+    corner-shape: squircle;
     background: rgba(255, 255, 255, 0.06);
     color: #fff;
     padding: 10px 12px;
@@ -893,7 +897,8 @@ body.eco-mode .music-viz-canvas {
     background: rgba(255, 255, 255, 0.9);
     color: #000;
     padding: 6px 12px;
-    border-radius: 20px;
+    border-radius: calc(20px * var(--corner-k, 1));
+    corner-shape: squircle;
     font-size: 12px;
     font-weight: bold;
     display: flex;

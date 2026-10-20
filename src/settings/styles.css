@@ -30,7 +30,9 @@
 
 .settings-root {
     height: 100%;
-    border-radius: var(--radius-window);
+    /* Même squircle que la coque de l'Island (base.css, --corner-k). */
+    border-radius: calc(var(--radius-window) * var(--corner-k, 1));
+    corner-shape: squircle;
     overflow: hidden;
     background: #161618;
     outline: none;
@@ -110,7 +112,7 @@ button {
 /* ---------------------------------------------------------------- Barre latérale */
 
 .sidebar {
-    /* Même retrait en haut et en bas ; arrondi intérieur plus discret que la coque. */
+    /* Même retrait en haut et en bas ; arrondi concentrique à la coque (App.jsx). */
     margin: 12px 0 12px 12px;
     padding: 12px 8px;
     display: flex;
@@ -343,8 +345,8 @@ button {
     padding: 8px 8px 22px 18px;
     overscroll-behavior: contain;
     animation: page-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
-    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
-    mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
 }
 
 /* Barre de défilement discrète : fine, sans rail, visible seulement au survol de la page. */
@@ -373,8 +375,8 @@ button {
 /* Le contenu s'efface en douceur sous l'en-tête, seulement une fois défilé : au repos, le
  * haut de la première carte restait à moitié effacé. */
 .content.is-scrolled .page {
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent);
-    mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 28px), transparent);
 }
 
 @keyframes page-in {
@@ -997,7 +999,8 @@ div.profile {
 .about-logo {
     width: 56px;
     height: 56px;
-    border-radius: 14px;
+    border-radius: calc(14px * var(--corner-k, 1));
+    corner-shape: squircle;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
@@ -1079,6 +1082,7 @@ div.profile {
     position: absolute;
     inset: 0 auto 0 0;
     border-radius: inherit;
+    corner-shape: inherit;
     background: linear-gradient(90deg, #30d158 0 62%, #ffd60a 82%, #ff453a);
     background-size: 140px 100%;
     transition: width 0.07s linear;

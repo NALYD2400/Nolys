@@ -42,6 +42,9 @@ export const replayView = {
         const host = document.createElement('div'); host.className = 'island-library-view replay-panel-host';
         this.content.replaceChildren(host); this._replayHost = host;
         const settled = capsuleSettled(this.el);
+        // Onglet Clips (et clip en lecture) : la capsule suit la liste. Capture et Réglages
+        // gardent la taille du module.
+        const refit = () => this.fitToContent(host, 'replay', Boolean(host.shadowRoot?.querySelector('#replay-tab-clips[aria-selected="true"]')), 536);
         this._replayController = mountReplay(host, {
             ready: settled,
             onClose: () => this.collapseIsland({ force: true }), onBack: () => this.setMode('menu'),
@@ -50,8 +53,9 @@ export const replayView = {
                 const width = Math.min(680, window.innerWidth - 40);
                 this.el.style.setProperty('--replay-player-width', `${width}px`);
                 host.style.setProperty('--panel-width', `${expanded ? width : 560}px`);
+                refit();
             },
-            onRender: () => settled.then(() => afterIntro(() => { if (this._replayHost === host) this.syncGlassControls(); })),
+            onRender: () => { refit(); settled.then(() => afterIntro(() => { if (this._replayHost === host) this.syncGlassControls(); })); },
         });
     },
     leaveReplay() {

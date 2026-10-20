@@ -18,6 +18,7 @@ body:not(.motion-sober) #dynamic-island {
         width 0.62s var(--spring-soft),
         height 0.62s var(--spring-soft),
         border-radius 0.5s var(--spring-soft),
+        corner-shape 0.1s linear calc(var(--corner-delay) * 0.62s),
         transform 0.45s var(--spring-soft),
         background-color 0.3s ease,
         box-shadow 0.25s ease;
@@ -28,6 +29,7 @@ body.motion-vivid #dynamic-island {
         width 0.72s var(--spring-bouncy),
         height 0.72s var(--spring-bouncy),
         border-radius 0.55s var(--spring-bouncy),
+        corner-shape 0.1s linear calc(var(--corner-delay) * 0.72s),
         transform 0.5s var(--spring-bouncy),
         background-color 0.28s ease,
         box-shadow 0.28s ease;
