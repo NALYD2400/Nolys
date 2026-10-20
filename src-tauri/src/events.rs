@@ -9,3 +9,5 @@ pub const OPEN_SETTINGS: &str = "open-settings";
 pub const MIC_MONITOR_CHANGED: &str = "mic-monitor-changed";
 pub const SHORTCUT_OPEN_MODE: &str = "shortcut-open-mode";
 pub const ISLAND_VISIBILITY_CHANGED: &str = "island-visibility-changed";
+/// Un lecteur a changé (morceau, pochette, lecture/pause) : l'Island relit l'état média.
+pub const MEDIA_CHANGED: &str = "media-changed";

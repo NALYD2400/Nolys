@@ -81,8 +81,8 @@ mod tests {
     use super::*;
     #[test]
     fn size_encoding_does_not_use_reserved_unknown_values() {
-        assert_eq!(&element(0xA3, &vec![0; 126])[..2], &[0xA3, 0xFE]);
-        assert_eq!(&element(0xA3, &vec![0; 127])[..3], &[0xA3, 0x40, 0x7F]);
+        assert_eq!(&element(0xA3, &[0; 126])[..2], &[0xA3, 0xFE]);
+        assert_eq!(&element(0xA3, &[0; 127])[..3], &[0xA3, 0x40, 0x7F]);
         assert!(header().windows(16).any(|w| w == b"A_PCM/FLOAT/IEEE"));
         assert!(packet(1_792_412_000_000, &[0; 3840]).len() < 3900);
     }

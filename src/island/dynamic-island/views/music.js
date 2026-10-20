@@ -54,25 +54,25 @@ export const musicView = {
                 : `<img src="${escapeHtml(displayArt)}" class="album-art ${flipClass}" style="${displayArtStyle}" alt="Album">`;
         } else {
             if (appIcon) {
-                coverHtml = `<img src="${appIcon}" class="album-art ${flipClass}" style="object-fit: contain; background: #000; padding: 5px;" alt="App Icon">`;
+                coverHtml = `<img src="${escapeHtml(appIcon)}" class="album-art ${flipClass}" style="object-fit: contain; background: #000; padding: 5px;" alt="App Icon">`;
             } else {
                 coverHtml = `<img src="${APP_LOGO_ART}" class="album-art app-logo-art ${flipClass}" alt="Nolys">`;
             }
         }
 
         const menuBtn = `
-          <button class="island-action-btn menu-btn" onclick="event.stopPropagation(); window.island.setMode('menu')" title="Menu des modules">
+          <button class="island-action-btn menu-btn" data-island-action="setMode" data-arg="menu" title="Menu des modules">
             <i class="ph-bold ph-squares-four"></i>
           </button>`;
 
         const favoriteBtn = `
-          <button class="island-action-btn music-favorite-btn ${isFavorite ? 'is-favorite' : ''}" onclick="event.stopPropagation(); window.island.toggleCurrentMusicFavorite()" title="${isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}">
+          <button class="island-action-btn music-favorite-btn ${isFavorite ? 'is-favorite' : ''}" data-island-action="toggleCurrentMusicFavorite" title="${isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}">
             <i class="${isFavorite ? 'ph-fill' : 'ph'} ph-star"></i>
           </button>`;
 
         const historyBtn = data.source === 'local' ? `
-          <button class="island-action-btn music-history-btn" onclick="event.stopPropagation(); window.island.setMode('library')" title="Bibliothèque musicale" aria-label="Bibliothèque musicale"><i class="ph ph-vinyl-record"></i></button>` : `
-          <button class="island-action-btn music-history-btn" onclick="event.stopPropagation(); window.island.setMode('music-history')" title="Historique musique">
+          <button class="island-action-btn music-history-btn" data-island-action="setMode" data-arg="library" title="Bibliothèque musicale" aria-label="Bibliothèque musicale"><i class="ph ph-vinyl-record"></i></button>` : `
+          <button class="island-action-btn music-history-btn" data-island-action="setMode" data-arg="music-history" title="Historique musique">
             <i class="ph ph-clock-counter-clockwise"></i>
           </button>`;
 
@@ -94,11 +94,11 @@ export const musicView = {
           ` : ''}
         </div>
         <div class="music-controls">
-          <button class="control-btn-music" title="Précédent" aria-label="Précédent" onclick="event.stopPropagation(); window.spotifyControl('prev')"><i class="ph-fill ph-skip-back"></i></button>
-          <button class="control-btn-music play-btn" title="${data.isPlaying ? 'Pause' : 'Lecture'}" aria-label="${data.isPlaying ? 'Pause' : 'Lecture'}" onclick="event.stopPropagation(); window.spotifyControl('toggle')">
+          <button class="control-btn-music" title="Précédent" aria-label="Précédent" data-island-action="media" data-arg="prev"><i class="ph-fill ph-skip-back"></i></button>
+          <button class="control-btn-music play-btn" title="${data.isPlaying ? 'Pause' : 'Lecture'}" aria-label="${data.isPlaying ? 'Pause' : 'Lecture'}" data-island-action="media" data-arg="toggle">
             <i class="ph-fill ${data.isPlaying ? 'ph-pause' : 'ph-play'}"></i>
           </button>
-          <button class="control-btn-music" title="Suivant" aria-label="Suivant" onclick="event.stopPropagation(); window.spotifyControl('next')"><i class="ph-fill ph-skip-forward"></i></button>
+          <button class="control-btn-music" title="Suivant" aria-label="Suivant" data-island-action="media" data-arg="next"><i class="ph-fill ph-skip-forward"></i></button>
         </div>
         <div class="music-progress-group">
         <div class="progress-bar" style="--progress-pct: ${pct}%">

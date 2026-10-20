@@ -20,7 +20,7 @@ export const notificationView = {
           <div class="notif-title" title="${safeTitle}">${safeTitle}</div>
           <div class="${isExpanded ? 'notif-message' : 'notif-preview'}">${safeMessage}</div>
         </div>
-        ${isExpanded ? '<button type="button" class="notif-dismiss" aria-label="Fermer la notification" onclick="event.stopPropagation(); window.island.dismissNotification()"><i class="ph ph-x" aria-hidden="true"></i></button>' : ''}
+        ${isExpanded ? '<button type="button" class="notif-dismiss" aria-label="Fermer la notification" data-island-action="dismissNotification"><i class="ph ph-x" aria-hidden="true"></i></button>' : ''}
       </div>
     `;
         this.startNotificationTimeout();

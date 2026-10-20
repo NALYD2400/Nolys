@@ -209,7 +209,7 @@ export const mixerMethods = {
 
                 const activeClass = d.isDefault ? 'active' : '';
                 return `
-                    <div class="audio-device-item ${activeClass}" onclick="event.stopPropagation(); window.island.selectAudioDevice('${escapeHtml(d.id)}')">
+                    <div class="audio-device-item ${activeClass}" data-island-action="selectAudioDevice" data-arg="${escapeHtml(d.id)}">
                         <span class="audio-device-icon"><i class="ph ${icon}"></i></span>
                         <span class="device-name" title="${escapeHtml(d.name)}">${escapeHtml(d.name)}</span>
                         <span class="device-active-dot"></span>
@@ -256,7 +256,7 @@ export const mixerMethods = {
 
                 const activeClass = d.isDefault ? 'active' : '';
                 return `
-                    <div class="audio-device-item ${activeClass}" onclick="event.stopPropagation(); window.island.selectMicDevice('${escapeHtml(d.id)}')">
+                    <div class="audio-device-item ${activeClass}" data-island-action="selectMicDevice" data-arg="${escapeHtml(d.id)}">
                         <span class="audio-device-icon"><i class="ph ${icon}"></i></span>
                         <span class="device-name" title="${escapeHtml(d.name)}">${escapeHtml(d.name)}</span>
                         <span class="device-active-dot"></span>
@@ -384,7 +384,7 @@ export const mixerMethods = {
                 let iconHtml = '';
                 if (icon) {
                     iconHtml = `
-                        <img src="${icon}" class="mixer-app-icon-img" alt="${s.name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+                        <img src="${escapeHtml(icon)}" class="mixer-app-icon-img" alt="${escapeHtml(s.name)}" data-fallback="next">
                         <i class="ph ph-music-note mixer-app-icon-fallback" style="display: none;"></i>
                     `;
                 } else {
@@ -408,10 +408,10 @@ export const mixerMethods = {
                         </div>
                         <div class="mixer-details">
                             <div class="mixer-app-name-row">
-                                <span class="mixer-app-name">${cleanName}</span>
+                                <span class="mixer-app-name">${escapeHtml(cleanName)}</span>
                                 <span class="mixer-app-vol-badge">${activeVol}%</span>
                             </div>
-                            <span class="mixer-title-text" title="${displayTitle}">${displayTitle}</span>
+                            <span class="mixer-title-text" title="${escapeHtml(displayTitle)}">${escapeHtml(displayTitle)}</span>
                             <div class="mixer-slider-wrapper">
                                 <input type="range" class="mixer-volume-slider" data-pid="${s.pid}" min="0" max="100" value="${activeVol}">
                             </div>
@@ -443,13 +443,13 @@ export const mixerMethods = {
                 <div class="mixer-header">
                     <span class="mixer-title"><i class="ph ph-sliders"></i> Mélangeur Audio</span>
                     <div class="music-action-cluster">
-                        <button class="island-action-btn device-select-btn ${activeOutBtnClass}" onclick="event.stopPropagation(); window.island.toggleAudioDeviceDropdown()" title="Périphérique de sortie">
+                        <button class="island-action-btn device-select-btn ${activeOutBtnClass}" data-island-action="toggleAudioDeviceDropdown" title="Périphérique de sortie">
                             <i class="ph ${headerIcon}"></i>
                         </button>
-                        <button class="island-action-btn mic-select-btn ${activeMicBtnClass}" onclick="event.stopPropagation(); window.island.toggleMicDeviceDropdown()" title="Entrée audio / Micro">
+                        <button class="island-action-btn mic-select-btn ${activeMicBtnClass}" data-island-action="toggleMicDeviceDropdown" title="Entrée audio / Micro">
                             <i class="ph ph-microphone"></i>
                         </button>
-                        <button class="island-action-btn menu-btn" onclick="event.stopPropagation(); window.island.setMode('menu')" title="Menu des modules">
+                        <button class="island-action-btn menu-btn" data-island-action="setMode" data-arg="menu" title="Menu des modules">
                             <i class="ph-bold ph-squares-four"></i>
                         </button>
                     </div>
@@ -462,7 +462,7 @@ export const mixerMethods = {
                     <div class="audio-device-dropdown" id="audio-device-dropdown">
                         <div class="audio-device-dropdown-header">
                             <span class="audio-device-dropdown-title">Sortie Audio</span>
-                            <button class="audio-device-dropdown-close" title="Fermer" aria-label="Fermer" onclick="event.stopPropagation(); window.island.toggleAudioDeviceDropdown()">
+                            <button class="audio-device-dropdown-close" title="Fermer" aria-label="Fermer" data-island-action="toggleAudioDeviceDropdown">
                                 <i class="ph ph-x"></i>
                             </button>
                         </div>
@@ -474,7 +474,7 @@ export const mixerMethods = {
                     <div class="audio-device-dropdown" id="mic-device-dropdown">
                         <div class="audio-device-dropdown-header">
                             <span class="audio-device-dropdown-title">Entrée Audio / Micro</span>
-                            <button class="audio-device-dropdown-close" title="Fermer" aria-label="Fermer" onclick="event.stopPropagation(); window.island.toggleMicDeviceDropdown()">
+                            <button class="audio-device-dropdown-close" title="Fermer" aria-label="Fermer" data-island-action="toggleMicDeviceDropdown">
                                 <i class="ph ph-x"></i>
                             </button>
                         </div>

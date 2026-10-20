@@ -87,12 +87,12 @@ export const idleView = {
             const preferServiceIcon = shouldPreferServiceIcon(this.musicData.appId, this.musicData.title, this.musicData.artist);
             const displayArt = getDisplayMediaArt(this.musicData);
             if (preferServiceIcon && appIcon) {
-                coverHtml = `<img src="${appIcon}" style="width: 28px; height: 28px; border-radius: ${coverRadius}; ${getServiceArtStyle('small')} margin-left: 2px;" onerror="this.outerHTML='<div style=\\'width: 28px; height: 28px; border-radius: ${coverRadius}; background: linear-gradient(135deg, var(--neon-primary), var(--neon-secondary)); display: flex; align-items: center; justify-content: center; margin-left: 2px;\\'><i class=\\'ph ph-music-note\\' style=\\'font-size: 14px; color: #fff;\\'></i></div>';">`;
+                coverHtml = `<img src="${escapeHtml(appIcon)}" style="width: 28px; height: 28px; border-radius: ${coverRadius}; ${getServiceArtStyle('small')} margin-left: 2px;" data-fallback="note">`;
             } else if (displayArt && displayArt.length > 0) {
-                coverHtml = `<img src="${displayArt}" style="width: 28px; height: 28px; border-radius: ${coverRadius}; object-fit: cover; margin-left: 2px;" onerror="this.outerHTML='<div style=\\'width: 28px; height: 28px; border-radius: ${coverRadius}; background: linear-gradient(135deg, var(--neon-primary), var(--neon-secondary)); display: flex; align-items: center; justify-content: center; margin-left: 2px;\\'><i class=\\'ph ph-music-note\\' style=\\'font-size: 14px; color: #fff;\\'></i></div>';">`;
+                coverHtml = `<img src="${escapeHtml(displayArt)}" style="width: 28px; height: 28px; border-radius: ${coverRadius}; object-fit: cover; margin-left: 2px;" data-fallback="note">`;
             } else {
                 if (appIcon) {
-                    coverHtml = `<img src="${appIcon}" style="width: 28px; height: 28px; border-radius: ${coverRadius}; object-fit: contain; background: #000; padding: 2px; margin-left: 2px;" onerror="this.outerHTML='<div style=\\'width: 28px; height: 28px; border-radius: ${coverRadius}; background: linear-gradient(135deg, var(--neon-primary), var(--neon-secondary)); display: flex; align-items: center; justify-content: center; margin-left: 2px;\\'><i class=\\'ph ph-music-note\\' style=\\'font-size: 14px; color: #fff;\\'></i></div>';">`;
+                    coverHtml = `<img src="${escapeHtml(appIcon)}" style="width: 28px; height: 28px; border-radius: ${coverRadius}; object-fit: contain; background: #000; padding: 2px; margin-left: 2px;" data-fallback="note">`;
                 } else {
                     coverHtml = `<img src="${APP_LOGO_ART}" class="idle-cover-art app-logo-art" style="border-radius: ${coverRadius};" alt="Nolys">`;
                 }

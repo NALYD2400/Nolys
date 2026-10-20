@@ -16,13 +16,30 @@ export const loopMethods = {
         // Métadonnées média plus réactives pour réduire la latence ressentie
         // sur la pochette, donc aussi sur la synchro du fond d'écran.
         this._mediaPollingActive = true;
+        let polling = false;
+        let again = false;
         const pollMedia = async () => {
             if (!this._mediaPollingActive) return;
-            await this.updateMediaState();
+            if (polling) { again = true; return; }
+            clearTimeout(this._mediaPollTimer);
+            polling = true;
+            try {
+                await this.updateMediaState();
+            } finally {
+                polling = false;
+            }
             if (!this._mediaPollingActive) return;
+            if (again) { again = false; pollMedia(); return; }
             this._mediaPollTimer = setTimeout(pollMedia, this.getMediaPollDelay());
         };
         pollMedia();
+
+        // Le cœur natif prévient à chaque changement de lecteur (morceau, pochette, lecture ou
+        // pause) : relecture immédiate, regroupée si plusieurs événements arrivent d'un coup.
+        ipcRenderer.on('media-changed', () => {
+            clearTimeout(this._mediaEventTimer);
+            this._mediaEventTimer = setTimeout(pollMedia, 80);
+        });
 
         // Premier sync immédiat au démarrage, sans attendre la première seconde.
         // For FPS tracking (only when needed for stats display)
@@ -35,9 +52,12 @@ export const loopMethods = {
             return this.isPlaying ? 2200 : 5000;
         }
 
+        // Les changements de morceau et de lecture arrivent par événement (media-changed) : le
+        // sondage ne sert plus qu'à faire avancer la progression affichée.
         const controlPending = this._mediaControlPendingUntil && this._mediaControlPendingUntil > Date.now();
-        if (this.isExpanded || this.isPlaying || controlPending) return 400;
-        return 1100;
+        if (this.isExpanded || controlPending) return 400;
+        if (this.isPlaying && localStorage.getItem('liquid_idle_compact_mode') === 'progress') return 1000;
+        return this.isPlaying ? 1500 : 2000;
     },
 
     startProgressSmoothLoop() {

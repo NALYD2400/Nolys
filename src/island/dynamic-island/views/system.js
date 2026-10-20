@@ -123,7 +123,7 @@ export const systemViews = {
                 <i class="ph ph-gauge" style="color: var(--neon-primary);"></i> System Pulse
             </div>
             <div style="display: flex; gap: 10px;">
-                <button class="island-action-btn menu-btn" onclick="event.stopPropagation(); window.island.setMode('menu')" title="Menu des modules">
+                <button class="island-action-btn menu-btn" data-island-action="setMode" data-arg="menu" title="Menu des modules">
                     <i class="ph-bold ph-squares-four"></i>
                 </button>
             </div>
@@ -199,7 +199,7 @@ export const systemViews = {
                     <div class="network-pulse-title">
                         <i class="ph ph-globe-stand"></i> Pulse Réseau
                     </div>
-                    <button class="island-action-btn menu-btn" onclick="event.stopPropagation(); window.island.setMode('menu')" title="Menu des modules">
+                    <button class="island-action-btn menu-btn" data-island-action="setMode" data-arg="menu" title="Menu des modules">
                         <i class="ph-bold ph-squares-four"></i>
                     </button>
                 </div>
@@ -244,16 +244,16 @@ export const systemViews = {
         const presets = loadTimerPresets();
         // Clic : durée. Clic droit : la changer (saisie d'une nouvelle durée).
         const presetsHtml = presets.map((seconds, index) => `
-                    <button class="timer-preset ${this.timerPreset === seconds ? 'on' : ''}" data-preset="${index}" onclick="event.stopPropagation(); window.island.setTimerPreset(${seconds})" oncontextmenu="event.preventDefault(); event.stopPropagation(); window.island.editTimerPreset(${index})" title="Minuteur : ${formatTimerPreset(seconds)} (clic droit pour la changer)">${formatTimerPreset(seconds)}</button>`).join('');
+                    <button class="timer-preset ${this.timerPreset === seconds ? 'on' : ''}" data-preset="${index}" data-island-action="setTimerPreset" data-arg="${seconds}" oncontextmenu="event.preventDefault(); event.stopPropagation(); window.island.editTimerPreset(${index})" title="Minuteur : ${formatTimerPreset(seconds)} (clic droit pour la changer)">${formatTimerPreset(seconds)}</button>`).join('');
 
         this.content.innerHTML = `
         <div class="island-timer-container">
             <div class="island-timer-header">
                 <div class="timer-mode" role="radiogroup" aria-label="Mode">
-                    <button class="${isCountdown ? '' : 'on'}" role="radio" aria-checked="${!isCountdown}" onclick="event.stopPropagation(); window.island.setTimerMode('stopwatch')">Chrono</button>
-                    <button class="${isCountdown ? 'on' : ''}" role="radio" aria-checked="${isCountdown}" onclick="event.stopPropagation(); window.island.setTimerMode('countdown')">Minuteur</button>
+                    <button class="${isCountdown ? '' : 'on'}" role="radio" aria-checked="${!isCountdown}" data-island-action="setTimerMode" data-arg="stopwatch">Chrono</button>
+                    <button class="${isCountdown ? 'on' : ''}" role="radio" aria-checked="${isCountdown}" data-island-action="setTimerMode" data-arg="countdown">Minuteur</button>
                 </div>
-                <button class="island-action-btn menu-btn" onclick="event.stopPropagation(); window.island.setMode('menu')" title="Menu des modules">
+                <button class="island-action-btn menu-btn" data-island-action="setMode" data-arg="menu" title="Menu des modules">
                     <i class="ph-bold ph-squares-four"></i>
                 </button>
             </div>
@@ -264,10 +264,10 @@ export const systemViews = {
                     : `<div class="timer-status">${status}</div>`}
                 <div class="timer-readout">${mins}:${secs}</div>
                 <div class="timer-controls">
-                    <button class="timer-control-btn" onclick="event.stopPropagation(); window.island.resetTimer()" title="Réinitialiser">
+                    <button class="timer-control-btn" data-island-action="resetTimer" title="Réinitialiser">
                         <i class="ph-bold ph-arrow-counter-clockwise"></i>
                     </button>
-                    <button class="timer-control-btn primary ${this.isTimerRunning ? 'is-running' : ''}" onclick="event.stopPropagation(); window.island.toggleTimer()" title="${this.isTimerRunning ? 'Pause' : 'Démarrer'}">
+                    <button class="timer-control-btn primary ${this.isTimerRunning ? 'is-running' : ''}" data-island-action="toggleTimer" title="${this.isTimerRunning ? 'Pause' : 'Démarrer'}">
                         <i class="ph-fill ${this.isTimerRunning ? 'ph-pause' : 'ph-play'}"></i>
                     </button>
                 </div>

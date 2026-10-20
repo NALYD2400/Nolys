@@ -169,6 +169,20 @@
     padding: 0;
 }
 
+/* Pochette de la pilule introuvable (data-fallback="note", features/events.js). */
+.idle-cover-fallback {
+    width: 28px;
+    height: 28px;
+    flex: none;
+    margin-left: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--neon-primary), var(--neon-secondary));
+    color: #fff;
+    font-size: 14px;
+}
+
 .idle-cover-art {
     width: 28px;
     height: 28px;

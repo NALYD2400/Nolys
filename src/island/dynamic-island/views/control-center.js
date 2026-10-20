@@ -55,7 +55,7 @@ export const controlCenterView = {
         const controlTrackKey = musicData.trackKey || getMusicHistoryKey(musicData);
         const flipClass = this._pendingCoverAnimationTrackKey && this._pendingCoverAnimationTrackKey === controlTrackKey ? 'flip-active' : '';
         const npCoverHtml = hasCover
-            ? `<img id="ic-np-cover-img" src="${effectiveNpArt}" class="ic-np-cover ${flipClass}">`
+            ? `<img id="ic-np-cover-img" src="${escapeHtml(effectiveNpArt)}" class="ic-np-cover ${flipClass}">`
             : `<img id="ic-np-cover-img" src="${APP_LOGO_ART}" class="ic-np-cover app-logo-art ${flipClass}" alt="Nolys">`;
 
         // Render customizable third card based on user preference
@@ -166,9 +166,9 @@ export const controlCenterView = {
                         <span class="ic-time"><i class="ph ph-clock"></i>${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                     <div class="ic-header-actions">
-                        <button class="ic-action-btn" onclick="event.stopPropagation(); window.island.setMode('settings')" title="Réglages"><i class="ph ph-gear"></i></button>
+                        <button class="ic-action-btn" data-island-action="setMode" data-arg="settings" title="Réglages"><i class="ph ph-gear"></i></button>
                         <button class="ic-action-btn power" id="ic-shutdown" title="Éteindre"><i class="ph ph-power"></i></button>
-                        <button class="ic-close" onclick="event.stopPropagation(); window.island.setMode('menu')" title="Menu des modules"><i class="ph-bold ph-squares-four"></i></button>
+                        <button class="ic-close" data-island-action="setMode" data-arg="menu" title="Menu des modules"><i class="ph-bold ph-squares-four"></i></button>
                     </div>
                 </div>
                 
@@ -229,9 +229,9 @@ export const controlCenterView = {
                                 <span class="ic-np-artist" id="ic-np-artist-val">${escapeHtml(musicData.artist)}</span>
                             </div>
                             <div class="ic-np-controls">
-                                <button class="ic-np-btn" title="Précédent" aria-label="Précédent" onclick="event.stopPropagation(); window.spotifyControl('prev')"><i class="ph-fill ph-skip-back"></i></button>
-                                <button class="ic-np-btn play" id="ic-np-play-btn-val" title="${musicData.isPlaying ? 'Pause' : 'Lecture'}" aria-label="${musicData.isPlaying ? 'Pause' : 'Lecture'}" onclick="event.stopPropagation(); window.spotifyControl('toggle')"><i class="ph-fill ph-${musicData.isPlaying ? 'pause' : 'play'}"></i></button>
-                                <button class="ic-np-btn" title="Suivant" aria-label="Suivant" onclick="event.stopPropagation(); window.spotifyControl('next')"><i class="ph-fill ph-skip-forward"></i></button>
+                                <button class="ic-np-btn" title="Précédent" aria-label="Précédent" data-island-action="media" data-arg="prev"><i class="ph-fill ph-skip-back"></i></button>
+                                <button class="ic-np-btn play" id="ic-np-play-btn-val" title="${musicData.isPlaying ? 'Pause' : 'Lecture'}" aria-label="${musicData.isPlaying ? 'Pause' : 'Lecture'}" data-island-action="media" data-arg="toggle"><i class="ph-fill ph-${musicData.isPlaying ? 'pause' : 'play'}"></i></button>
+                                <button class="ic-np-btn" title="Suivant" aria-label="Suivant" data-island-action="media" data-arg="next"><i class="ph-fill ph-skip-forward"></i></button>
                             </div>
                         </div>
 
@@ -652,7 +652,7 @@ export const controlCenterView = {
                                     let iconHtml = '';
                                     if (icon) {
                                         iconHtml = `
-                                            <img src="${icon}" style="width: 14px; height: 14px; object-fit: contain;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+                                            <img src="${escapeHtml(icon)}" style="width: 14px; height: 14px; object-fit: contain;" data-fallback="next">
                                             <i class="ph ph-music-note" style="display: none; font-size: 12px;"></i>
                                         `;
                                     } else {
@@ -666,7 +666,7 @@ export const controlCenterView = {
                                     
                                     return `
                                         <div class="ic-mixer-row">
-                                            <div class="ic-mixer-app-icon" title="${cleanName}">
+                                            <div class="ic-mixer-app-icon" title="${escapeHtml(cleanName)}">
                                                 ${iconHtml}
                                             </div>
                                             <div class="ic-mixer-slider-wrapper">

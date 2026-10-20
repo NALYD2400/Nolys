@@ -6,6 +6,13 @@ import { isHistoryTrack } from '../helpers/music-search.js';
 import { themeLook } from '../../../shared/theme-look.js';
 import { readMenus, visibleMenuEntries } from '../../../shared/menu-config.js';
 
+/** Méthodes de l'Island qu'un bouton peut appeler par `data-island-action` (liste fermée). */
+const ISLAND_ACTIONS = new Set([
+    'setMode', 'dismissNotification', 'toggleCurrentMusicFavorite',
+    'toggleAudioDeviceDropdown', 'toggleMicDeviceDropdown', 'selectAudioDevice', 'selectMicDevice',
+    'setTimerMode', 'resetTimer', 'toggleTimer',
+]);
+
 export const eventMethods = {
     initEvents() {
         // Right-click context menu listener
@@ -154,6 +161,36 @@ export const eventMethods = {
                 this.activeMixerSlider = null;
             }
         });
+
+        // Boutons des vues : `data-island-action` (et `data-arg`) au lieu de onclick en ligne,
+        // interdits par la CSP. Écouté avant les autres : le clic ne remonte pas jusqu'à la
+        // capsule (sinon elle se replierait), comme avec l'ancien event.stopPropagation().
+        this.content.addEventListener('click', (e) => {
+            const button = e.target.closest('[data-island-action]');
+            if (!button || !this.content.contains(button)) return;
+            e.stopImmediatePropagation();
+            const { islandAction: action, arg } = button.dataset;
+            if (action === 'media') window.spotifyControl?.(arg);
+            else if (action === 'closeSearch') window.dispatchEvent(new CustomEvent('liquid-search-close'));
+            else if (action === 'setTimerPreset') this.setTimerPreset(Number(arg));
+            else if (ISLAND_ACTIONS.has(action)) arg === undefined ? this[action]() : this[action](arg);
+        });
+
+        // Image qui ne charge pas (`data-fallback`) : icône voisine, ou pastille note de musique.
+        this.el.addEventListener('error', (e) => {
+            const image = e.target;
+            if (!(image instanceof HTMLImageElement) || !image.dataset.fallback) return;
+            if (image.dataset.fallback === 'next') {
+                image.style.display = 'none';
+                if (image.nextElementSibling) image.nextElementSibling.style.display = 'inline-flex';
+            } else if (image.dataset.fallback === 'note') {
+                const note = document.createElement('div');
+                note.className = 'idle-cover-fallback';
+                note.style.borderRadius = image.style.borderRadius;
+                note.innerHTML = '<i class="ph ph-music-note"></i>';
+                image.replaceWith(note);
+            }
+        }, true);
 
         // Prevent click events on specific child elements from bubbling and collapsing the island
         this.content.addEventListener('click', (e) => {

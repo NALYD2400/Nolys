@@ -18,7 +18,7 @@ mod wallpaper;
 
 use std::time::Duration;
 
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 use state::AppState;
 
@@ -147,8 +147,15 @@ fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let layout = island::layout::load(app, &data_dir);
     app.manage(AppState::new(data_dir, layout));
 
-    // Le gestionnaire SMTC met parfois plusieurs centaines de ms à répondre.
-    std::thread::spawn(platform::smtc::init);
+    // Le gestionnaire SMTC met parfois plusieurs centaines de ms à répondre. Ses événements
+    // préviennent ensuite l'Island à chaque changement de lecteur (au lieu d'un sondage serré).
+    let media_events = app.clone();
+    std::thread::spawn(move || {
+        platform::smtc::init();
+        platform::smtc::watch(move || {
+            let _ = media_events.emit_to(island::LABEL, events::MEDIA_CHANGED, ());
+        });
+    });
 
     island::create(app, legacy_settings)?;
     files::drag::install(app)?;

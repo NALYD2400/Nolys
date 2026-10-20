@@ -1,5 +1,6 @@
 //! Contrôles média système (SMTC : `GlobalSystemMediaTransportControlsSessionManager`).
 
+use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use base64::Engine;
@@ -9,6 +10,7 @@ use windows::Media::Control::{
     GlobalSystemMediaTransportControlsSessionManager as SessionManager,
     GlobalSystemMediaTransportControlsSessionPlaybackStatus as PlaybackStatus,
 };
+use windows::Foundation::TypedEventHandler;
 use windows::Storage::Streams::DataReader;
 
 use super::com;
@@ -70,6 +72,56 @@ fn manager(force_retry: bool) -> Option<SessionManager> {
 
 pub fn init() {
     let _ = manager(true);
+}
+
+type Notify = Arc<dyn Fn() + Send + Sync>;
+
+/// Abonnements aux sessions ouvertes : refaits à chaque changement de la liste.
+static SESSION_WATCHES: Mutex<Vec<(Session, i64, i64)>> = Mutex::new(Vec::new());
+
+/// Prévient `notify` dès qu'un lecteur change de morceau, de pochette ou d'état (lecture,
+/// pause), ou qu'une session apparaît ou disparaît. L'Island relit alors l'état tout de suite
+/// au lieu de l'interroger sans cesse. Les rappels arrivent sur un fil du système.
+pub fn watch(notify: impl Fn() + Send + Sync + 'static) {
+    let Some(manager) = manager(true) else { return };
+    let notify: Notify = Arc::new(notify);
+    let on_current = notify.clone();
+    let _ = manager.CurrentSessionChanged(&TypedEventHandler::new(move |_, _| {
+        on_current();
+        Ok(())
+    }));
+    let on_sessions = notify.clone();
+    let _ = manager.SessionsChanged(&TypedEventHandler::new(move |sender: windows::core::Ref<SessionManager>, _| {
+        if let Some(manager) = sender.as_ref() {
+            watch_sessions(manager, &on_sessions);
+        }
+        on_sessions();
+        Ok(())
+    }));
+    watch_sessions(&manager, &notify);
+}
+
+fn watch_sessions(manager: &SessionManager, notify: &Notify) {
+    let mut watches = SESSION_WATCHES.lock();
+    for (session, media, playback) in watches.drain(..) {
+        let _ = session.RemoveMediaPropertiesChanged(media);
+        let _ = session.RemovePlaybackInfoChanged(playback);
+    }
+    for session in manager.GetSessions().map(|list| list.into_iter().collect::<Vec<_>>()).unwrap_or_default() {
+        let on_media = notify.clone();
+        let on_playback = notify.clone();
+        let media = session.MediaPropertiesChanged(&TypedEventHandler::new(move |_, _| {
+            on_media();
+            Ok(())
+        }));
+        let playback = session.PlaybackInfoChanged(&TypedEventHandler::new(move |_, _| {
+            on_playback();
+            Ok(())
+        }));
+        if let (Ok(media), Ok(playback)) = (media, playback) {
+            watches.push((session, media, playback));
+        }
+    }
 }
 
 pub fn diagnostics() -> (bool, u32, String) {

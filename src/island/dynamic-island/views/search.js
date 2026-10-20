@@ -18,7 +18,7 @@ export const searchView = {
                 <div class="search-bar-integrated">
                     <i class="ph ph-magnifying-glass search-icon-integrated"></i>
                     <input type="text" id="island-search-input" placeholder="Rechercher…" autofocus>
-                    <button class="island-close-search" title="Fermer la recherche" aria-label="Fermer la recherche" onclick="window.dispatchEvent(new CustomEvent('liquid-search-close'))">
+                    <button class="island-close-search" title="Fermer la recherche" aria-label="Fermer la recherche" data-island-action="closeSearch">
                         <i class="ph ph-x"></i>
                     </button>
                 </div>
