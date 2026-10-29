@@ -186,7 +186,8 @@ export const playbackMethods = {
             if (npTitle) npTitle.innerText = data.title || "Sans titre";
             if (npArtist) npArtist.innerText = data.artist || "Artiste inconnu";
             if (npPlayBtn) {
-                npPlayBtn.setAttribute('onclick', `event.stopPropagation(); window.spotifyControl('toggle')`);
+                npPlayBtn.setAttribute('data-island-action', 'media');
+                npPlayBtn.setAttribute('data-arg', 'toggle');
                 npPlayBtn.innerHTML = `<i class="ph-fill ph-${data.isPlaying ? 'pause' : 'play'}"></i>`;
             }
             if (npCover) {
