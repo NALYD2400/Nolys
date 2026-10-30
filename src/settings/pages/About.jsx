@@ -3,6 +3,8 @@ import { ipcRenderer } from '../../shared/ipc.js';
 import { Button, Card, Icon, Row } from '../components/controls.jsx';
 import { useUpdates } from '../state/useSettings.js';
 import { whileBusy } from '../state/busy.js';
+import Maintenance from './Maintenance.jsx';
+import GettingStarted from '../components/GettingStarted.jsx';
 
 const UPDATE_COPY = {
     idle: { icon: 'ph-shield-check', title: 'Version installée', text: 'Vérifie s’il existe une nouvelle version.' },
@@ -62,7 +64,7 @@ export default function About({ store }) {
 
             <Updates updates={updates} />
 
-            <Card title="Sauvegarde" footer={importError || 'Le fichier contient tes réglages, tes profils et ton historique musical.'}>
+            <Card title="Sauvegarde" footer={importError || 'Inclut l’apparence, les modules, la position, les minuteurs, les profils micro, les préférences Replay et Fichiers et l’historique musical. Les médias restent dans leurs dossiers.'}>
                 <Row label="Exporter les réglages">
                     <Button icon="ph-export" onClick={() => store.exportSettings().catch(() => setImportError('Export impossible : le fichier n’a pas pu être écrit.'))}>Exporter</Button>
                 </Row>
@@ -91,13 +93,16 @@ export default function About({ store }) {
                             try {
                                 await store.importSettings(file);
                                 setImportError('');
-                            } catch {
-                                setImportError('Ce fichier n’est pas une sauvegarde valide.');
+                            } catch (error) {
+                                setImportError(String(error?.message || error));
                             }
                         }}
                     />
                 </Row>
             </Card>
+
+            <Maintenance store={store} />
+            <GettingStarted always />
 
             <Card>
                 <Row label="Quitter l’application" description="Ferme l’Island et rétablit ton fond d’écran.">

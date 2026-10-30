@@ -145,7 +145,7 @@ pub fn relink(
     id: &str,
     path: &Path,
     exists: impl Fn(&str) -> bool,
-    read: impl Fn(&Path) -> Track,
+    mut read: impl FnMut(&Path) -> Track,
 ) -> Result<usize, String> {
     let old_path = library.tracks.iter().find(|t| t.id == id).ok_or("Morceau introuvable.")?.path.clone();
     let mut targets = vec![(id.to_string(), path.to_path_buf())];

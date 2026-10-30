@@ -9,8 +9,58 @@ use std::{
 
 // Avoid competing decoders when a long clip list comes into view.
 static DECODER: Mutex<()> = Mutex::new(());
+pub const CACHE_BYTES: u64 = 128 * 1024 * 1024;
+const CACHE_FILES: usize = 512;
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CacheUsage {
+    pub bytes: u64,
+    pub files: usize,
+    pub limit_bytes: u64,
+}
+
+fn generated(path: &std::path::Path) -> bool {
+    path.extension().is_some_and(|e| e == "jpg")
+        && path.file_stem().is_some_and(|s| {
+            let s = s.to_string_lossy();
+            s.len() == 16 && s.bytes().all(|b| b.is_ascii_hexdigit())
+        })
+}
+fn prune(directory: &std::path::Path, clear: bool) -> Result<CacheUsage, String> {
+    let mut files = Vec::new();
+    if directory.exists() {
+        for entry in std::fs::read_dir(directory).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            if entry.file_type().map_err(|e| e.to_string())?.is_file() && generated(&entry.path()) {
+                let m = entry.metadata().map_err(|e| e.to_string())?;
+                files.push((entry.path(), m.len(), m.modified().ok()));
+            }
+        }
+    }
+    files.sort_by_key(|f| f.2);
+    let mut bytes: u64 = files.iter().map(|f| f.1).sum();
+    let mut count = files.len();
+    for (path, len, _) in files {
+        if !clear && bytes <= CACHE_BYTES && count <= CACHE_FILES {
+            break;
+        }
+        std::fs::remove_file(path).map_err(|e| e.to_string())?;
+        bytes -= len;
+        count -= 1;
+    }
+    Ok(CacheUsage {
+        bytes,
+        files: count,
+        limit_bytes: CACHE_BYTES,
+    })
+}
 
 impl Store {
+    pub fn cache_usage(&self, clear: bool) -> Result<CacheUsage, String> {
+        let _decoder = DECODER.lock();
+        prune(&self.shared.root.join("replay-thumbnails"), clear)
+    }
     pub fn thumbnail(&self, id: &str) -> Result<PathBuf, String> {
         let _decoder = DECODER.lock();
         let source = self.clip_path(id)?;
@@ -21,6 +71,7 @@ impl Store {
         metadata.len().hash(&mut hash);
         metadata.modified().ok().hash(&mut hash);
         let directory = self.shared.root.join("replay-thumbnails");
+        prune(&directory, false)?;
         let target = directory.join(format!("{:016x}.jpg", hash.finish()));
         if target.is_file() && target.metadata().map(|m| m.len() > 0).unwrap_or(false) {
             return Ok(target);
@@ -46,6 +97,7 @@ impl Store {
         let mut pending = tempfile::NamedTempFile::new_in(&directory).map_err(|e| e.to_string())?;
         std::io::Write::write_all(&mut pending, &output.stdout).map_err(|e| e.to_string())?;
         pending.persist(&target).map_err(|e| e.to_string())?;
+        prune(&directory, false)?;
         Ok(target)
     }
 }
@@ -54,6 +106,20 @@ impl Store {
 mod tests {
     use super::*;
     use crate::replay::Clip;
+    #[test]
+    fn quota_only_removes_generated_regular_jpegs() {
+        let root = tempfile::tempdir().unwrap();
+        for i in 0..515 {
+            std::fs::write(root.path().join(format!("{i:016x}.jpg")), b"generated").unwrap();
+        }
+        std::fs::write(root.path().join("personal.jpg"), b"keep").unwrap();
+        assert_eq!(prune(root.path(), false).unwrap().files, 512);
+        assert_eq!(prune(root.path(), true).unwrap().files, 0);
+        assert_eq!(
+            std::fs::read(root.path().join("personal.jpg")).unwrap(),
+            b"keep"
+        );
+    }
 
     #[test]
     fn unknown_clip_cannot_request_a_thumbnail() {

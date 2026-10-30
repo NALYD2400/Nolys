@@ -65,6 +65,7 @@ fn patch_from_config(config: &Value) -> SettingsPatch {
 /// Réglages modifiés : met à jour la synchro du fond d'écran puis relaie à l'Island.
 #[tauri::command]
 pub fn config_changed(app: AppHandle, config: Value) {
+    if let Some(offline) = config.get("offlineMode") { crate::platform::http::set_offline(truthy(offline)); }
     if let Some(enabled) = config.pointer("/modules/gameDetection") {
         island::set_fullscreen_autohide(&app, truthy(enabled));
     }

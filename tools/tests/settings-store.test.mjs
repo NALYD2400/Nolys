@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { installSettingsStore, isSyncedKey } from '../../src/shared/settings-store.js';
+import { installSettingsStore, isSyncedKey, getSettingsPersistence, retrySettingsPersistence, ensureSettingsSaved } from '../../src/shared/settings-store.js';
 
 /** Stockage minimal au comportement de `Storage` (méthodes sur le prototype). */
 function createEnvironment(initial = {}) {
@@ -21,6 +21,25 @@ function createEnvironment(initial = {}) {
 }
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+test('a failed disk write remains visible and retries latest edits plus pending removals', async () => {
+    const env = createEnvironment({liquid_old:'old',liquid_value:'first'});
+    let unavailable = true;
+    const written=[];
+    installSettingsStore({...env,snapshot:{initialized:true,values:{liquid_old:'old',liquid_value:'first'}},invoke:async(command,args)=>{
+        if(unavailable) throw Error('disk full');
+        written.push(args.changes);
+    }});
+    env.storage.removeItem('liquid_old'); env.storage.setItem('liquid_value','second');
+    await flush();
+    assert.equal(getSettingsPersistence().status,'error');
+    await assert.rejects(ensureSettingsSaved(),/disk full/);
+    env.storage.setItem('liquid_value','latest');
+    unavailable=false;
+    await retrySettingsPersistence();
+    assert.equal(getSettingsPersistence().status,'saved');
+    assert.deepEqual(written.at(-1),{liquid_old:null,liquid_value:'latest'});
+});
 
 test('only interface keys are synced', () => {
     assert.ok(isSyncedKey('liquid_motion_level'));

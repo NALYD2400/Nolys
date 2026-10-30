@@ -1,3 +1,5 @@
+import { readRecord } from '../../../shared/safe-storage.js';
+import { offlineArt } from '../../../shared/privacy.js';
 /** Couleurs extraites de la pochette et thème dynamique. */
 import { ThemeService } from '../../../services/ThemeService.js';
 import { publishCover } from '../../../shared/cover-bus.js';
@@ -277,7 +279,7 @@ export const coverThemeMethods = {
             glass:     { primary: '#8b5cf6', secondary: '#6366f1' }
         };
 
-        const savedConfig = JSON.parse(localStorage.getItem('island_standalone_config') || '{}');
+        const savedConfig = readRecord('island_standalone_config');
         const preset = savedConfig.preset || 'copper';
         const colors = PRESET_COLORS[preset] || PRESET_COLORS.copper;
 
@@ -318,8 +320,8 @@ export const coverThemeMethods = {
         // Restore background layer
         const bgLayer = document.querySelector('.island-bg-layer');
         if (bgLayer) {
-            const islandConfig = JSON.parse(localStorage.getItem('liquid_island_config') || '{}');
-            if (islandConfig.bgImage) {
+            const islandConfig = readRecord('liquid_island_config');
+            if (typeof islandConfig.bgImage === 'string' && offlineArt(islandConfig.bgImage)) {
                 bgLayer.style.backgroundImage = `url('${islandConfig.bgImage.replace(/\\/g, '/')}')`;
                 bgLayer.style.opacity = (islandConfig.imgOpacity || 100) / 100;
                 bgLayer.style.filter = `blur(${islandConfig.blur ?? 30}px)`;
@@ -358,8 +360,8 @@ export const coverThemeMethods = {
             // No active media, restore standard theme and default background
             this.restorePresetTheme();
             if (bgLayer) {
-                const islandConfig = JSON.parse(localStorage.getItem('liquid_island_config') || '{}');
-                if (islandConfig.bgImage) {
+                const islandConfig = readRecord('liquid_island_config');
+                if (typeof islandConfig.bgImage === 'string' && offlineArt(islandConfig.bgImage)) {
                     bgLayer.style.backgroundImage = `url('${islandConfig.bgImage.replace(/\\/g, '/')}')`;
                     bgLayer.style.opacity = (islandConfig.imgOpacity || 100) / 100;
                     bgLayer.style.filter = `blur(${islandConfig.blur ?? 30}px)`;

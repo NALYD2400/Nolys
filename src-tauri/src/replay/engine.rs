@@ -464,7 +464,8 @@ mod tests {
             store.snapshot().error
         );
         // Run past the replay limit; REC must keep growing while the ring rolls over.
-        let deadline = Instant::now() + Duration::from_secs(replay_seconds as u64 + 4);
+        let recording_seconds = std::env::var("NOLYS_REPLAY_TEST_RECORDING_SECONDS").ok().and_then(|v| v.parse::<u64>().ok()).unwrap_or(0).min(14400).max(replay_seconds as u64 + 4);
+        let deadline = Instant::now() + Duration::from_secs(recording_seconds);
         while Instant::now() < deadline {
             let s = store.snapshot();
             assert_eq!(s.phase, "buffering", "{:?}", s.error);

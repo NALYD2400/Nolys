@@ -1,31 +1,18 @@
+import { offlineArt } from '../../../shared/privacy.js';
 /** Pochettes, icônes d’applications et visuels de repli. */
 
 export const APP_LOGO_ART = '/assets/app-logo.png';
 
-export const APP_ICONS = {
-    spotify: 'https://api.iconify.design/logos:spotify-icon.svg',
-    netflix: 'https://api.iconify.design/logos:netflix-icon.svg',
-    youtube: 'https://api.iconify.design/logos:youtube-icon.svg',
-    disney: 'https://api.iconify.design/logos:disney-plus.svg',
-    crunchyroll: 'https://api.iconify.design/simple-icons:crunchyroll.svg?color=%23F47521',
-    tiktok: 'https://api.iconify.design/simple-icons:tiktok.svg?color=%23FFFFFF',
-    instagram: 'https://api.iconify.design/simple-icons:instagram.svg?color=%23E4405F',
-    twitch: 'https://api.iconify.design/simple-icons:twitch.svg?color=%239146FF',
-    facebook: 'https://api.iconify.design/simple-icons:facebook.svg?color=%231877F2',
-    x: 'https://api.iconify.design/simple-icons:x.svg?color=%23FFFFFF',
-    reddit: 'https://api.iconify.design/simple-icons:reddit.svg?color=%23FF4500',
-    snapchat: 'https://api.iconify.design/simple-icons:snapchat.svg?color=%23FFFC00',
-    pinterest: 'https://api.iconify.design/simple-icons:pinterest.svg?color=%23BD081C',
-    linkedin: 'https://api.iconify.design/simple-icons:linkedin.svg?color=%230A66C2',
-    threads: 'https://api.iconify.design/simple-icons:threads.svg?color=%23FFFFFF',
-    bluesky: 'https://api.iconify.design/simple-icons:bluesky.svg?color=%231185FE',
-    soundcloud: 'https://api.iconify.design/simple-icons:soundcloud.svg?color=%23FF5500',
-    deezer: 'https://api.iconify.design/simple-icons:deezer.svg?color=%23A238FF',
-    chrome: 'https://api.iconify.design/logos:google-chrome.svg',
-    edge: 'https://api.iconify.design/logos:microsoft-edge.svg',
-    firefox: 'https://api.iconify.design/logos:firefox.svg',
-    vlc: 'https://api.iconify.design/logos:vlc.svg'
-};
+// Monogrammes dessinés pour Nolys, embarqués : aucun serveur d'icônes tiers.
+const badge = (letters, color) => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="${color}"/><text x="32" y="42" font-family="system-ui,sans-serif" font-size="29" font-weight="600" text-anchor="middle" fill="white">${letters}</text></svg>`)}`;
+export const APP_ICONS = Object.fromEntries([
+    ['spotify','S','#187b42'], ['netflix','N','#a71923'], ['youtube','YT','#b92222'], ['disney','D+','#204789'],
+    ['crunchyroll','C','#a94a16'], ['tiktok','TT','#34343d'], ['instagram','IG','#a72d63'], ['twitch','Tw','#6743a7'],
+    ['facebook','f','#2365a0'], ['x','X','#34343d'], ['reddit','R','#a83b1d'], ['snapchat','Sc','#887600'],
+    ['pinterest','P','#a02330'], ['linkedin','in','#205f8d'], ['threads','Th','#34343d'], ['bluesky','B','#2671b4'],
+    ['soundcloud','SC','#aa4317'], ['deezer','Dz','#7b36ad'], ['chrome','Ch','#326b43'], ['edge','E','#236987'],
+    ['firefox','Fx','#994020'], ['vlc','V','#97541d'],
+].map(([name, letters, color]) => [name, badge(letters, color)]));
 
 /**
  * Lecteurs dédiés : l'application qui joue est connue avec certitude. Le titre du
@@ -139,17 +126,17 @@ export function getEffectiveMediaArt(data) {
         return appIcon;
     }
 
-    return data.cover || "";
+    return offlineArt(data.cover);
 }
 
 export function getRawDisplayMediaArt(data) {
     if (!data) return "";
-    return getEffectiveMediaArt(data) || data.transientCover || getFallbackIcon(data.appId, data.title, data.artist, data.windowTitle) || "";
+    return getEffectiveMediaArt(data) || offlineArt(data.transientCover) || getFallbackIcon(data.appId, data.title, data.artist, data.windowTitle) || "";
 }
 
 export function getDisplayMediaArt(data) {
     if (!data) return "";
-    return data.displayCover || getRawDisplayMediaArt(data);
+    return offlineArt(data.displayCover) || getRawDisplayMediaArt(data);
 }
 
 /**

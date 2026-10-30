@@ -11,6 +11,7 @@ const path = require('node:path');
         const input = { id: 'input-1', name: 'Portrait.png', extension: 'png', kind: 'image', size: 30000, directory: false };
         const calls = [], errors = [];
         let snapshot = { sequence: 0, jobs: [], destination: 'C:\\Videos\\Nolys\\Exports', error: null };
+        let selected = [], nextPick = [input];
         let failNext = false;
         let failPreview = false, brokenPreview = false, releasePreview = null, delayPreview = false;
         await context.route('**/__files_preview.svg', route => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800"><rect width="1200" height="800" fill="#364859"/><circle cx="870" cy="220" r="110" fill="#e6ba7d"/><path d="M0 800V620L320 260 650 650 910 390 1200 700V800Z" fill="#7ea6a0"/></svg>' }));
@@ -19,7 +20,28 @@ const path = require('node:path');
         await context.exposeBinding('__invoke', async ({ page }, command, args = {}) => {
             calls.push({ command, args });
             if (command === 'files_snapshot') return structuredClone(snapshot);
-            if (command === 'files_pick') return [input];
+            if (command === 'files_pick') {
+                selected = [...new Map([...selected, ...nextPick].map(input => [input.id, input])).values()];
+                snapshot = { ...snapshot, sequence: snapshot.sequence + 1, inputs: selected };
+                return structuredClone(selected);
+            }
+            if (command === 'files_remove_inputs') {
+                selected = selected.filter(input => !args.ids.includes(input.id));
+                snapshot = { ...snapshot, sequence: snapshot.sequence + 1, inputs: selected };
+                await emit(page); return structuredClone(selected);
+            }
+            if (command === 'files_preferences') {
+                snapshot = { ...snapshot, sequence: snapshot.sequence + 1, preferences: args.preferences };
+                await emit(page); return structuredClone(snapshot);
+            }
+            if (command === 'files_repair_history') {
+                snapshot = { ...snapshot, sequence: snapshot.sequence + 1, jobs: [], repairable: false, error: null };
+                await emit(page); return structuredClone(snapshot);
+            }
+            if (command === 'files_retry') {
+                snapshot = { ...snapshot, sequence: snapshot.sequence + 1, jobs: [...snapshot.jobs, { id: 'retry-job', status: 'queued', completed: 0, total: 1, outputs: [], items: [{ name: 'Failed.png', status: 'queued' }] }] };
+                await emit(page); return 'retry-job';
+            }
             if (command === 'files_preview') {
                 if (delayPreview) await new Promise(resolve => { releasePreview = resolve; });
                 if (failPreview) { failPreview = false; throw new Error('Ce fichier a été déplacé ou n’est plus disponible.'); }
@@ -128,20 +150,55 @@ const path = require('node:path');
         await page.getByRole('alert').waitFor(); await shot('files-clean-error.png');
         await page.getByRole('button', { name: 'Fermer le message', exact: true }).click();
         assert.equal(await page.getByRole('alert').count(), 0);
-        await page.evaluate(inputs => window.__dispatch('files-selection', { inputs }), [input, { ...input, id: 'input-2', name: 'Paysage.png' }]); await settled();
+        selected = [input, { ...input, id: 'input-2', name: 'Paysage.png' }]; snapshot = { ...snapshot, inputs: selected };
+        await page.evaluate(inputs => window.__dispatch('files-selection', { inputs }), selected); await settled();
         await page.locator('#files-selection-list summary').click();
         await page.getByLabel('Format de sortie', { exact: true }).selectOption('png');
         assert.equal(await page.locator('#files-selection-list').getAttribute('open'), '');
         await page.setViewportSize({ width: 640, height: 600 }); await shot('files-clean-compact.png');
         assert.equal(await page.locator('.files-panel').evaluate(el => el.scrollWidth > el.clientWidth + 1), false);
-        await page.evaluate(input => window.__dispatch('files-selection', { inputs: [input] }), { ...input, kind: 'pdf', extension: 'pdf', name: 'Document.pdf' }); await settled();
+        selected = [{ ...input, kind: 'pdf', extension: 'pdf', name: 'Document.pdf' }]; snapshot = { ...snapshot, inputs: selected };
+        await page.evaluate(inputs => window.__dispatch('files-selection', { inputs }), selected); await settled();
         assert.equal(await page.getByRole('tab', { name: 'Convertir', exact: true }).count(), 0);
         await page.getByRole('button', { name: 'Copier', exact: true }).click();
         await page.getByRole('button', { name: 'Exporter une copie', exact: true }).click();
         assert.ok(calls.some(c => c.command === 'files_start' && c.args.action === 'copy'));
         await page.getByRole('button', { name: 'Dossier des exports', exact: true }).click();
         assert.ok(calls.some(c => c.command === 'files_reveal' && c.args.id === null));
+
+        // New module actions: complete cumulative selection, individual removal,
+        // native preferences, bounded history pages and explicit recovery.
+        nextPick = Array.from({ length: 7 }, (_, index) => ({ ...input, id: `added-${index}`, name: `Added ${index}.png` }));
+        await page.getByRole('button', { name: 'Ajouter des fichiers', exact: true }).click();
+        await page.locator('#files-selection-list summary').click();
+        assert.equal(await page.locator('.files-inputs li').count(), 8);
+        await page.getByRole('button', { name: 'Retirer Added 6.png de la sélection', exact: true }).click();
+        assert.equal(await page.locator('.files-inputs li').count(), 7);
+        assert.equal(selected.some(input => input.id === 'added-6'), false);
+        await page.getByRole('button', { name: 'Vider la sélection', exact: true }).click();
+        await page.getByRole('heading', { name: 'Déposez vos fichiers' }).waitFor();
+        await page.getByRole('tab', { name: 'Préférences', exact: true }).click();
+        await page.getByLabel('Format', { exact: true }).selectOption('webp');
+        await page.getByLabel('Traitements terminés conservés', { exact: true }).selectOption('20');
+        await page.getByRole('button', { name: 'Enregistrer les préférences', exact: true }).click();
+        assert.equal(snapshot.preferences.format, 'webp'); assert.equal(snapshot.preferences.historyLimit, 20);
+        const done = { status: 'done', completed: 1, total: 1, items: [{ name: 'Result.png', status: 'done' }], outputs: [] };
+        snapshot = { ...snapshot, sequence: snapshot.sequence + 1, jobs: Array.from({ length: 43 }, (_, index) => ({ ...done, id: `history-${index}` })) };
+        await emit(page); await page.getByRole('tab', { name: 'Activité', exact: true }).click();
+        assert.equal(await page.locator('.files-job').count(), 20);
+        await page.getByRole('button', { name: 'Suivant', exact: true }).click();
+        assert.equal(await page.locator('.files-job').first().getAttribute('data-job'), 'history-22');
+        snapshot = { ...snapshot, sequence: snapshot.sequence + 1, jobs: [{ ...done, id: 'failed-job', status: 'failed', retryable: true, items: [{ name: 'Failed.png', status: 'failed', error: 'Unreadable' }] }] };
+        await emit(page); await page.getByRole('button', { name: 'Réessayer les échecs', exact: true }).click();
+        assert.ok(calls.some(call => call.command === 'files_retry' && call.args.jobId === 'failed-job'));
+        snapshot = { ...snapshot, sequence: snapshot.sequence + 1, jobs: [], repairable: true, error: 'Historique illisible, original conservé.' };
+        await emit(page);
+        await page.getByRole('button', { name: 'Reconstruire l’historique…', exact: true }).click();
+        assert.equal(calls.filter(call => call.command === 'files_repair_history').length, 0);
+        await page.getByRole('button', { name: 'Conserver l’original et reconstruire', exact: true }).click();
+        await page.getByText('Historique reconstruit.', { exact: false }).waitFor();
+        assert.equal(await page.getByRole('alert').count(), 0);
         assert.deepEqual(errors, []);
-        console.log('Files browser: input/output image preview, responsive bounds, return/focus, stable image during activity updates, missing/invalid images, cancelled requests, conversion, resize, compression, activity and file actions passed.');
+        console.log('Files browser: previews/focus, conversion/file actions, cumulative full selection/removal, preferences, history pages, failed-only retry and explicit recovery passed.');
     } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

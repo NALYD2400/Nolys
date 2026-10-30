@@ -4,6 +4,10 @@
   "version": "2.6.1",
   "description": "Nolys — widget Liquid Glass pour Windows (Tauri + Rust)",
   "scripts": {
+    "test": "node tools/verify.mjs --unit",
+    "check": "node tools/verify.mjs",
+    "check:browser": "node tools/verify.mjs --browser",
+    "check:audit": "node tools/verify.mjs --audit",
     "dev": "tauri dev",
     "build": "tauri build",
     "dev:ui": "vite",

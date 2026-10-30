@@ -39,8 +39,7 @@ pub async fn dnd_control(action: String) -> String {
 
 #[tauri::command]
 pub async fn get_hardware_telemetry() -> Telemetry {
-    let fallback = Telemetry { cpu_temp: 42.0, gpu_temp: 45.0, net_down: 0.0, net_up: 0.0, disk_read: 0.0, disk_write: 0.0 };
-    blocking(system::telemetry, fallback).await
+    blocking(system::telemetry, Telemetry::default()).await
 }
 
 /// Météo réelle de la ville choisie (widget Météo du centre de contrôle).
@@ -54,7 +53,7 @@ pub async fn get_weather(city: String) -> Option<weather::Weather> {
 
 #[tauri::command]
 pub async fn get_system_stats() -> SystemStats {
-    blocking(system::system_stats, SystemStats { cpu: 12, ram: 45, disk_free: 0, disk_total: 0 }).await
+    blocking(system::system_stats, SystemStats::default()).await
 }
 
 #[tauri::command]

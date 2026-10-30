@@ -28,12 +28,15 @@ pub async fn get_media_info(app: AppHandle) -> MediaInfo {
     if let Some(cover) = outcome.wallpaper_cover {
         state.wallpaper.update(cover);
     }
-    if let Some((title, artist, key)) = outcome.cover_lookup {
+    let settings = app.state::<crate::ui_settings::Store>();
+    let lookup_allowed = settings.get("liquid_online_covers").as_deref() != Some("false") && !crate::platform::http::is_offline();
+    if let Some((title, artist, key)) = outcome.cover_lookup.filter(|_| lookup_allowed) {
         let handle = app.clone();
         tauri::async_runtime::spawn(async move {
             let found = blocking(move || cover_lookup::fetch(&title, &artist), String::new()).await;
             let state = handle.state::<AppState>();
-            let applied = state.media.lock().apply_found_cover(&key, found.clone());
+            let allowed = handle.state::<crate::ui_settings::Store>().get("liquid_online_covers").as_deref() != Some("false") && !crate::platform::http::is_offline();
+            let applied = allowed && state.media.lock().apply_found_cover(&key, found.clone());
             if applied {
                 state.wallpaper.update(found);
             }

@@ -4,7 +4,6 @@
 use std::time::Instant;
 
 use parking_lot::Mutex;
-use rand::Rng;
 use serde::Serialize;
 use windows::core::{BOOL, HSTRING, PCWSTR};
 use windows::Win32::Foundation::{FILETIME, LPARAM, RECT};
@@ -43,15 +42,15 @@ pub fn dnd_control(action: &str) -> String {
 
 // ---------------------------------------------------------------- Télémétrie
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Telemetry {
-    pub cpu_temp: f64,
-    pub gpu_temp: f64,
-    pub net_down: f64,
-    pub net_up: f64,
-    pub disk_read: f64,
-    pub disk_write: f64,
+    pub cpu_temp: Option<f64>,
+    pub gpu_temp: Option<f64>,
+    pub net_down: Option<f64>,
+    pub net_up: Option<f64>,
+    pub disk_read: Option<f64>,
+    pub disk_write: Option<f64>,
 }
 
 /// `IF_TYPE_SOFTWARE_LOOPBACK` (ipifcons.h).
@@ -59,18 +58,16 @@ const IF_TYPE_SOFTWARE_LOOPBACK: u32 = 24;
 
 struct TelemetryState {
     last_bytes: Option<(u64, u64, Instant)>,
-    cpu_temp: f64,
-    gpu_temp: f64,
 }
 
-static TELEMETRY: Mutex<TelemetryState> = Mutex::new(TelemetryState { last_bytes: None, cpu_temp: 42.0, gpu_temp: 45.0 });
+static TELEMETRY: Mutex<TelemetryState> = Mutex::new(TelemetryState { last_bytes: None });
 
-fn network_bytes() -> (u64, u64) {
+fn network_bytes() -> Option<(u64, u64)> {
     let (mut received, mut sent) = (0u64, 0u64);
     unsafe {
         let mut table: *mut MIB_IF_TABLE2 = std::ptr::null_mut();
         if GetIfTable2(&mut table).is_err() || table.is_null() {
-            return (0, 0);
+            return None;
         }
         let rows = std::slice::from_raw_parts((*table).Table.as_ptr(), (*table).NumEntries as usize);
         for row in rows {
@@ -83,54 +80,47 @@ fn network_bytes() -> (u64, u64) {
         }
         FreeMibTable(table as *const _);
     }
-    (received, sent)
+    Some((received, sent))
 }
 
-/// Débit réseau réel ; températures et disque restent simulés comme dans la version d'origine.
+/// Débit réel ; les capteurs non implémentés sont explicitement indisponibles.
 pub fn telemetry() -> Telemetry {
-    let (received, sent) = network_bytes();
+    let sample = network_bytes();
     let now = Instant::now();
     let mut state = TELEMETRY.lock();
-
-    let (mut down_kb, mut up_kb) = (0.0, 0.0);
+    let Some((received, sent)) = sample else {
+        state.last_bytes = None;
+        return Telemetry::default();
+    };
+    let (mut down_kb, mut up_kb) = (None, None);
     if let Some((last_received, last_sent, at)) = state.last_bytes {
         let seconds = now.duration_since(at).as_secs_f64();
         if seconds > 0.0 {
-            down_kb = (received.saturating_sub(last_received) as f64 / 1024.0) / seconds;
-            up_kb = (sent.saturating_sub(last_sent) as f64 / 1024.0) / seconds;
+            if received >= last_received && sent >= last_sent {
+                down_kb = Some((received - last_received) as f64 / 1024.0 / seconds);
+                up_kb = Some((sent - last_sent) as f64 / 1024.0 / seconds);
+            }
         }
     }
     state.last_bytes = Some((received, sent, now));
 
-    let mut rng = rand::rng();
-    let disk_read = rng.random::<f64>() * 3.5;
-    let mut disk_write = rng.random::<f64>() * 1.2;
-    if down_kb > 100.0 {
-        disk_write += (down_kb / 1024.0) * 1.1;
-    }
-    state.cpu_temp = (state.cpu_temp + (rng.random::<f64>() - 0.5) * 1.8).clamp(37.0, 72.0);
-    state.gpu_temp = (state.gpu_temp + (rng.random::<f64>() - 0.5) * 1.4).clamp(40.0, 76.0);
-
     let round1 = |v: f64| (v * 10.0).round() / 10.0;
     Telemetry {
-        cpu_temp: round1(state.cpu_temp),
-        gpu_temp: round1(state.gpu_temp),
-        net_down: round1(down_kb),
-        net_up: round1(up_kb),
-        disk_read: round1(disk_read),
-        disk_write: round1(disk_write),
+        net_down: down_kb.map(round1),
+        net_up: up_kb.map(round1),
+        ..Telemetry::default()
     }
 }
 
 // ---------------------------------------------------------------- CPU / RAM / disque
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SystemStats {
-    pub cpu: u32,
-    pub ram: u32,
-    pub disk_free: u64,
-    pub disk_total: u64,
+    pub cpu: Option<u32>,
+    pub ram: Option<u32>,
+    pub disk_free: Option<u64>,
+    pub disk_total: Option<u64>,
 }
 
 static CPU_SAMPLE: Mutex<Option<(u64, u64)>> = Mutex::new(None);
@@ -147,15 +137,15 @@ fn cpu_times() -> Option<(u64, u64)> {
     Some((filetime(idle), filetime(kernel) + filetime(user)))
 }
 
-fn cpu_percent() -> u32 {
-    let Some(now) = cpu_times() else { return 0 };
+fn cpu_percent() -> Option<u32> {
+    let now = cpu_times()?;
     let previous = CPU_SAMPLE.lock().replace(now);
     let previous = match previous {
         Some(previous) => previous,
         None => {
             // Premier appel : courte mesure pour avoir une valeur immédiatement.
             std::thread::sleep(std::time::Duration::from_millis(120));
-            let Some(later) = cpu_times() else { return 0 };
+            let later = cpu_times()?;
             *CPU_SAMPLE.lock() = Some(later);
             return usage(now, later);
         }
@@ -163,26 +153,50 @@ fn cpu_percent() -> u32 {
     usage(previous, now)
 }
 
-fn usage((idle_a, total_a): (u64, u64), (idle_b, total_b): (u64, u64)) -> u32 {
-    let total = total_b.saturating_sub(total_a);
-    if total == 0 {
-        return 0;
-    }
-    let busy = total.saturating_sub(idle_b.saturating_sub(idle_a));
-    ((busy as f64 / total as f64) * 100.0).round().clamp(0.0, 100.0) as u32
+fn usage((idle_a, total_a): (u64, u64), (idle_b, total_b): (u64, u64)) -> Option<u32> {
+    let total = total_b.checked_sub(total_a)?;
+    if total == 0 { return None; }
+    let idle = idle_b.checked_sub(idle_a)?;
+    if idle > total { return None; }
+    Some((((total - idle) as f64 / total as f64) * 100.0).round().clamp(0.0, 100.0) as u32)
 }
 
 pub fn system_stats() -> SystemStats {
     let mut memory = MEMORYSTATUSEX { dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32, ..Default::default() };
-    let ram = unsafe { GlobalMemoryStatusEx(&mut memory) }.map(|_| memory.dwMemoryLoad).unwrap_or(45);
+    let ram = unsafe { GlobalMemoryStatusEx(&mut memory) }.ok().map(|_| memory.dwMemoryLoad);
 
     let system_drive = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".into());
     let (mut free, mut total) = (0u64, 0u64);
-    unsafe {
-        let _ = GetDiskFreeSpaceExW(&HSTRING::from(format!("{system_drive}\\")), Some(&mut free), Some(&mut total), None);
+    let disk_valid = unsafe {
+        GetDiskFreeSpaceExW(&HSTRING::from(format!("{system_drive}\\")), Some(&mut free), Some(&mut total), None).is_ok()
+    } && total > 0 && free <= total;
+    SystemStats { cpu: cpu_percent(), ram, disk_free: disk_valid.then_some(free), disk_total: disk_valid.then_some(total) }
+}
+
+#[cfg(test)]
+mod measurement_tests {
+    use super::*;
+
+    #[test]
+    fn absent_samples_serialize_as_null_instead_of_fake_values() {
+        let stats = serde_json::to_value(SystemStats::default()).unwrap();
+        assert!(stats["cpu"].is_null());
+        assert!(stats["ram"].is_null());
+        assert!(stats["diskTotal"].is_null());
+        let telemetry = serde_json::to_value(Telemetry::default()).unwrap();
+        for key in ["cpuTemp", "gpuTemp", "diskRead", "diskWrite", "netDown", "netUp"] {
+            assert!(telemetry[key].is_null(), "{key}");
+        }
     }
 
-    SystemStats { cpu: cpu_percent(), ram, disk_free: free, disk_total: total }
+    #[test]
+    fn cpu_zero_is_a_real_sample_and_broken_or_identical_counters_are_absent() {
+        assert_eq!(usage((10, 100), (20, 110)), Some(0));
+        assert_eq!(usage((10, 100), (10, 110)), Some(100));
+        assert_eq!(usage((10, 100), (10, 100)), None);
+        assert_eq!(usage((10, 100), (9, 110)), None);
+        assert_eq!(usage((10, 100), (30, 110)), None);
+    }
 }
 
 // ---------------------------------------------------------------- Fond d'écran

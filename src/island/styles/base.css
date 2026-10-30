@@ -488,8 +488,8 @@ body.motion-vivid .inner-action-btn:hover {
 }
 
 .island-mode-timer {
-    width: 340px;
-    height: 215px;
+    width: 380px;
+    height: 398px;
     border-radius: calc(var(--shell-radius) * var(--corner-k));
 }
 

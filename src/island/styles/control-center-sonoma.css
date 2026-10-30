@@ -33,6 +33,9 @@
 }
 
 .ic-tile {
+    color: inherit;
+    text-align: left;
+    font: inherit;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 12px;
@@ -48,6 +51,11 @@
     min-width: 0;
     overflow: hidden;
     width: 100%;
+}
+
+.island-control-container :is(button,[role="slider"]):focus-visible {
+    outline: 2px solid var(--neon-primary, #d49460);
+    outline-offset: -2px;
 }
 
 .ic-tile-text {

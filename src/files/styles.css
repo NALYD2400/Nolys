@@ -63,5 +63,15 @@
 .files-panel :is(button, select, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .files-notice { font-size: 11px; color: var(--muted); }
 .files-spinning { animation: lib-spin 1s linear infinite; }
+.files-inputs [data-action="remove-input"] { width: 28px; height: 28px; flex-shrink: 0; font-size: 13px; }
+.files-job-heading { flex-wrap: wrap; }
+.files-pagination { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 14px 0 6px; }
+.files-pagination > span { color: var(--muted); font-variant-numeric: tabular-nums; }
+.files-recovery { padding: 12px; margin-top: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.files-recovery p { margin: 0; color: var(--muted); line-height: 1.5; }
+.files-preferences h3 { margin: 16px 0 8px; font-size: 13px; }
+.files-preferences > .pill-btn { margin-top: 10px; }
+.files-destination { color: var(--muted); overflow-wrap: anywhere; font-size: 11px; }
+.files-form-row input[type="number"] { min-height: 32px; max-width: 260px; width: 100%; background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 9px; padding: 5px 8px; }
 @media (max-width: 440px) { .files-form-row { align-items: stretch; flex-direction: column; gap: 5px; } .files-form-row select, .files-quality { max-width: none; width: 100%; } .files-result { flex-direction: column; align-items: stretch; gap: 5px; } }
 @media (prefers-reduced-motion: reduce) { .files-spinning { animation: none; } }

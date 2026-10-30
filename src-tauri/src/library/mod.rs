@@ -1,6 +1,9 @@
 //! Bibliothèque personnelle : références aux originaux, tags, playlists et sauvegarde atomique.
 pub mod commands;
 pub mod repair;
+mod cache;
+mod scan;
+pub use cache::CacheInfo;
 
 use lofty::{
     file::{AudioFile, TaggedFileExt},
@@ -62,6 +65,9 @@ pub struct Store {
     /// La lecture locale a la main : les raccourcis média lui sont envoyés.
     pub player_active: AtomicBool,
     pub importing: Mutex<bool>,
+    pub import_cancel: AtomicBool,
+    pub import_committing: AtomicBool,
+    cover_writes: Mutex<()>,
 }
 
 impl Store {
@@ -77,6 +83,9 @@ impl Store {
             data: Mutex::new(data),
             player_active: AtomicBool::new(false),
             importing: Mutex::new(false),
+            import_cancel: AtomicBool::new(false),
+            import_committing: AtomicBool::new(false),
+            cover_writes: Mutex::new(()),
         }
     }
 
@@ -91,6 +100,12 @@ impl Store {
         let mut stored = self.data.lock();
         let mut next = stored.as_ref().cloned().map_err(Clone::clone)?;
         change(&mut next)?;
+        self.write(&next)?;
+        *stored = Ok(next.clone());
+        Ok(next)
+    }
+
+    fn write(&self, next: &Library) -> Result<(), String> {
         fs::create_dir_all(&self.root).map_err(|e| e.to_string())?;
         let mut file = tempfile::NamedTempFile::new_in(&self.root).map_err(|e| e.to_string())?;
         serde_json::to_writer(&mut file, &next).map_err(|e| e.to_string())?;
@@ -99,13 +114,28 @@ impl Store {
             .map_err(|e| e.to_string())?;
         file.persist(self.root.join("music-library.json"))
             .map_err(|e| format!("Sauvegarde impossible : {e}"))?;
-        *stored = Ok(next.clone());
-        Ok(next)
+        Ok(())
     }
 
     pub fn covers_dir(&self) -> PathBuf {
         self.root.join("music-covers")
     }
+
+    pub fn history_path(&self) -> PathBuf { self.root.join("music-library.json") }
+    pub fn repair_library(&self) -> Result<Library, String> {
+        let importing = self.importing.lock();
+        if *importing { return Err("Attendez la fin de l’import.".into()); }
+        let mut stored = self.data.lock();
+        if stored.is_ok() { return Err("Cette bibliothèque ne nécessite pas de reconstruction.".into()); }
+        crate::files::preserve_original(&self.history_path())?;
+        let library = Library::default();
+        self.write(&library)?;
+        *stored = Ok(library.clone());
+        Ok(library)
+    }
+
+    pub fn cache_info(&self) -> Result<CacheInfo, String> { cache::inspect(self, false) }
+    pub fn clean_cache(&self) -> Result<CacheInfo, String> { cache::inspect(self, true) }
 }
 
 pub fn new_id() -> String {
@@ -113,7 +143,7 @@ pub fn new_id() -> String {
 }
 
 pub fn path_key(path: &str) -> String {
-    path.replace('/', "\\").to_lowercase()
+    path.trim_start_matches(r"\\?\").replace('/', "\\").to_lowercase()
 }
 
 pub fn supported(path: &Path) -> bool {
@@ -141,47 +171,7 @@ pub fn authorize(app: &AppHandle, mut library: Library) -> Result<Library, Strin
 
 /// Les liens symboliques ne sont pas suivis : pas de boucle, ni de parcours hors du dossier choisi.
 pub fn collect(paths: Vec<PathBuf>) -> (Vec<PathBuf>, usize) {
-    let mut pending = paths;
-    let mut files = vec![];
-    let mut seen = HashSet::new();
-    let mut skipped = 0;
-    while let Some(path) = pending.pop() {
-        let Ok(metadata) = fs::symlink_metadata(&path) else {
-            skipped += 1;
-            continue;
-        };
-        #[cfg(windows)]
-        {
-            use std::os::windows::fs::MetadataExt;
-            if metadata.file_attributes() & 0x400 != 0 {
-                continue;
-            }
-        }
-        if metadata.file_type().is_symlink() {
-            continue;
-        }
-        if metadata.is_dir() {
-            match fs::read_dir(&path) {
-                Ok(entries) => {
-                    for entry in entries {
-                        match entry {
-                            Ok(entry) => pending.push(entry.path()),
-                            Err(_) => skipped += 1,
-                        }
-                    }
-                }
-                Err(_) => skipped += 1,
-            }
-        } else if metadata.is_file() && supported(&path) {
-            match path.canonicalize() {
-                Ok(path) if seen.insert(path_key(&path.to_string_lossy())) => files.push(path),
-                Ok(_) => {}
-                Err(_) => skipped += 1,
-            }
-        }
-    }
-    files.sort();
-    (files, skipped)
+    scan::collect(paths, &AtomicBool::new(false))
 }
 
 pub fn read_track(path: &Path, covers: &Path) -> Track {
@@ -435,6 +425,22 @@ mod tests {
             fs::read(dir.path().join("music-library.json")).unwrap(),
             b"broken"
         );
+    }
+
+    #[test]
+    fn explicit_library_recovery_preserves_original_and_does_not_touch_music() {
+        let dir = tempfile::tempdir().unwrap();
+        let journal = dir.path().join("music-library.json");
+        let song = dir.path().join("personal.mp3");
+        fs::write(&journal, b"invalid library").unwrap(); fs::write(&song, b"original music").unwrap();
+        let store = Store::new(dir.path().into());
+        assert!(store.read().is_err());
+        store.repair_library().unwrap();
+        assert!(store.read().unwrap().tracks.is_empty());
+        let backups: Vec<_> = fs::read_dir(dir.path()).unwrap().filter_map(Result::ok).filter(|entry| entry.file_name().to_string_lossy().contains("preserved-")).collect();
+        assert_eq!(backups.len(), 1); assert_eq!(fs::read(backups[0].path()).unwrap(), b"invalid library");
+        assert_eq!(fs::read(song).unwrap(), b"original music");
+        assert!(store.repair_library().is_err());
     }
 
     #[test]

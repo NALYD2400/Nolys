@@ -80,6 +80,10 @@ impl Default for MonitorConfig {
 }
 
 impl MonitorConfig {
+    pub fn validate(&self) -> Result<(), String> {
+        if *self != self.clone().sanitized() { return Err("Réglages micro hors limites.".into()); }
+        Ok(())
+    }
     fn sanitized(mut self) -> Self {
         self.volume = self.volume.min(200);
         self.balance = self.balance.clamp(-100, 100);
@@ -281,6 +285,18 @@ pub fn set_config(config: MonitorConfig) -> MonitorStatus {
     status()
 }
 
+/// Une importation ne met jamais le micro en marche. L'activation reste explicite.
+pub fn restore_preferences(mut config: MonitorConfig) -> Result<(), String> {
+    config.validate()?;
+    config.enabled = false;
+    let path = monitor().path.lock().clone().ok_or("Réglages micro indisponibles.")?;
+    let temporary = path.with_extension("json.tmp");
+    std::fs::write(&temporary, serde_json::to_vec_pretty(&config).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    std::fs::rename(&temporary, &path).map_err(|e| e.to_string())?;
+    apply(config, false);
+    Ok(())
+}
+
 /// Arrêt propre à la fermeture de l'application (sans changer le réglage enregistré).
 pub fn shutdown() {
     let _guard = APPLY.lock();
@@ -294,6 +310,7 @@ static APPLY: Mutex<()> = Mutex::new(());
 
 fn apply(config: MonitorConfig, persist: bool) {
     let _guard = APPLY.lock();
+    if config.enabled && crate::updater::is_shutting_down() { return; }
     let monitor = monitor();
     let previous = std::mem::replace(&mut *monitor.config.lock(), config.clone());
     *monitor.params.lock() = DspParams::from(&config);

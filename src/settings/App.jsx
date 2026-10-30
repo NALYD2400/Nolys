@@ -19,6 +19,7 @@ import MicMonitor from './pages/MicMonitor.jsx';
 import Position from './pages/Position.jsx';
 import About from './pages/About.jsx';
 import Menus from './pages/Menus.jsx';
+import { getSettingsPersistence, subscribeSettingsPersistence, retrySettingsPersistence } from '../shared/settings-store.js';
 
 const PAGES = [
     { id: 'general', label: 'Général', icon: 'ph-gear-six', color: '#8e8e93', Page: General },
@@ -58,6 +59,9 @@ const SHORT_LABELS = { control: 'Contrôle' };
 
 export default function App({ host, initialPage, pageRequest, onBack, onClose }) {
     const store = useSettings();
+    const [persistence, setPersistence] = useState(getSettingsPersistence);
+    const [actionError, setActionError] = useState('');
+    useEffect(() => subscribeSettingsPersistence(setPersistence), []);
     const cover = useCoverTheme(store.settings.coverSync);
     const [pageId, setPageId] = useState(() => {
         if (knownPage(initialPage)) return initialPage;
@@ -138,6 +142,7 @@ export default function App({ host, initialPage, pageRequest, onBack, onClose })
                 <header className="content-header">
                     <h1>{page.label}</h1>
                     <div className="header-actions">
+                        {persistence.status === 'error' && <button type="button" className="round-btn" title="Réglages non enregistrés : réessayer" aria-label="Réessayer l’enregistrement des réglages" onClick={retrySettingsPersistence}><Icon name="ph-warning" /></button>}
                         {/* Boutons en CSS et pas en verre du SDK : leur lentille est peinte dans le fond,
                             que le voile de l'en-tête recouvre dès que la page défile. */}
                         <button type="button" className="round-btn" aria-label="Menu" title="Menu" onClick={onBack}>
@@ -149,7 +154,10 @@ export default function App({ host, initialPage, pageRequest, onBack, onClose })
                     </div>
                 </header>
                 <div className="page" key={page.id} ref={pageRef} onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 2)}>
+                    {persistence.status === 'error' && <p className="hotkey-error" role="alert">Les réglages n’ont pas pu être enregistrés. <button type="button" className="button" onClick={retrySettingsPersistence}>Réessayer</button></p>}
                     <page.Page store={store} />
+                    {actionError && <p className="card-footer" role="alert">{actionError}</p>}
+                    {page.id !== 'about' && <div className="card-footer"><button type="button" className="button" onClick={async () => { if (window.confirm(`Réinitialiser les réglages de la page « ${page.label} » ? Une sauvegarde de récupération sera conservée.`)) { try { await store.resetPage(page.id); setActionError(''); } catch (error) { setActionError(String(error?.message || error)); } } }}>Réinitialiser cette page</button></div>}
                 </div>
                 {/* Les surfaces en verre sont peintes dans le fond de la scène : ce voile
                     les efface aussi avant l'arrondi inférieur, au-delà de la zone défilante. */}

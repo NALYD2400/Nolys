@@ -28,6 +28,7 @@ function wavFixture() {
         const mediaCommands = [];
         let sequence = 0;
         const errors = [];
+        let holdImport = false, releaseImport = null, importCancelled = false, corrupt = false, repairs = 0, cacheCleaned = 0;
         const titles = ['Lumière', 'Été', 'Après la pluie', 'Nocturne', 'Panorama', 'Horizon', 'Résonance', 'Dérive', 'Matin calme', 'Les heures bleues', 'Traversée', 'Dernier regard'];
         const fixture = titles.map((title, index) => ({ id: `t${index}`, title, artist: ['Atlas', 'Nacre', 'Ligne Claire'][index % 3], album: ['Contours', 'Lointain', 'Clair de nuit'][index % 3], path: `/test/${index}.wav`, cover: '', duration: 30000, favorite: false, addedAt: index, missing: false }));
         async function emit(channel, payload) {
@@ -43,7 +44,11 @@ function wavFixture() {
         });
         await context.exposeBinding('__invoke', async (_source, command, args = {}) => {
             switch (command) {
-                case 'library_get': return structuredClone(library);
+                case 'library_get': if (corrupt) throw new Error('La bibliothèque est illisible. Le journal original a été conservé.'); return structuredClone(library);
+                case 'library_cache_info': return { files: 3, bytes: 1024 * 1024, orphans: 2, orphanBytes: 4096, budgetBytes: 128 * 1024 * 1024 };
+                case 'library_clean_cache': cacheCleaned++; return { removed: 2, reclaimedBytes: 4096 };
+                case 'library_cancel_import': importCancelled = true; releaseImport?.(); return;
+                case 'library_repair': repairs++; corrupt = false; library.tracks = []; library.playlists = []; return structuredClone(library);
                 case 'library_relink': {
                     // Comme le cœur natif : les autres titres du dossier déplacé sont retrouvés avec lui.
                     for (const track of library.tracks.filter(t => t.id === args.id || t.missing)) { track.path = `/test/relocated-${track.id}.wav`; track.missing = false; }
@@ -57,7 +62,9 @@ function wavFixture() {
                 case 'library_import': {
                     // Progression comme le cœur natif : la barre d'import doit s'afficher.
                     await emit('local-library-import', { phase: 'read', done: 5, total: 12 });
-                    await new Promise(resolve => setTimeout(resolve, 600));
+                    if (holdImport) await new Promise(resolve => { releaseImport = resolve; });
+                    else await new Promise(resolve => setTimeout(resolve, 600));
+                    if (importCancelled) { importCancelled = false; return { library: structuredClone(library), added: 0, duplicates: 0, relinked: 0, skipped: 0, cancelled: true }; }
                     if (process.env.NOLYS_PROGRESS_SHOT) await _source.page.screenshot({ path: process.env.NOLYS_PROGRESS_SHOT });
                     const added = library.tracks.length ? 0 : fixture.length;
                     if (added) library.tracks.push(...structuredClone(fixture));
@@ -303,10 +310,36 @@ function wavFixture() {
         await page.waitForFunction(() => !window.island.isExpanded && !window.island._historyController);
         await page.evaluate(() => window.island.localPlayer.stop());
 
+        // Cancellation, generated-cover cleanup and recovery use the same UI
+        // controls as the native application, with no real personal files.
+        await page.evaluate(() => window.island.openLibrary());
+        await page.getByRole('button', { name: 'Espace des pochettes', exact: true }).click();
+        await page.getByRole('button', { name: 'Nettoyer les orphelines', exact: true }).click();
+        assert.equal(cacheCleaned, 1);
+        const beforeCancel = library.tracks.length;
+        holdImport = true;
+        await page.getByRole('button', { name: 'Importer de la musique', exact: true }).click();
+        await page.getByRole('menuitem', { name: 'Des fichiers', exact: true }).click();
+        await page.getByRole('progressbar', { name: 'Import de musique' }).waitFor();
+        await page.locator('#progress [data-action="cancel-import"]').click();
+        await page.getByText('Import annulé. La bibliothèque a été conservée.', { exact: true }).waitFor();
+        assert.equal(library.tracks.length, beforeCancel);
+        holdImport = false;
+        await page.keyboard.press('Escape');
+        await page.waitForFunction(() => !window.island._libraryController);
+        corrupt = true;
+        await page.evaluate(() => { window.island.localPlayer.library = { tracks: [], playlists: [] }; window.island.openLibrary(); });
+        await page.locator('#library-recovery').waitFor();
+        await page.getByRole('button', { name: 'Reconstruire la bibliothèque…', exact: true }).click();
+        assert.equal(repairs, 0);
+        await page.getByRole('button', { name: 'Conserver l’original et reconstruire', exact: true }).click();
+        await page.waitForFunction(() => window.island._libraryHost.shadowRoot.querySelector('#library-recovery').hidden);
+        assert.equal(repairs, 1);
+
         const counts = await page.evaluate(() => window.__listenerCounts());
         assert.equal(counts['local-library-changed'], 1);
         assert.equal(counts['local-library-media'], 1);
         assert.equal(errors.length, 0, JSON.stringify(errors));
-        console.log(JSON.stringify({ passed: ['entrée menu', 'taille de la capsule', 'import', 'recherche sans accents', 'sélection', 'playlist', 'ordre', 'audio réel', 'Échap et réouverture', 'pause', 'position', 'volume', 'aléatoire', 'favoris', 'accent du thème', 'fichier déplacé', 'Spotify reprend la main après une pause', 'retour aux autres lecteurs', 'retrait groupé', 'feuilles et Échap', 'état conservé', 'notification', 'historique : sections, recherche, filtres, favori partagé, lecture locale, vider, retirer, Échap'] }));
+        console.log(JSON.stringify({ passed: ['entrée menu', 'taille de la capsule', 'import', 'recherche sans accents', 'sélection', 'playlist', 'ordre', 'audio réel', 'Échap et réouverture', 'pause', 'position', 'volume', 'aléatoire', 'favoris', 'accent du thème', 'fichier déplacé', 'Spotify reprend la main après une pause', 'retour aux autres lecteurs', 'retrait groupé', 'feuilles et Échap', 'état conservé', 'notification', 'historique : sections, recherche, filtres, favori partagé, lecture locale, vider, retirer, Échap', 'annulation import sans ajout partiel', 'nettoyage pochettes générées', 'réparation confirmée du journal'] }));
     } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

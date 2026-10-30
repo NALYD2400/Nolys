@@ -23,7 +23,7 @@ fn id() -> String {
     )
 }
 
-fn remux(
+pub(super) fn remux(
     input: &Path,
     engine: &Path,
     destination: &Path,

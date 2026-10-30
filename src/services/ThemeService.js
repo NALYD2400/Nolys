@@ -1,3 +1,5 @@
+import { readRecord } from '../shared/safe-storage.js';
+
 const hexToRgb = (hex) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? {
@@ -35,7 +37,7 @@ export const ThemeService = {
     },
 
     applyGlobalTheme() {
-        const theme = JSON.parse(localStorage.getItem('liquid_global_theme') || '{}');
+        const theme = readRecord('liquid_global_theme');
 
         // Apply primary and secondary variables to document
         const primary = theme.primary || '#D49460';
@@ -51,8 +53,8 @@ export const ThemeService = {
     },
 
     applyIslandSettings() {
-        const config = JSON.parse(localStorage.getItem('liquid_island_config') || '{}');
-        const coverColors = JSON.parse(localStorage.getItem('liquid_cover_colors') || '{}');
+        const config = readRecord('liquid_island_config');
+        const coverColors = readRecord('liquid_cover_colors');
         const island = document.getElementById('dynamic-island');
         if (!island) return;
 

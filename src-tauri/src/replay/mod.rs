@@ -5,6 +5,9 @@ pub mod commands;
 mod config;
 mod engine;
 mod export;
+mod history;
+mod recovery;
+mod preflight;
 mod mp4;
 mod plan;
 mod process;
@@ -70,7 +73,7 @@ pub(crate) struct Shared {
     pub stopping: AtomicBool,
     pub replay_export: AtomicBool,
     pub root: PathBuf,
-    history_valid: bool,
+    history_valid: AtomicBool,
     app: Mutex<Option<tauri::AppHandle>>,
 }
 impl Shared {
@@ -87,8 +90,7 @@ impl Shared {
         let mut state = self.state.lock();
         state.notice = Some(format!("{} enregistré", clip.name));
         state.clips.insert(0, clip);
-        state.clips.truncate(200);
-        if self.history_valid {
+        if self.history_valid.load(Ordering::Acquire) {
             if let Err(e) = write_json(&self.root.join("replay-clips.json"), &state.clips) {
                 state.error = Some(format!(
                     "Vidéo sauvegardée, mais historique non enregistré : {e}"
@@ -129,8 +131,7 @@ impl Store {
         let engine = process::resolve(&config.engine_path, &resources).ok();
         let (clips, history_valid) = match std::fs::read(root.join("replay-clips.json")) {
             Ok(b) => match serde_json::from_slice::<Vec<Clip>>(&b) {
-                Ok(mut clips) => {
-                    clips.truncate(200);
+                Ok(clips) => {
                     (clips, true)
                 }
                 Err(_) => (vec![], false),
@@ -151,7 +152,7 @@ impl Store {
                 stopping: AtomicBool::new(false),
                 replay_export: AtomicBool::new(false),
                 root,
-                history_valid,
+                history_valid: AtomicBool::new(history_valid),
                 app: Mutex::new(None),
             }),
             worker: Mutex::new(None),
@@ -291,6 +292,11 @@ impl Store {
         self.closing.store(true, Ordering::Release);
         self.stop();
     }
+    /// Reopen admission after an installer failed. Recording is never restarted implicitly.
+    pub fn resume_after_update_failure(&self) {
+        self.closing.store(false, Ordering::Release);
+        self.shared.notify();
+    }
     pub fn report(&self, message: String) {
         self.shared.error(message);
         self.shared.notify();
@@ -322,7 +328,7 @@ impl Store {
         let mut state = self.shared.state.lock();
         state.clips.retain(|c| c.id != id);
         state.notice = None;
-        if self.shared.history_valid {
+        if self.shared.history_valid.load(Ordering::Acquire) {
             if let Err(e) = write_json(&self.shared.root.join("replay-clips.json"), &state.clips) {
                 state.error = Some(format!("Clip retiré, mais historique non enregistré : {e}"));
             }
@@ -331,7 +337,7 @@ impl Store {
     }
     pub fn rename_clip(&self, id: &str, name: &str) -> Result<(), String> {
         let _operation = self.clip_mutation.lock();
-        if !self.shared.history_valid { return Err("L’historique des clips doit être récupéré avant de les renommer.".into()); }
+        if !self.shared.history_valid.load(Ordering::Acquire) { return Err("L’historique des clips doit être récupéré avant de les renommer.".into()); }
         let mut state = self.shared.state.lock();
         let index = state.clips.iter().position(|clip| clip.id == id).ok_or("Ce clip n’est plus dans la liste.")?;
         let source = state.clips[index].path.clone();
@@ -377,6 +383,16 @@ impl Drop for Store {
 #[cfg(test)]
 mod clip_tests {
     use super::*;
+    #[test]
+    fn failed_update_reopens_configuration_without_starting_a_capture() {
+        let root = tempfile::tempdir().unwrap();
+        let store = Store::new(root.path().into(), root.path().join("Videos"), PathBuf::new());
+        let config = store.snapshot().config;
+        store.shutdown(); assert!(store.configure(config.clone()).is_err());
+        store.resume_after_update_failure();
+        assert_eq!(store.configure(config).unwrap().phase, "idle");
+        assert!(store.worker.lock().is_none()); assert!(!store.snapshot().recording);
+    }
     fn fixture(root: &Path) -> Store {
         let store = Store::new(root.to_owned(), root.join("Videos"), PathBuf::new());
         for id in ["one", "two"] {

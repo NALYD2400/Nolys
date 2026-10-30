@@ -11,6 +11,21 @@ const TRACKED_SELECTORS = ['#dynamic-island', '#island-context-menu', '.island-s
 
 let lastPayload = '';
 let frameRequested = false;
+let lastExtent = '';
+
+export function targetExtent(element, expanded) {
+    if (!expanded) return null;
+    const rect = element.getBoundingClientRect();
+    let width = rect.width, height = rect.height;
+    for (const animation of element.getAnimations()) {
+        const frames = animation.effect?.getKeyframes?.();
+        const last = frames?.at(-1);
+        if (animation.transitionProperty === 'width') width = parseFloat(last?.width) || width;
+        if (animation.transitionProperty === 'height') height = parseFloat(last?.height) || height;
+    }
+    return { x: Math.round((rect.x + rect.width / 2 - width / 2) * 10) / 10, y: Math.round(rect.y * 10) / 10,
+        width: Math.round(width * 10) / 10, height: Math.round(height * 10) / 10 };
+}
 
 function collectRects() {
     const rects = [];
@@ -27,6 +42,14 @@ function collectRects() {
 
 function flush() {
     frameRequested = false;
+    const island = document.getElementById('dynamic-island');
+    const expanded = island?.matches('.island-expanded,.island-large,.island-mode-files,.island-notifying');
+    const bounds = island ? targetExtent(island, expanded) : null;
+    const extent = JSON.stringify(bounds);
+    if (extent !== lastExtent) {
+        lastExtent = extent;
+        native.invoke('set_island_extent', { bounds }).catch(() => { lastExtent = ''; });
+    }
     const rects = collectRects();
     const pixelRatio = window.devicePixelRatio || 1;
     const payload = JSON.stringify([rects, pixelRatio]);

@@ -156,6 +156,29 @@ pub fn config_path(data_dir: &Path) -> PathBuf {
     data_dir.join("liquid-island-layout.json")
 }
 
+/// Place toute la capsule ouverte dans la zone utile, même à 150 % ou sur petit écran.
+/// Le résultat est éphémère : la capsule repliée retrouve sa position et son échelle.
+pub fn expanded_placement(base: &Layout, area: WorkArea, bounds: super::hit_test::CssRect) -> Layout {
+    let margin = 8.0;
+    let scale = base.scale.min(((area.width - margin * 2.0) / bounds.width).max(0.1))
+        .min(((area.height - margin * 2.0) / bounds.height).max(0.1));
+    // Garde le centre de la pilule lors d'une réduction automatique de l'échelle.
+    let x = base.x + BASE_WIDTH * (base.scale - scale) / 2.0;
+    let min_x = area.x + margin - bounds.x * scale;
+    let max_x = area.x + area.width - margin - (bounds.x + bounds.width) * scale;
+    let min_y = area.y + margin - bounds.y * scale;
+    let max_y = area.y + area.height - margin - (bounds.y + bounds.height) * scale;
+    Layout { x: x.clamp(min_x, max_x.max(min_x)), y: base.y.clamp(min_y, max_y.max(min_y)), scale, ..base.clone() }
+}
+
+pub fn save_checked(data_dir: &Path, layout: &Layout) -> Result<(), String> {
+    let json = serde_json::to_vec_pretty(&SavedLayout { layout, window_width: BASE_WIDTH }).map_err(|e| e.to_string())?;
+    let path = config_path(data_dir);
+    let temporary = path.with_extension("json.tmp");
+    std::fs::write(&temporary, json).map_err(|e| e.to_string())?;
+    std::fs::rename(temporary, path).map_err(|e| e.to_string())
+}
+
 /// La position enregistrée est le coin de la fenêtre. Si la fenêtre a changé de largeur depuis,
 /// on la décale de la moitié de la différence : la pilule (centrée dans la fenêtre) reste au
 /// même endroit de l'écran.
@@ -194,10 +217,8 @@ struct SavedLayout<'a> {
 }
 
 pub fn save(data_dir: &Path, layout: &Layout) {
-    if let Ok(json) = serde_json::to_string_pretty(&SavedLayout { layout, window_width: BASE_WIDTH }) {
-        if let Err(error) = std::fs::write(config_path(data_dir), json) {
-            crate::logger::log(&format!("[Layout] Failed to save layout: {error}"));
-        }
+    if let Err(error) = save_checked(data_dir, layout) {
+        crate::logger::log(&format!("[Layout] Failed to save layout: {error}"));
     }
 }
 
@@ -207,6 +228,29 @@ mod tests {
 
     fn at(x: f64, scale: f64) -> Layout {
         Layout { x, y: 10.0, scale, display_id: "primary".into() }
+    }
+
+    #[test]
+    fn every_open_shape_fits_edges_and_small_mixed_dpi_displays_without_changing_saved_position() {
+        let areas = [WorkArea {x:0.,y:0.,width:1920.,height:1040.}, WorkArea {x:-1280.,y:40.,width:1280.,height:680.}, WorkArea{x:1600.,y:-500.,width:640.,height:440.}];
+        for area in areas {
+            for scale in [0.65, 1.0, 1.5] {
+                for (width, height) in [(682.,526.), (602.,538.), (380.,398.), (460.,496.), (520.,400.)] {
+                    for (x,y) in [(area.x-300., area.y-50.), (area.x+area.width-360., area.y+area.height-80.)] {
+                        let base = Layout {x,y,scale,display_id:"test".into()};
+                        let original = base.clone();
+                        let bounds = super::super::hit_test::CssRect {x:(BASE_WIDTH-width)/2., y:50.,width,height};
+                        let placed = expanded_placement(&base, area, bounds);
+                        assert!(placed.x+bounds.x*placed.scale >= area.x+7.99);
+                        assert!(placed.y+bounds.y*placed.scale >= area.y+7.99);
+                        assert!(placed.x+(bounds.x+width)*placed.scale <= area.x+area.width-7.99);
+                        assert!(placed.y+(bounds.y+height)*placed.scale <= area.y+area.height-7.99);
+                        assert_eq!(base, original);
+                        assert!(placed.scale <= base.scale);
+                    }
+                }
+            }
+        }
     }
 
     #[test]

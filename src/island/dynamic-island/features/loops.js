@@ -140,19 +140,7 @@ export const loopMethods = {
     },
 
     onSecondTick() {
-        if (this.isTimerRunning) {
-            if (this.timerMode === 'countdown') {
-                this.timerValue = Math.max(0, this.timerValue - 1);
-                if (this.timerValue === 0) this.onCountdownDone();
-            } else {
-                this.timerValue++;
-            }
-            if (this.isExpanded && this.mode === 'timer') {
-                this.renderTimer();
-            }
-        }
-        // La bulle du minuteur suit le décompte, la pilule reste libre (musique ou repos).
-        this.syncTimerSatellite();
+        this.tickTimers();
 
         if (this.isExpanded) {
             if (this.mode === 'network') {
@@ -174,8 +162,10 @@ export const loopMethods = {
                     try {
                         
                         ipcRenderer.invoke('get-system-volume').then(currentVol => {
-                            if (currentVol !== undefined && currentVol !== null) {
+                            if (Number.isFinite(currentVol) && currentVol >= 0 && currentVol <= 100) {
                                 volSlider.style.setProperty('--slider-val-pct', `${Math.round(currentVol)}%`);
+                                volSlider.setAttribute('aria-valuenow', currentVol);
+                                volSlider.setAttribute('aria-valuetext', `${Math.round(currentVol)} %`);
                             }
                         }).catch(() => {});
                     } catch(e){}

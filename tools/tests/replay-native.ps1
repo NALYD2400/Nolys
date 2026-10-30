@@ -3,13 +3,14 @@ param(
     [ValidateSet('h264', 'hevc')][string]$Codec = 'h264',
     [int]$Fps = 60,
     [ValidateRange(5,600)][int]$Seconds = 5,
+    [ValidateRange(0,14400)][int]$RecordingSeconds = 0,
     [switch]$SystemAudio,
     [switch]$Microphone,
     [switch]$MixAudio
 )
 # Opt-in integration test. Captures to temporary files; does not use personal settings.
 $ErrorActionPreference = 'Stop'
-$names = @('NOLYS_REPLAY_TEST_AUDIO','NOLYS_REPLAY_TEST_MIC','NOLYS_REPLAY_TEST_FPS','NOLYS_REPLAY_TEST_CODEC','NOLYS_REPLAY_TEST_WINDOW','NOLYS_REPLAY_TEST_MIX','NOLYS_REPLAY_TEST_SECONDS')
+$names = @('NOLYS_REPLAY_TEST_AUDIO','NOLYS_REPLAY_TEST_MIC','NOLYS_REPLAY_TEST_FPS','NOLYS_REPLAY_TEST_CODEC','NOLYS_REPLAY_TEST_WINDOW','NOLYS_REPLAY_TEST_MIX','NOLYS_REPLAY_TEST_SECONDS','NOLYS_REPLAY_TEST_RECORDING_SECONDS')
 $previous = @{}
 foreach ($name in $names) { $previous[$name] = [Environment]::GetEnvironmentVariable($name, 'Process') }
 $fixtureProcess = $null
@@ -21,6 +22,7 @@ try {
     $env:NOLYS_REPLAY_TEST_MIX = if ($MixAudio) { '1' } else { $null }
     $env:NOLYS_REPLAY_TEST_FPS = [string]$Fps
     $env:NOLYS_REPLAY_TEST_SECONDS = [string]$Seconds
+    $env:NOLYS_REPLAY_TEST_RECORDING_SECONDS = [string]$RecordingSeconds
     $env:NOLYS_REPLAY_TEST_CODEC = $Codec
     $env:NOLYS_REPLAY_TEST_WINDOW = $null
     if ($Source -eq 'Window') {

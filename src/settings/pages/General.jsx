@@ -3,6 +3,7 @@ import { Button, Card, Icon, Row, Toggle } from '../components/controls.jsx';
 import { QUICK_PROFILES } from '../state/presets.js';
 import { useAutoStart } from '../state/useSettings.js';
 import { playClick } from '../state/sound.js';
+import GettingStarted from '../components/GettingStarted.jsx';
 
 function Profiles({ store }) {
     const { settings, customProfiles, applyQuickProfile, applyCustomProfile, saveCurrentAsProfile, deleteProfile } = store;
@@ -86,6 +87,7 @@ export default function General({ store }) {
 
     return (
         <>
+            <GettingStarted />
             <Profiles store={store} />
 
             <Card title="Démarrage">

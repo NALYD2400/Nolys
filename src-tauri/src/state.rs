@@ -17,6 +17,8 @@ pub struct AppState {
     pub media: Mutex<MediaTracker>,
     pub wallpaper: Arc<WallpaperSync>,
     pub layout: Mutex<Layout>,
+    /// Emprise ouverte temporaire : ne modifie jamais la position enregistrée.
+    pub expanded_bounds: Mutex<Option<crate::island::hit_test::CssRect>>,
     pub hit_region: Mutex<HitRegion>,
     pub update: Mutex<UpdateStatus>,
 
@@ -45,6 +47,7 @@ impl AppState {
             data_dir,
             media: Mutex::new(MediaTracker::new()),
             layout: Mutex::new(layout),
+            expanded_bounds: Mutex::new(None),
             hit_region: Mutex::new(HitRegion::default()),
             update: Mutex::new(UpdateStatus::default()),
             persistent: AtomicBool::new(true),

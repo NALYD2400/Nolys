@@ -60,6 +60,8 @@ impl Store {
         self.values.lock().is_some()
     }
 
+    pub fn get(&self, key: &str) -> Option<String> { self.values.lock().as_ref()?.get(key).cloned() }
+
     /// Premier remplissage, s'il n'y a encore rien. Renvoie `false` si le fichier existait déjà.
     pub fn seed(&self, values: BTreeMap<String, String>) -> Result<bool, String> {
         let mut current = self.values.lock();

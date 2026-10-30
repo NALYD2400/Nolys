@@ -11,6 +11,16 @@ export const duration = value => {
 };
 export const size = value => `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format((Number(value) || 0) / 1024 ** 2)} Mo`;
 
+export function queryClips(clips, { search = '', kind = '', sort = 'newest', page = 0, pageSize = 25 } = {}) {
+    const text = search.trim().toLocaleLowerCase('fr');
+    const filtered = clips.filter(c => (!kind || c.kind === kind) && (!text || `${c.name} ${c.path}`.toLocaleLowerCase('fr').includes(text)));
+    const compare = sort === 'name' ? (a, b) => a.name.localeCompare(b.name, 'fr', { numeric: true }) : sort === 'size' ? (a, b) => b.bytes - a.bytes : sort === 'oldest' ? (a, b) => a.createdAt - b.createdAt : (a, b) => b.createdAt - a.createdAt;
+    filtered.sort((a, b) => compare(a, b) || a.id.localeCompare(b.id));
+    const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    page = Math.max(0, Math.min(pages - 1, Math.floor(page) || 0));
+    return { clips: filtered.slice(page * pageSize, (page + 1) * pageSize), total: filtered.length, page, pages };
+}
+
 export function createReplayStore(invoke) {
     const state = { snapshot: null, draft: null, sources: [], inputs: [], outputs: [], dirty: false, busy: false, error: '', tab: 'capture' };
     const listeners = new Set();
@@ -47,6 +57,7 @@ export function createReplayStore(invoke) {
         ++generation; state.dirty = false; accept(saved);
     }
     return {
+        restore(snapshot) { ++generation; state.dirty = false; state.error = ''; accept(snapshot); },
         state, refresh, loadSources, fail,
         subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
         update(key, value) {
@@ -79,5 +90,14 @@ export function createReplayStore(invoke) {
         renameClip(id, name) {
             return exclusive(async () => { const snapshot = await invoke('replay_rename', { id, name }); ++generation; accept(snapshot); });
         },
+        mutate(command, args = {}) {
+            return exclusive(async () => { const snapshot = await invoke(command, args); ++generation; accept(snapshot); });
+        },
+        deleteClips(ids) {
+            return exclusive(async () => {
+                for (const id of [...new Set(ids)]) { const snapshot = await invoke('replay_delete', { id }); ++generation; accept(snapshot); }
+            });
+        },
+        async inspect(command, args = {}) { try { return await invoke(command, args); } catch (error) { fail(error); return null; } },
     };
 }

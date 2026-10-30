@@ -21,13 +21,15 @@ export const shellMarkup = `
             <button type="button" data-action="clear-search" aria-label="Effacer la recherche" hidden>${icon('x', 'ph-bold')}</button>
         </label>
         <button type="button" class="round-btn is-accent" data-action="import" aria-label="Importer de la musique" aria-haspopup="menu" title="Importer">${icon('plus', 'ph-bold')}</button>
+        <button type="button" class="round-btn" data-action="cover-cache" aria-label="Espace des pochettes" title="Pochettes">${icon('hard-drives', 'ph-bold')}</button>
     </header>
     <nav class="lib-chips" id="chips" aria-label="Collections"></nav>
     <div class="lib-section" id="section"></div>
     <div class="lib-progress" id="progress" role="progressbar" aria-label="Import de musique" aria-valuemin="0" aria-valuemax="100" hidden>
-        <div class="progress-head">${icon('circle-notch', 'ph-bold')}<span id="progress-label"></span><small id="progress-count"></small></div>
+        <div class="progress-head">${icon('circle-notch', 'ph-bold')}<span id="progress-label"></span><small id="progress-count"></small><button type="button" class="pill-btn" data-action="cancel-import">Annuler</button></div>
         <div class="progress-track"><i></i></div>
     </div>
+    <section class="lib-recovery" id="library-recovery" aria-label="Récupération de la bibliothèque" hidden></section>
     <div class="lib-list" id="list"></div>
     <footer class="lib-player" id="player" aria-label="Lecture">
         <div class="player-track">

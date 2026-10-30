@@ -1,6 +1,7 @@
 //! Nolys — point d'entrée de l'application Tauri.
 
 mod commands;
+mod preferences;
 mod events;
 mod files;
 mod replay;
@@ -58,6 +59,12 @@ pub fn run() {
             replay::commands::replay_thumbnail,
             replay::commands::replay_delete,
             replay::commands::replay_rename,
+            replay::commands::replay_reindex,
+            replay::commands::replay_relocate,
+            replay::commands::replay_recovery_list,
+            replay::commands::replay_recover,
+            replay::commands::replay_cache,
+            replay::commands::replay_preflight,
             files::commands::files_dev_log,
             files::commands::files_dev_open,
             files::commands::files_snapshot,
@@ -69,12 +76,23 @@ pub fn run() {
             files::commands::files_preview,
             files::commands::files_copy,
             files::commands::files_drag_out,
+            files::commands::files_remove_inputs,
+            files::commands::files_retry,
+            files::commands::files_preferences,
+            files::commands::files_pick_destination,
+            files::commands::files_repair_history,
+            files::commands::files_reveal_history,
             library::commands::library_get,
             library::commands::library_import,
             library::commands::library_mutate,
             library::commands::library_relink,
             library::commands::library_player_active,
             library::commands::library_check_track,
+            library::commands::library_cancel_import,
+            library::commands::library_cache_info,
+            library::commands::library_clean_cache,
+            library::commands::library_repair,
+            library::commands::library_reveal_store,
             commands::media::get_media_info,
             commands::media::media_control,
             commands::audio::get_audio_meter,
@@ -101,6 +119,7 @@ pub fn run() {
             commands::system::get_auto_start,
             commands::system::set_auto_start,
             commands::layout::get_layout_state,
+            commands::layout::set_island_extent,
             commands::layout::get_displays,
             commands::layout::set_layout_config,
             commands::layout::reset_layout,
@@ -120,6 +139,11 @@ pub fn run() {
             commands::app::wallpaper_sync_status,
             commands::app::trigger_notification,
             commands::app::save_settings_file,
+            preferences::preferences_bundle,
+            preferences::preferences_restore,
+            preferences::reset_microphone_preferences,
+            preferences::maintenance_info,
+            preferences::export_diagnostics,
             ui_settings::ui_settings_write,
             ui_settings::ui_settings_seed,
             commands::updates::get_update_status,
@@ -149,6 +173,7 @@ fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let legacy_settings = if isolated { None } else { migration::legacy_settings_script(&data_dir) };
     let ui_settings = ui_settings::Store::load(&data_dir);
     if !isolated { ui_settings::import_installed_settings(app, &ui_settings, &data_dir); }
+    platform::http::set_offline(ui_settings.get("liquid_offline_mode").as_deref() == Some("true"));
     app.manage(ui_settings);
 
     let layout = island::layout::load(app, &data_dir);
@@ -182,20 +207,19 @@ fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
 
 /// Quitte proprement : restaure le fond d'écran d'origine si la synchro était active.
 pub fn quit(app: &AppHandle) {
-    app.state::<replay::Store>().request_stop();
-    app.state::<files::Store>().cancel_all();
+    static QUITTING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    if QUITTING.swap(true, std::sync::atomic::Ordering::SeqCst) { return; }
     let handle = app.clone();
     tauri::async_runtime::spawn(async move {
-        let replay_handle = handle.clone();
-        let replay = tauri::async_runtime::spawn_blocking(move || replay_handle.state::<replay::Store>().shutdown());
-        let microphone = tauri::async_runtime::spawn_blocking(platform::mic_monitor::shutdown);
-        files::wait_for_shutdown(&handle).await;
-        let _ = microphone.await;
-        let _ = replay.await;
-        let wallpaper = handle.state::<AppState>().wallpaper.clone();
-        if wallpaper.is_enabled() {
-            let _ = tauri::async_runtime::spawn_blocking(move || wallpaper.restore_original()).await;
+        match updater::prepare_shutdown(&handle).await {
+            Ok(_) => handle.exit(0),
+            Err(error) => {
+                logger::log(&format!("[App] Shutdown interrupted: {error}"));
+                let _ = handle.emit_to(island::LABEL, events::TRIGGER_NOTIF, serde_json::json!({
+                    "title":"Fermeture interrompue", "message":error, "icon":"ph-warning-circle"
+                }));
+                QUITTING.store(false, std::sync::atomic::Ordering::SeqCst);
+            }
         }
-        handle.exit(0);
     });
 }

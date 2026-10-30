@@ -14,6 +14,10 @@ export default function Music({ store }) {
                     onChange={(musicEnabled) => update({ musicEnabled })}
                 />
             </Card>
+            <Card title="Confidentialité">
+                <Toggle label="Rechercher les pochettes manquantes" description="Envoie le titre et l’artiste à Deezer puis Apple si le lecteur ne fournit aucune pochette." checked={settings.onlineCovers} onChange={onlineCovers => update({onlineCovers})} />
+                <Toggle label="Mode hors ligne" description="Coupe les recherches de pochettes, la météo, les images en ligne et les mises à jour. Les icônes sont incluses dans Nolys." checked={settings.offlineMode} onChange={offlineMode => update({offlineMode})} />
+            </Card>
 
             <Reveal when={settings.musicEnabled}>
                 <Card title="Lecteur">

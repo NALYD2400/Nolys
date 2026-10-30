@@ -198,6 +198,10 @@ button:disabled, [aria-disabled="true"] { cursor: default; }
 .progress-head i { color: var(--accent); font-size: 13px; animation: lib-spin 1s linear infinite; }
 .progress-head span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .progress-head small { color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+.progress-head .pill-btn { flex-shrink: 0; padding: 4px 8px; font-size: 10px; }
+.lib-recovery { flex: 0 0 auto; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.lib-recovery p { margin: 0 0 8px; font-size: 11px; color: var(--muted); line-height: 1.5; }
+.lib-recovery [role="alert"] { color: var(--text); }
 .progress-track { position: relative; height: 4px; border-radius: 999px; overflow: hidden; background: rgba(255, 255, 255, 0.12); }
 .progress-track i {
     position: absolute;

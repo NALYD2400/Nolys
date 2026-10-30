@@ -90,6 +90,10 @@ pub fn apply_layout(app: &AppHandle) {
         *current = layout::clamp(app, &current);
         current.clone()
     };
+    let bounds = *state.expanded_bounds.lock();
+    let layout = if !state.layout_edit_mode.load(Ordering::SeqCst) {
+        bounds.and_then(|rect| layout::target_monitor(app, &layout.display_id).map(|monitor| layout::expanded_placement(&layout, layout::work_area(&monitor), rect))).unwrap_or(layout)
+    } else { layout };
     if let Some(window) = window(app) {
         state.suppress_move_sync.store(true, Ordering::SeqCst);
         let monitor_scale = layout::target_monitor(app, &layout.display_id).map(|m| m.scale_factor()).unwrap_or(1.0);
@@ -121,7 +125,7 @@ pub fn update_layout(app: &AppHandle, next: Layout) {
 
 fn on_moved(app: &AppHandle) {
     let state = app.state::<AppState>();
-    if state.suppress_move_sync.load(Ordering::SeqCst) {
+    if state.suppress_move_sync.load(Ordering::SeqCst) || (state.expanded_bounds.lock().is_some() && !state.layout_edit_mode.load(Ordering::SeqCst)) {
         return;
     }
     let Some(window) = window(app) else { return };

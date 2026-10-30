@@ -960,3 +960,7 @@ body.layout-edit-mode .island-satellite {
     font-size: 11px;
     opacity: 1;
 }
+.mic-view :is(button,[role="slider"]):focus-visible {
+    outline: 2px solid var(--neon-primary, #d49460);
+    outline-offset: 2px;
+}

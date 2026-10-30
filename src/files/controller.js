@@ -1,4 +1,4 @@
-import { files, subscribe, notify, pick, start, act, copy, dragOut } from './store.js';
+import { files, subscribe, notify, pick, start, act, copy, dragOut, remove, retry, configure } from './store.js';
 import { escapeHtml as e } from '../island/dynamic-island/helpers/format.js';
 import { createPanel } from '../library/panel.js';
 import { native } from '../shared/ipc.js';
@@ -19,15 +19,16 @@ const previewButton = file => canPreview(file) ? `<button type="button" class="r
 function selection() {
     if (!files.inputs.length) return `<div class="files-empty"><i class="ph ph-tray-arrow-down" aria-hidden="true"></i><h3>Déposez vos fichiers</h3>${button('pick', 'Choisir des fichiers', 'plus', files.busy ? 'disabled' : '')}</div>`;
     const total = files.inputs.reduce((sum, input) => sum + input.size, 0);
-    const items = files.inputs.slice(0, 5).map(input => `<li><i class="ph ph-${icons[input.kind] || 'file'}" aria-hidden="true"></i><span title="${e(input.name)}">${e(input.name)}</span><small>${input.directory ? 'Dossier' : bytes(input.size)}</small>${previewButton(input)}</li>`).join('');
+    const items = files.inputs.map(input => `<li data-input="${e(input.id)}"><i class="ph ph-${icons[input.kind] || 'file'}" aria-hidden="true"></i><span title="${e(input.name)}">${e(input.name)}</span><small>${input.directory ? 'Dossier' : bytes(input.size)}</small>${previewButton(input)}<button type="button" class="round-btn" data-action="remove-input" data-file="${e(input.id)}" aria-label="Retirer ${e(input.name)} de la sélection" ${files.busy ? 'disabled' : ''}><i class="ph-bold ph-x" aria-hidden="true"></i></button></li>`).join('');
     if (files.inputs.length === 1) return `<ul class="files-inputs files-selection" aria-label="Fichier sélectionné">${items}</ul>`;
-    return `<details class="files-selection" id="files-selection-list"><summary><strong>${files.inputs.length} fichiers sélectionnés</strong><span>${bytes(total)}</span><i class="ph-bold ph-caret-down" aria-hidden="true"></i></summary><ul class="files-inputs" aria-label="Fichiers sélectionnés">${items}${files.inputs.length > 5 ? `<li class="files-more">Et ${files.inputs.length - 5} autres fichiers</li>` : ''}</ul></details>`;
+    return `<details class="files-selection" id="files-selection-list"><summary><strong>${files.inputs.length} fichiers sélectionnés</strong><span>${bytes(total)}</span><i class="ph-bold ph-caret-down" aria-hidden="true"></i></summary><ul class="files-inputs" aria-label="Fichiers sélectionnés">${items}</ul><div class="files-actions">${button('clear-inputs', 'Vider la sélection', 'minus', files.busy ? 'disabled' : '')}</div></details>`;
 }
 
 function tabs() {
     const convertible = files.inputs.length && files.inputs.every(input => !input.directory && ['jpg', 'jpeg', 'png', 'webp', 'bmp'].includes(input.extension));
     const items = !files.inputs.length ? [['selection', 'Fichiers']] : convertible ? [['convert', 'Convertir'], ['tools', 'Dimensions'], ['actions', 'Actions']] : [['actions', 'Actions']];
     items.push(['history', 'Activité']);
+    items.push(['preferences', 'Préférences']);
     if (!items.some(([id]) => id === files.tab)) files.tab = items[0][0];
     const pending = files.jobs.filter(job => active.has(job.status)).length;
     return items.map(([tab, name]) => `<button type="button" class="chip ${files.tab === tab ? 'is-active' : ''}" role="tab" aria-selected="${files.tab === tab}" tabindex="${files.tab === tab ? 0 : -1}" aria-controls="files-content" data-tab="${tab}" id="files-tab-${tab}">${name}${tab === 'history' && pending ? ` · ${pending}` : ''}</button>`).join('');
@@ -47,15 +48,29 @@ function tools() {
 
 function history() {
     if (!files.jobs.length) return '<div class="files-empty"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i><h3>Aucun traitement</h3><p>Vos résultats apparaîtront ici.</p></div>';
-    return `<section class="files-history" aria-label="Traitements et résultats">${[...files.jobs].reverse().map(job => {
+    const pages = Math.ceil(files.jobs.length / 20);
+    files.historyPage = Math.max(1, Math.min(files.historyPage, pages));
+    return `<section class="files-history" aria-label="Traitements et résultats"><p class="files-explanation">${files.jobs.length} traitement${files.jobs.length > 1 ? 's' : ''} · Les exports restent dans leur dossier après retrait de l’historique.</p>${[...files.jobs].reverse().slice((files.historyPage - 1) * 20, files.historyPage * 20).map(job => {
         const busy = active.has(job.status);
         const done = job.outputs.length;
-        return `<article class="files-job" data-job="${e(job.id)}"><div class="files-job-heading"><i class="ph ph-${busy ? 'circle-notch files-spinning' : done ? 'check-circle' : 'warning-circle'}" aria-hidden="true"></i><strong>${labels[job.status] || e(job.status)}</strong><span>${job.completed} / ${job.total}</span>${button(busy ? 'cancel' : 'forget', busy ? 'Annuler' : 'Retirer', busy ? 'x' : 'minus', job.status === 'cancelling' ? 'disabled' : '')}</div>${busy ? `<progress max="${job.total}" value="${job.completed}" aria-label="Fichiers traités"></progress>` : ''}${job.items.map(item => {
+        return `<article class="files-job" data-job="${e(job.id)}"><div class="files-job-heading"><i class="ph ph-${busy ? 'circle-notch files-spinning' : done ? 'check-circle' : 'warning-circle'}" aria-hidden="true"></i><strong>${labels[job.status] || e(job.status)}</strong><span>${job.completed} / ${job.total}</span>${!busy && job.retryable ? button('retry', 'Réessayer les échecs', 'arrow-clockwise', files.busy ? 'disabled' : '') : ''}${button(busy ? 'cancel' : 'forget', busy ? 'Annuler' : 'Retirer', busy ? 'x' : 'minus', job.status === 'cancelling' ? 'disabled' : '')}</div>${busy ? `<progress max="${job.total}" value="${job.completed}" aria-label="Fichiers traités"></progress>` : ''}${job.items.map(item => {
             const output = job.outputs.find(output => output.id === item.outputId);
             const gain = item.sizeBefore > 0 && output ? Math.round((1 - output.size / item.sizeBefore) * 100) : 0;
             return `<div class="files-result"><div><strong title="${e(output?.name || item.name)}">${e(output?.name || item.name)}</strong><span>${output ? `${bytes(item.sizeBefore)} → ${bytes(output.size)}${gain > 0 ? ` · ${gain} % plus léger` : gain < 0 ? ' · fichier plus volumineux' : ''}` : e(item.error || labels[item.status] || 'En attente')}</span></div>${output ? `<div class="files-result-actions" data-output="${e(output.id)}">${previewButton(output)}${button('reveal-output', 'Afficher', 'folder-open')}${button('copy-output', 'Copier', 'copy')}${button('drag-output', 'Glisser', 'hand-grabbing', 'title="Maintenez et glissez le fichier vers une autre application"')}</div>` : ''}</div>`;
         }).join('')}</article>`;
-    }).join('')}</section>`;
+    }).join('')}${pages > 1 ? `<nav class="files-pagination" aria-label="Pages de l’activité">${button('history-previous', 'Précédent', 'caret-left', files.historyPage === 1 ? 'disabled' : '')}<span>${files.historyPage} / ${pages}</span>${button('history-next', 'Suivant', 'caret-right', files.historyPage === pages ? 'disabled' : '')}</nav>` : ''}</section>`;
+}
+
+function preferences() {
+    const disabled = files.busy ? 'disabled' : '';
+    return `<section class="files-preferences" aria-label="Préférences des fichiers"><h3>Prochains traitements</h3><p class="files-explanation">Ces valeurs seront proposées au prochain démarrage. Les traitements déjà lancés gardent leur dossier et leurs options.</p>
+        <div class="files-form-row"><label for="files-default-format">Format</label><select id="files-default-format" data-option="format" ${disabled}>${['png', 'jpg', 'webp', 'bmp'].map(format => `<option value="${format}" ${files.format === format ? 'selected' : ''}>${format.toUpperCase()}</option>`).join('')}</select></div>
+        <div class="files-form-row"><label for="files-default-quality">Qualité JPG</label><input id="files-default-quality" type="number" min="1" max="100" data-option="quality" value="${files.quality}" ${disabled}></div>
+        <div class="files-form-row"><label for="files-default-edge">Grand côté maximal</label><input id="files-default-edge" type="number" min="1" max="16384" data-option="maxEdge" value="${files.maxEdge}" ${disabled}></div>
+        <div class="files-form-row"><label for="files-default-background">Transparence en JPG</label><select id="files-default-background" data-option="background" ${disabled}><option value="" ${!files.background ? 'selected' : ''}>Me demander</option><option value="#ffffff" ${files.background === '#ffffff' ? 'selected' : ''}>Fond blanc</option><option value="#000000" ${files.background === '#000000' ? 'selected' : ''}>Fond noir</option></select></div>
+        <div class="files-form-row"><label for="files-history-limit">Traitements terminés conservés</label><select id="files-history-limit" data-option="historyLimit" ${disabled}>${[20, 50, 100, 200, 500, 1000].map(limit => `<option value="${limit}" ${(files.historyLimit ?? files.preferences.historyLimit) === limit ? 'selected' : ''}>${limit}</option>`).join('')}</select></div>
+        <p class="files-explanation">Seules les entrées anciennes de l’activité sont retirées. Les fichiers originaux et exportés sont conservés.</p>${button('save-preferences', 'Enregistrer les préférences', 'check', disabled)}
+        <h3>Dossier des exports</h3><p class="files-destination">${e(files.destination)}</p>${button('choose-destination', 'Choisir un dossier', 'folder-open', disabled)}</section>`;
 }
 
 export function mountFiles(host, { onClose, onBack = onClose, ready = Promise.resolve(), onRender = () => {}, onPreviewChange = () => {} }) {
@@ -67,6 +82,7 @@ export function mountFiles(host, { onClose, onBack = onClose, ready = Promise.re
     const abort = new AbortController();
     const on = (target, name, fn) => target.addEventListener(name, fn, { signal: abort.signal });
     let destroyed = false, previousTab = files.tab;
+    let confirmRepair = false;
     let preview = null, previewRequest = 0, loadingPreview = null, previewScroll = 0;
     let selectionKey = files.inputs.map(input => input.id).join('|');
     function returnToFiles() {
@@ -127,8 +143,8 @@ export function mountFiles(host, { onClose, onBack = onClose, ready = Promise.re
         const focused = root.activeElement;
         const focusKey = focused?.id;
         const focusAction = focused?.dataset.action;
-        const focusContext = focused?.closest('[data-output], [data-job]');
-        const contextSelector = focusContext?.dataset.output ? `[data-output="${CSS.escape(focusContext.dataset.output)}"]` : focusContext?.dataset.job ? `[data-job="${CSS.escape(focusContext.dataset.job)}"]` : '';
+        const focusContext = focused?.closest('[data-output], [data-job], [data-input]');
+        const contextSelector = focusContext?.dataset.output ? `[data-output="${CSS.escape(focusContext.dataset.output)}"]` : focusContext?.dataset.job ? `[data-job="${CSS.escape(focusContext.dataset.job)}"]` : focusContext?.dataset.input ? `[data-input="${CSS.escape(focusContext.dataset.input)}"]` : '';
         const tabChanged = previousTab !== files.tab;
         const scroll = tabChanged ? 0 : root.querySelector('.files-body')?.scrollTop || 0;
         previousTab = files.tab;
@@ -136,7 +152,8 @@ export function mountFiles(host, { onClose, onBack = onClose, ready = Promise.re
         root.querySelector('#files-tabs').innerHTML = tabs();
         root.querySelectorAll('.lib-header button').forEach(button => { button.disabled = files.busy; });
         root.querySelector('#files-notice').textContent = files.notice;
-        content.innerHTML = `${files.error ? `<div class="files-feedback files-error" role="alert">${e(files.error)}${button('dismiss-error', 'Fermer le message', 'x', 'aria-label="Fermer le message"')}</div>` : ''}${files.tab === 'history' ? history() : selection() + tools()}`;
+        const recovery = files.repairable ? `<section class="files-recovery" aria-label="Récupération de l’historique"><p>Vous pouvez ouvrir le journal ou démarrer un historique neuf. Une copie de l’original sera conservée avant toute reconstruction ; les exports restent dans leur dossier.</p><div class="files-actions">${button('reveal-history', 'Ouvrir l’emplacement', 'folder-open')}${confirmRepair ? button('confirm-repair', 'Conserver l’original et reconstruire', 'arrow-clockwise', files.busy ? 'disabled' : '') + button('cancel-repair', 'Annuler', 'x') : button('repair-history', 'Reconstruire l’historique…', 'first-aid')}</div></section>` : '';
+        content.innerHTML = `${files.error ? `<div class="files-feedback files-error" role="alert">${e(files.error)}${button('dismiss-error', 'Fermer le message', 'x', 'aria-label="Fermer le message"')}</div>` : ''}${recovery}${files.tab === 'history' ? history() : files.tab === 'preferences' ? preferences() : selection() + tools()}`;
         content.setAttribute('aria-labelledby', `files-tab-${files.tab}`);
         if (tabChanged) panel.tabIn(content);
         openDetails.forEach(id => { const details = content.querySelector(`#${id}`); if (details) details.open = true; });
@@ -171,6 +188,17 @@ export function mountFiles(host, { onClose, onBack = onClose, ready = Promise.re
                 break;
             case 'cancel': await act('files_cancel', { jobId }); break;
             case 'forget': await act('files_forget', { jobId }); break;
+            case 'retry': await retry(jobId); break;
+            case 'remove-input': await remove([button.dataset.file]); break;
+            case 'clear-inputs': await remove(inputIds); break;
+            case 'history-previous': files.historyPage--; notify(); break;
+            case 'history-next': files.historyPage++; notify(); break;
+            case 'save-preferences': await configure('files_preferences', { preferences: { format: files.format, quality: files.quality, maxEdge: files.maxEdge, background: files.background || null, historyLimit: files.historyLimit ?? files.preferences.historyLimit } }); break;
+            case 'choose-destination': await configure('files_pick_destination'); break;
+            case 'repair-history': confirmRepair = true; render(); root.querySelector('[data-action="confirm-repair"]')?.focus(); break;
+            case 'cancel-repair': confirmRepair = false; render(); break;
+            case 'confirm-repair': await configure('files_repair_history'); confirmRepair = false; render(); break;
+            case 'reveal-history': await act('files_reveal_history'); break;
             case 'copy-inputs': await copy(inputIds); break;
             case 'copy-output': await copy([outputId]); break;
             case 'reveal-input': await act('files_reveal', { id: inputIds[0] }); break;
@@ -181,12 +209,12 @@ export function mountFiles(host, { onClose, onBack = onClose, ready = Promise.re
     });
     on(root, 'change', event => {
         const key = event.target.dataset.option;
-        if (!['format', 'quality', 'maxEdge', 'background'].includes(key)) return;
-        files[key] = ['quality', 'maxEdge'].includes(key) ? Number(event.target.value) : event.target.value;
+        if (!['format', 'quality', 'maxEdge', 'background', 'historyLimit'].includes(key)) return;
+        files[key] = ['quality', 'maxEdge', 'historyLimit'].includes(key) ? Number(event.target.value) : event.target.value;
         notify();
     });
     on(root, 'input', event => {
-        if (event.target.dataset.option === 'quality') { files.quality = Number(event.target.value); event.target.nextElementSibling.textContent = `${files.quality} %`; }
+        if (event.target.dataset.option === 'quality' && event.target.type === 'range') { files.quality = Number(event.target.value); event.target.nextElementSibling.textContent = `${files.quality} %`; }
     });
     on(root, 'keydown', event => {
         if (event.key === 'Escape') { event.stopPropagation(); event.preventDefault(); if (preview || loadingPreview) returnToFiles(); else if (!files.busy && !files.outgoing) onClose(); }

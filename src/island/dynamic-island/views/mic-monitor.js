@@ -26,6 +26,8 @@ export const micMonitorView = {
     },
 
     renderMicMonitor() {
+        const previous = this.content.querySelector('.mic-view');
+        const focusedControl = previous?.contains(document.activeElement) ? document.activeElement.dataset.mic : null;
         const status = this.micStatus || { config: {} };
         const config = status.config;
         const enabled = Boolean(config.enabled);
@@ -58,7 +60,7 @@ export const micMonitorView = {
                     </div>
                     <button class="mic-icon-btn" data-mic="settings" title="Plus de réglages (balance, latence, seuil)"><i class="ph-bold ph-sliders-horizontal"></i></button>
                     <button class="mic-icon-btn" data-mic="back" title="Centre de contrôle"><i class="ph-bold ph-squares-four"></i></button>
-                    <button class="mic-switch ${enabled ? 'on' : ''}" data-mic="toggle" role="switch" aria-checked="${enabled}" title="${enabled ? 'Couper le retour' : 'Activer le retour'}">
+                    <button class="mic-switch ${enabled ? 'on' : ''}" data-mic="toggle" role="switch" aria-checked="${enabled}" aria-label="Retour micro" title="${enabled ? 'Couper le retour' : 'Activer le retour'}">
                         <span class="mic-switch-knob"></span>
                     </button>
                 </header>
@@ -71,7 +73,7 @@ export const micMonitorView = {
                             <span class="mic-meter-readout">−∞ dB</span>
                         </span>
                     </div>
-                    <div class="mic-meter" data-mic="meter" title="${config.gateEnabled ? 'Glisse le repère pour régler le seuil de la porte' : 'Active la porte pour couper les bruits faibles'}">
+                    <div class="mic-meter" data-mic="meter" role="slider" tabindex="${config.gateEnabled ? '0' : '-1'}" aria-label="Seuil de la porte de bruit" aria-valuemin="-80" aria-valuemax="-10" aria-valuenow="${threshold}" aria-valuetext="${threshold} dB" aria-disabled="${!config.gateEnabled}" title="${config.gateEnabled ? 'Glisse le repère pour régler le seuil de la porte' : 'Active la porte pour couper les bruits faibles'}">
                         <div class="mic-meter-track">
                             <div class="mic-meter-muted"></div>
                             <div class="mic-meter-fill"></div>
@@ -83,7 +85,7 @@ export const micMonitorView = {
 
                 <section class="mic-volume" title="Volume du retour (au-delà de 100 % : amplifié)">
                     <i class="ph-bold ${volume === 0 ? 'ph-speaker-slash' : 'ph-speaker-low'}"></i>
-                    <div class="mic-slider" data-mic="volume" style="--val: ${volume / 2}%">
+                    <div class="mic-slider" data-mic="volume" role="slider" tabindex="0" aria-label="Volume du retour micro" aria-valuemin="0" aria-valuemax="200" aria-valuenow="${volume}" aria-valuetext="${volume} %" style="--val: ${volume / 2}%">
                         <div class="mic-slider-fill"></div>
                         <div class="mic-slider-detent"></div>
                         <div class="mic-slider-knob"></div>
@@ -92,14 +94,14 @@ export const micMonitorView = {
                 </section>
 
                 <section class="mic-chips">
-                    <button class="mic-chip ${config.denoise ? 'on' : ''} ${status.denoiseAvailable === false ? 'is-disabled' : ''}" data-mic="denoise"
+                    <button class="mic-chip ${config.denoise ? 'on' : ''} ${status.denoiseAvailable === false ? 'is-disabled' : ''}" data-mic="denoise" aria-pressed="${Boolean(config.denoise)}" ${status.denoiseAvailable === false ? 'disabled' : ''}
                         title="${status.denoiseAvailable === false ? 'Indisponible : le micro doit tourner à 48 kHz' : 'Réduction de bruit par réseau de neurones (RNNoise)'}">
                         <i class="ph-bold ph-sparkle"></i>Anti-bruit IA
                     </button>
-                    <button class="mic-chip ${config.gateEnabled ? 'on' : ''}" data-mic="gate" title="Porte : coupe le retour sous le seuil (clavier, ventilateur)">
+                    <button class="mic-chip ${config.gateEnabled ? 'on' : ''}" data-mic="gate" aria-pressed="${Boolean(config.gateEnabled)}" title="Porte : coupe le retour sous le seuil (clavier, ventilateur)">
                         <i class="ph-bold ph-waveform-slash"></i>Porte
                     </button>
-                    <button class="mic-chip ${config.highPass ? 'on' : ''}" data-mic="highpass" title="Coupe-bas à 90 Hz (souffle, chocs)">
+                    <button class="mic-chip ${config.highPass ? 'on' : ''}" data-mic="highpass" aria-pressed="${Boolean(config.highPass)}" title="Coupe-bas à 90 Hz (souffle, chocs)">
                         <i class="ph-bold ph-wave-sine"></i>Coupe-bas
                     </button>
                 </section>
@@ -120,6 +122,7 @@ export const micMonitorView = {
         this.bindMicView(view);
         this.paintMicLevels(status);
         this.syncMicActivity();
+        if (focusedControl) view.querySelector(`[data-mic="${focusedControl}"]`)?.focus();
     },
 
     bindMicView(view) {
@@ -145,6 +148,8 @@ export const micMonitorView = {
             let volume = Math.round(pct * 2);
             if (Math.abs(volume - 100) <= 4) volume = 100;
             slider.style.setProperty('--val', `${volume / 2}%`);
+            slider.setAttribute('aria-valuenow', volume);
+            slider.setAttribute('aria-valuetext', `${volume} %`);
             view.querySelector('.mic-volume-value').textContent = `${volume} %`;
             return { volume };
         });
@@ -155,6 +160,8 @@ export const micMonitorView = {
             if (!config().gateEnabled) return null;
             const db = Math.max(-80, Math.min(-10, Math.round(pctToDb(pct))));
             view.style.setProperty('--gate', `${dbToPct(db)}%`);
+            meter.setAttribute('aria-valuenow', db);
+            meter.setAttribute('aria-valuetext', `${db} dB`);
             view.querySelector('.mic-gate-handle span').textContent = `${db} dB`;
             return { gateThreshold: db };
         });
@@ -166,6 +173,20 @@ export const micMonitorView = {
             const volume = Math.max(0, Math.min(200, (config().volume ?? 60) + (e.deltaY < 0 ? 5 : -5)));
             this.setMicMonitor({ volume });
         }, { passive: false });
+        const bindKeys = (element, field, min, max, step, fallback) => {
+            element.addEventListener('keydown', event => {
+                if (element.getAttribute('aria-disabled') === 'true') return;
+                const key = event.key;
+                if (!['ArrowRight', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'].includes(key)) return;
+                event.preventDefault(); event.stopPropagation();
+                const current = config()[field] ?? fallback;
+                const delta = ['ArrowRight', 'ArrowUp', 'PageUp'].includes(key) ? 1 : -1;
+                const next = key === 'Home' ? min : key === 'End' ? max : Math.max(min, Math.min(max, current + delta * step * (key.startsWith('Page') ? 10 : 1)));
+                this.setMicMonitor({ [field]: next });
+            });
+        };
+        bindKeys(slider, 'volume', 0, 200, 5, 60);
+        bindKeys(meter, 'gateThreshold', -80, -10, 1, -50);
     },
 
     /** Glisser à la souris ; `update(pct)` renvoie le correctif à envoyer (ou null). */
@@ -250,8 +271,10 @@ export const micMonitorView = {
         `;
         const close = () => {
             sheet.classList.add('leaving');
+            sheet.inert = true;
             this._micSheet = null;
             setTimeout(() => sheet.remove(), 220);
+            view.querySelector(`[data-mic="${kind}"]`)?.focus();
         };
         sheet.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -261,8 +284,30 @@ export const micMonitorView = {
             this._micSheet = null;
             sheet.remove();
             this.setMicMonitor({ [key]: item.dataset.id });
+            this.content.querySelector(`[data-mic="${kind}"]`)?.focus();
         });
         this._micSheet = sheet;
         view.appendChild(sheet);
+        sheet.setAttribute('role', 'dialog');
+        sheet.setAttribute('aria-modal', 'true');
+        sheet.setAttribute('aria-label', kind === 'input' ? 'Choisir le micro' : 'Choisir la sortie du retour');
+        sheet.querySelector('.mic-sheet-item.on, .mic-sheet-item')?.focus();
+        sheet.addEventListener('keydown', event => {
+            event.stopPropagation();
+            if (event.key === 'Escape') { event.preventDefault(); close(); }
+            if (event.key === 'Tab') {
+                const items = [...sheet.querySelectorAll('button')];
+                const first = items[0], last = items.at(-1);
+                if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+                else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+            }
+            if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+                event.preventDefault();
+                const items = [...sheet.querySelectorAll('button')];
+                const index = items.indexOf(document.activeElement);
+                const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+                items[next].focus();
+            }
+        });
     },
 };

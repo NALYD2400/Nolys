@@ -7,6 +7,20 @@ use crate::island::{self, displays, layout};
 use crate::state::AppState;
 
 #[tauri::command]
+pub fn set_island_extent(app: AppHandle, bounds: Option<island::hit_test::CssRect>) -> Result<(), String> {
+    if let Some(rect) = bounds {
+        if [rect.x, rect.y, rect.width, rect.height].iter().any(|v| !v.is_finite())
+            || rect.width < 1.0 || rect.height < 1.0 || rect.width > layout::BASE_WIDTH || rect.height > layout::BASE_HEIGHT
+            || rect.x < 0.0 || rect.y < 0.0 || rect.x + rect.width > layout::BASE_WIDTH + 1.0 || rect.y + rect.height > layout::BASE_HEIGHT + 1.0 {
+            return Err("Dimensions de capsule invalides.".into());
+        }
+    }
+    *app.state::<AppState>().expanded_bounds.lock() = bounds;
+    island::apply_layout(&app);
+    Ok(())
+}
+
+#[tauri::command]
 pub fn get_layout_state(app: AppHandle) -> Value {
     let state = app.state::<AppState>();
     let current = state.layout.lock().clone();

@@ -73,7 +73,7 @@ pub fn fetch(title: &str, artist: &str) -> String {
         let album = &json["data"][0]["album"];
         if let Some(url) = album["cover_xl"].as_str().or_else(|| album["cover_big"].as_str()).filter(|u| !u.is_empty()) {
             remember(&key, url);
-            crate::logger::log(&format!("[Cover Fallback] Found cover on Deezer for {key}: {url}"));
+            crate::logger::log("[Cover Fallback] Found cover on Deezer");
             return url.into();
         }
     }
@@ -83,7 +83,7 @@ pub fn fetch(title: &str, artist: &str) -> String {
         if let Some(url) = result["artworkUrl100"].as_str().or_else(|| result["artworkUrl60"].as_str()) {
             let high_res = url.replace("100x100bb", "3000x3000bb").replace("60x60bb", "3000x3000bb");
             remember(&key, &high_res);
-            crate::logger::log(&format!("[Cover Fallback] Found cover on iTunes for {key}: {high_res}"));
+            crate::logger::log("[Cover Fallback] Found cover on iTunes");
             return high_res;
         }
     }

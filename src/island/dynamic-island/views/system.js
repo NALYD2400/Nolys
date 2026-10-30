@@ -1,56 +1,13 @@
 /** Vues système : statistiques, réseau, chrono et minuteur. */
 import { ipcRenderer } from '../../../shared/ipc.js';
-import { SoundService } from '../../../services/SoundService.js';
-
-/** Durées proposées par le minuteur, par défaut (en secondes). */
-const DEFAULT_TIMER_PRESETS = [60, 300, 600, 1500];
-const TIMER_PRESETS_KEY = 'liquid_timer_presets';
-const MAX_TIMER_SECONDS = 99 * 3600;
-
-/** Durées rapides personnalisées (localStorage), avec repli sur les valeurs par défaut. */
-function loadTimerPresets() {
-    try {
-        const saved = JSON.parse(localStorage.getItem(TIMER_PRESETS_KEY) || 'null');
-        if (Array.isArray(saved) && saved.length === DEFAULT_TIMER_PRESETS.length
-            && saved.every((n) => Number.isInteger(n) && n >= 1 && n <= MAX_TIMER_SECONDS)) {
-            return saved;
-        }
-    } catch (e) { /* valeurs par défaut */ }
-    return [...DEFAULT_TIMER_PRESETS];
-}
-
-/** « 1 h », « 25 min » ou « 1:30 » selon la durée. */
-export function formatTimerPreset(seconds) {
-    if (seconds % 3600 === 0) return `${seconds / 3600} h`;
-    if (seconds % 60 === 0) return `${seconds / 60} min`;
-    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
-}
-
-/**
- * Lit une durée tapée : « 90 » (minutes), « 1h », « 1h30 », « 1h 30 », « 1:30 » (m:ss),
- * « 1:30:00 » (h:mm:ss). Renvoie les secondes, ou null si ce n'est pas une durée valable.
- */
-export function parseTimerInput(text) {
-    const raw = String(text || '').trim().toLowerCase().replace(/\s+/g, '');
-    let seconds = null;
-    let match;
-    if ((match = raw.match(/^(\d{1,2}):(\d{1,2}):(\d{1,2})$/))) {
-        seconds = Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]);
-    } else if ((match = raw.match(/^(\d{1,3}):(\d{1,2})$/))) {
-        seconds = Number(match[1]) * 60 + Number(match[2]);
-    } else if ((match = raw.match(/^(\d{1,2})h(\d{1,2})?$/))) {
-        seconds = Number(match[1]) * 3600 + Number(match[2] || 0) * 60;
-    } else if ((match = raw.match(/^(\d{1,4})(min|m)?$/))) {
-        seconds = Number(match[1]) * 60;
-    }
-    if (seconds === null || seconds < 1 || seconds > MAX_TIMER_SECONDS) return null;
-    return seconds;
-}
+import { timerView } from './timer.js';
+import { percent, percentLabel } from '../../../shared/system-metrics.js';
+export { parseTimerInput, formatTimerPreset } from '../features/timer-state.js';
 
 export const systemViews = {
     renderStats(stats) {
-        const cpu = stats ? stats.cpu : 0;
-        const ram = stats ? stats.ram : 0; // Added RAM
+        const cpu = percent(stats?.cpu);
+        const ram = percent(stats?.ram);
 
         // --- Gauge Configuration ---
         const r = 32;
@@ -64,7 +21,7 @@ export const systemViews = {
         // 1. CPU Usage (Always show)
         items.push({
             id: 'cpu',
-            val: cpu + '%',
+            val: percentLabel(cpu),
             label: 'CPU',
             offset: cpuOffset,
             icon: 'ph-cpu',
@@ -74,7 +31,7 @@ export const systemViews = {
         // 2. RAM Usage (Lightweight alternative to GPU/Temp)
         items.push({
             id: 'ram',
-            val: ram + '%',
+            val: percentLabel(ram),
             label: 'RAM',
             offset: ramOffset,
             icon: 'ph-memory',
@@ -237,177 +194,5 @@ export const systemViews = {
         `;
     },
 
-    renderTimer() {
-        // Pilule repliée : le chrono n'a rien à afficher dedans, seulement sa bulle.
-        if (!this.isExpanded || this.mode !== 'timer') {
-            this.syncTimerSatellite();
-            return;
-        }
-        const isCountdown = this.timerMode === 'countdown';
-        const mins = Math.floor(this.timerValue / 60).toString().padStart(2, '0');
-        const secs = (this.timerValue % 60).toString().padStart(2, '0');
-        const status = this.isTimerRunning ? 'En cours' : (this.timerValue > 0 ? 'En pause' : 'Prêt');
-        // Minuteur au repos, vide ou sur sa durée : on propose les durées à la place du statut.
-        const showPresets = isCountdown && !this.isTimerRunning && (this.timerValue === 0 || this.timerValue === this.timerPreset);
-        const presets = loadTimerPresets();
-        // Clic : durée. Clic droit : la changer (saisie d'une nouvelle durée).
-        const presetsHtml = presets.map((seconds, index) => `
-                    <button class="timer-preset ${this.timerPreset === seconds ? 'on' : ''}" data-preset="${index}" data-island-action="setTimerPreset" data-arg="${seconds}" oncontextmenu="event.preventDefault(); event.stopPropagation(); window.island.editTimerPreset(${index})" title="Minuteur : ${formatTimerPreset(seconds)} (clic droit pour la changer)">${formatTimerPreset(seconds)}</button>`).join('');
-
-        this.content.innerHTML = `
-        <div class="island-timer-container">
-            <div class="island-timer-header">
-                <div class="timer-mode" role="radiogroup" aria-label="Mode">
-                    <button class="${isCountdown ? '' : 'on'}" role="radio" aria-checked="${!isCountdown}" data-island-action="setTimerMode" data-arg="stopwatch">Chrono</button>
-                    <button class="${isCountdown ? 'on' : ''}" role="radio" aria-checked="${isCountdown}" data-island-action="setTimerMode" data-arg="countdown">Minuteur</button>
-                </div>
-                <button class="island-action-btn menu-btn" data-island-action="setMode" data-arg="menu" title="Menu des modules">
-                    <i class="ph-bold ph-squares-four"></i>
-                </button>
-            </div>
-            <div class="timer-stage">
-                ${showPresets
-                    ? `<div class="timer-presets">${presetsHtml}
-                    </div>`
-                    : `<div class="timer-status">${status}</div>`}
-                <div class="timer-readout">${mins}:${secs}</div>
-                <div class="timer-controls">
-                    <button class="timer-control-btn" data-island-action="resetTimer" title="Réinitialiser">
-                        <i class="ph-bold ph-arrow-counter-clockwise"></i>
-                    </button>
-                    <button class="timer-control-btn primary ${this.isTimerRunning ? 'is-running' : ''}" data-island-action="toggleTimer" title="${this.isTimerRunning ? 'Pause' : 'Démarrer'}">
-                        <i class="ph-fill ${this.isTimerRunning ? 'ph-pause' : 'ph-play'}"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-      `;
-        this.syncTimerSatellite();
-    },
-
-    /** Bascule chrono / minuteur : chaque mode garde sa valeur. */
-    setTimerMode(mode) {
-        if (this.timerMode === mode) return;
-        this.timerStore ??= { stopwatch: 0, countdown: 0 };
-        this.timerStore[this.timerMode] = this.timerValue;
-        this.timerMode = mode;
-        this.timerValue = this.timerStore[mode];
-        this.isTimerRunning = false;
-        this.renderTimer();
-    },
-
-    /**
-     * Clic droit sur une durée rapide : un champ s'ouvre à sa place. Entrée valide, Échap
-     * ou perte du focus annule. Une durée invalide garde l'ancienne valeur.
-     */
-    editTimerPreset(index) {
-        const button = this.content.querySelector(`.timer-preset[data-preset="${index}"]`);
-        if (!button || button.querySelector('input')) return;
-        const presets = loadTimerPresets();
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.className = 'timer-preset-input';
-        input.value = formatTimerPreset(presets[index]);
-        input.placeholder = '90 · 1h30 · 1:30:00';
-        input.setAttribute('aria-label', 'Nouvelle durée');
-        button.textContent = '';
-        button.appendChild(input);
-        input.focus();
-        input.select();
-
-        let done = false;
-        const finish = (save) => {
-            if (done) return;
-            done = true;
-            const seconds = save ? parseTimerInput(input.value) : null;
-            if (seconds !== null) {
-                presets[index] = seconds;
-                try { localStorage.setItem(TIMER_PRESETS_KEY, JSON.stringify(presets)); } catch (e) { /* stockage plein : valeur gardée pour cette session */ }
-                if (this.timerPreset === presets[index]) this.timerPreset = seconds;
-            }
-            this.renderTimer();
-        };
-        input.addEventListener('keydown', (e) => {
-            e.stopPropagation(); // les touches ne doivent pas déclencher les raccourcis de l'Island
-            if (e.key === 'Enter') { e.preventDefault(); finish(true); }
-            else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
-        });
-        input.addEventListener('blur', () => finish(true));
-        input.addEventListener('click', (e) => e.stopPropagation());
-    },
-
-    /** Choisit une durée du minuteur, prête à démarrer. */
-    setTimerPreset(seconds) {
-        this.timerMode = 'countdown';
-        this.timerPreset = seconds;
-        this.timerValue = seconds;
-        this.isTimerRunning = false;
-        this.renderTimer();
-    },
-
-    /** Démarre ou met en pause ; un minuteur terminé repart de sa durée. */
-    toggleTimer() {
-        if (!this.isTimerRunning && this.timerMode === 'countdown' && this.timerValue === 0) {
-            this.timerValue = this.timerPreset;
-        }
-        this.isTimerRunning = !this.isTimerRunning;
-        this.renderTimer();
-    },
-
-    /** Réinitialise : le chrono revient à zéro, le minuteur à sa durée choisie. */
-    resetTimer() {
-        this.isTimerRunning = false;
-        this.timerValue = this.timerMode === 'countdown' ? this.timerPreset : 0;
-        this.renderTimer();
-    },
-
-    /** Bulle du minuteur, à gauche de la pilule : pendant le décompte, pilule libre. */
-    initTimerSatellite() {
-        this._timerSatellite = document.getElementById('island-timer-satellite');
-        this._timerSatellite?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.openExpandedMode('timer');
-        });
-        this.positionMicSatellite();
-        this.syncSatelliteTheme();
-        this.syncTimerSatellite();
-    },
-
-    /**
-     * Temps dans la bulle, lisible d'un coup d'œil : les secondes seules sous la minute
-     * (« 45 »), puis le nombre de minutes (« 2 min »). L'anneau suit le temps restant d'un minuteur.
-     */
-    syncTimerSatellite() {
-        const bubble = this._timerSatellite;
-        if (!bubble) return;
-        const total = Math.max(0, Math.floor(this.timerValue));
-        // Sous la minute : les secondes seules. Au-delà : m:ss, et la bulle s'élargit pour les deux.
-        const wide = total >= 60;
-        const hours = total >= 3600;
-        const pad = (n) => String(n).padStart(2, '0');
-        let label = String(total);
-        if (hours) label = `${Math.floor(total / 3600)}:${pad(Math.floor(total / 60) % 60)}:${pad(total % 60)}`;
-        else if (wide) label = `${Math.floor(total / 60)}:${pad(total % 60)}`;
-        const value = bubble.querySelector('.satellite-timer-value');
-        if (value && value.textContent !== label) value.textContent = label;
-        const sizeChanged = bubble.classList.contains('is-wide') !== wide || bubble.classList.contains('is-hours') !== hours;
-        if (sizeChanged) {
-            bubble.classList.toggle('is-wide', wide);
-            bubble.classList.toggle('is-hours', hours);
-            this.positionMicSatellite?.(); // la bulle s'élargit vers la gauche : on recale son bord
-        }
-
-        const remaining = this.timerMode === 'countdown' && this.timerPreset > 0 ? (this.timerValue / this.timerPreset) * 100 : 100;
-        bubble.style.setProperty('--timer-pct', String(Math.round(remaining)));
-        bubble.classList.toggle('is-stopwatch', this.timerMode !== 'countdown');
-        bubble.classList.toggle('is-visible', this.isTimerRunning && !this.isExpanded);
-        this.positionMicSatellite?.();
-    },
-
-    /** Appelé à chaque seconde quand le minuteur atteint zéro. */
-    onCountdownDone() {
-        this.isTimerRunning = false;
-        SoundService.play('success');
-        this.showIslandFeedback('Minuteur terminé', 'ph-timer');
-    },
+    ...timerView,
 };

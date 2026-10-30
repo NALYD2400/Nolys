@@ -1,3 +1,4 @@
+import { offlineArt } from '../../shared/privacy.js';
 /**
  * État des réglages pour l'interface React : lecture initiale, modifications,
  * envoi à l'Island (regroupé à 30 envois/s au maximum pendant un glissement
@@ -18,6 +19,14 @@ import {
 } from './storage.js';
 import { playClick } from './sound.js';
 import { whileBusy } from './busy.js';
+import { sanitizeSettings, validateBackup } from './validation.js';
+import { isSyncedKey, ensureSettingsSaved } from '../../shared/settings-store.js';
+import { readJSON } from '../../shared/safe-storage.js';
+import { preferenceTransaction } from './preference-transaction.js';
+
+const backupKey = key => isSyncedKey(key) || key === 'nolys_library_player';
+const localValues = () => Object.fromEntries(Object.keys(localStorage).filter(key => backupKey(key) && !key.startsWith('liquid_recovery_')).map(key => [key, localStorage.getItem(key)]));
+const restoreValues = values => { for (const key of Object.keys(localStorage)) if (backupKey(key) && !key.startsWith('liquid_recovery_') && !(key in values)) localStorage.removeItem(key); for (const [key, value] of Object.entries(values)) if (backupKey(key)) localStorage.setItem(key, value); };
 
 const SEND_INTERVAL_MS = 33;
 
@@ -51,7 +60,7 @@ export function useSettings() {
     /** Modifie un ou plusieurs réglages. Toute modification manuelle sort du profil actif. */
     const update = useCallback((patch) => {
         setSettings((current) => {
-            const next = { ...current, ...patch, activeProfile: patch.activeProfile ?? 'custom' };
+            const next = sanitizeSettings({ ...current, ...patch, activeProfile: patch.activeProfile ?? 'custom' });
             commit(next);
             return next;
         });
@@ -99,40 +108,78 @@ export function useSettings() {
     }, [settings.activeProfile, update]);
 
     const exportSettings = useCallback(() => {
+        return whileBusy(async () => {
+        flush();
+        await ensureSettingsSaved();
+        const nativePreferences = await native.invoke('preferences_bundle');
         const payload = {
             type: 'liquid-dynamic-island-settings',
-            version: 1,
+            version: 2,
             exportedAt: new Date().toISOString(),
             activeProfile: settings.activeProfile,
             settings: toSnapshot(settings),
             profiles: loadCustomProfiles(),
-            musicHistory: JSON.parse(localStorage.getItem('liquid_music_history') || '[]'),
+            musicHistory: readJSON('liquid_music_history', [], Array.isArray),
+            uiValues: localValues(), nativePreferences,
         };
         // Fenêtre « Enregistrer sous » de Windows : un téléchargement WebView2 ouvrirait son
         // panneau au-dessus de l'Island et lui ferait perdre le focus.
-        return whileBusy(() => native.invoke('save_settings_file', {
+        return native.invoke('save_settings_file', {
             contents: JSON.stringify(payload, null, 2),
             fileName: `nolys-reglages-${new Date().toISOString().slice(0, 10)}.json`,
-        }));
-    }, [settings]);
+        });
+        });
+    }, [settings, flush]);
 
     const importSettings = useCallback(async (file) => {
-        const payload = JSON.parse(await file.text());
-        if (Array.isArray(payload.profiles)) {
-            saveCustomProfiles(payload.profiles);
-            setCustomProfiles(loadCustomProfiles());
-        }
-        if (Array.isArray(payload.musicHistory)) {
-            localStorage.setItem('liquid_music_history', JSON.stringify(payload.musicHistory.slice(0, 20)));
-        }
-        if (payload.settings) {
-            setSettings((current) => {
-                const next = { ...fromSnapshot(current, payload.settings), activeProfile: payload.activeProfile || 'custom' };
-                commit(next);
-                return next;
-            });
-        }
-    }, [commit]);
+        if (file.size > 16 * 1024 * 1024) throw new Error('La sauvegarde dépasse 16 Mio.');
+        const payload = validateBackup(JSON.parse(await file.text()));
+        flush();
+        const next = fromSnapshot(settings, payload.settings);
+        const previous = localValues();
+        const previousNative = await native.invoke('preferences_bundle');
+        localStorage.setItem('liquid_recovery_before_import', JSON.stringify({ uiValues: previous, nativePreferences: previousNative }));
+        let nativeChanged = false;
+        await preferenceTransaction(async () => {
+            if (payload.nativePreferences) { await native.invoke('preferences_restore', { bundle: payload.nativePreferences }); nativeChanged = true; }
+            if (payload.uiValues) restoreValues(payload.uiValues);
+            if (payload.profiles) saveCustomProfiles(payload.profiles);
+            if (payload.musicHistory) localStorage.setItem('liquid_music_history', JSON.stringify(payload.musicHistory.slice(0, 20)));
+            saveSettings(next);
+            await ensureSettingsSaved();
+        }, [() => restoreValues(previous), ensureSettingsSaved,
+            () => nativeChanged && previousNative ? native.invoke('preferences_restore', { bundle: previousNative }) : undefined]);
+        setCustomProfiles(loadCustomProfiles()); setSettings(next);
+        ipcRenderer.send('config-changed', saveSettings(next));
+        window.dispatchEvent(new Event('nolys-preferences-restored'));
+    }, [settings, flush]);
+
+    const resetPage = useCallback(async page => {
+        const keys = { general: ['persistent','gameDetection','notifications','soundEffects','ecoMode','maxFps'], island: ['pillCoverShape','pillShowTitle','pillMaxWidth','titleScroll','vizStyle','vizBars','vizGlow','vizInPill','showVisualizer','vizColorMode','vizColorSolid','vizColorGradA','vizColorGradB','visualizerSensitivity','playerCoverBg'], appearance: ['motion','opacity','blur','materialStyle','grainEffect','glowEnabled','glowDensity','glowColorMode','glowBlend','glowColor','coverSync','idleCoverBg','glowBreath'], music: ['musicEnabled','showTimes','showActions','wheelAppVolume','idleCompactMode','onlineCovers','offlineMode'], wallpaper: ['wallpaperSync','wallpaperSyncStyle','wallpaperBlurIntensity','wallpaperDarken','wallpaperDelay'], control: ['controlEnabled','timerEnabled','widgetType','weatherCity','shortcuts'], menus: ['menus'], shortcuts: ['hotkeys'] };
+        flush();
+        const nativePreferences = await native.invoke('preferences_bundle');
+        localStorage.setItem('liquid_recovery_before_reset', JSON.stringify({uiValues: localValues(), nativePreferences}));
+        if (page === 'position') { ipcRenderer.send('layout-reset'); return; }
+        if (page === 'mic') { await native.invoke('reset_microphone_preferences'); window.dispatchEvent(new Event('nolys-preferences-restored')); return; }
+        const defaults = sanitizeSettings({});
+        update(Object.fromEntries((keys[page] || []).map(key => [key, defaults[key] ?? (key === 'wallpaperSyncStyle' ? 'blur' : '')])));
+    }, [update, flush]);
+
+    const recoverImport = useCallback(async (kind = 'import') => {
+        flush();
+        const backup = readJSON(`liquid_recovery_before_${kind === 'reset' ? 'reset' : 'import'}`, null, value => value && typeof value.uiValues === 'object');
+        if (!backup) throw new Error('Aucune sauvegarde de récupération disponible.');
+        const previous = localValues(), previousNative = await native.invoke('preferences_bundle');
+        let nativeChanged = false;
+        await preferenceTransaction(async () => {
+            if (backup.nativePreferences) { await native.invoke('preferences_restore', { bundle: backup.nativePreferences }); nativeChanged = true; }
+            restoreValues(backup.uiValues);
+            await ensureSettingsSaved();
+        }, [() => restoreValues(previous), ensureSettingsSaved,
+            () => nativeChanged && previousNative ? native.invoke('preferences_restore', {bundle: previousNative}) : undefined]);
+        const restored = loadSettings(); setSettings(restored); setCustomProfiles(loadCustomProfiles()); ipcRenderer.send('config-changed', saveSettings(restored));
+        window.dispatchEvent(new Event('nolys-preferences-restored'));
+    }, [flush]);
 
     // Enregistre les raccourcis à chaque changement (réglage, profil, import). Une réponse périmée
     // (changement entre-temps) est ignorée.
@@ -161,9 +208,10 @@ export function useSettings() {
         deleteProfile,
         exportSettings,
         importSettings,
+        resetPage, recoverImport,
         hotkeyConflicts,
         setHotkeys,
-    }), [settings, update, customProfiles, applyQuickProfile, applyCustomProfile, saveCurrentAsProfile, deleteProfile, exportSettings, importSettings, hotkeyConflicts, setHotkeys]);
+    }), [settings, update, customProfiles, applyQuickProfile, applyCustomProfile, saveCurrentAsProfile, deleteProfile, exportSettings, importSettings, resetPage, recoverImport, hotkeyConflicts, setHotkeys]);
 }
 
 /** Démarrage automatique (géré par Windows, pas par le localStorage). */
@@ -257,7 +305,7 @@ export function useCoverTheme(enabled) {
         }
     });
     useEffect(() => onCover(setCover), []);
-    return enabled ? cover : {};
+    return enabled ? { ...cover, cover: offlineArt(cover.cover) } : {};
 }
 
 /**

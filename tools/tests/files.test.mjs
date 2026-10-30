@@ -12,7 +12,7 @@ globalThis.window = { __TAURI__: {
     core: { invoke: (...args) => invoke(...args) },
     webviewWindow: { getCurrentWebviewWindow: () => ({ listen: async (channel, callback) => { handlers.set(channel, callback); return () => handlers.delete(channel); } }) },
 } };
-const { files, initFiles, select, start, copy } = await import('../../src/files/store.js');
+const { files, initFiles, select, start, copy, pick, remove, retry, configure } = await import('../../src/files/store.js');
 
 test('a newer job event survives the snapshot received while mounting', async () => {
     await initFiles();
@@ -53,4 +53,61 @@ test('mixed and unsupported selections open the available file actions', () => {
     assert.equal(files.tab, 'actions');
     select([{ id: 'image', extension: 'png' }]);
     assert.equal(files.tab, 'convert');
+});
+
+test('native cumulative selections survive another pick and individual removal', async () => {
+    const first = { id: 'one', name: 'one.png', extension: 'png' };
+    const second = { id: 'two', name: 'two.png', extension: 'png' };
+    select([first]);
+    invoke = async (command, args) => {
+        if (command === 'files_pick') return [first, second];
+        if (command === 'files_remove_inputs') { assert.deepEqual(args.ids, ['one']); return [second]; }
+    };
+    await pick();
+    assert.deepEqual(files.inputs.map(input => input.id), ['one', 'two']);
+    await remove(['one']);
+    assert.deepEqual(files.inputs.map(input => input.id), ['two']);
+});
+
+test('retry submits the native job identity and prevents double clicks', async () => {
+    let release;
+    const calls = [];
+    invoke = async (command, args) => { calls.push([command, args]); await new Promise(resolve => { release = resolve; }); };
+    const first = retry('partial-job');
+    await retry('partial-job');
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0][0], 'files_retry');
+    assert.equal(calls[0][1].jobId, 'partial-job');
+    assert.equal(typeof calls[0][1].requestId, 'string');
+    release(); await first;
+    assert.match(files.notice, /en échec/);
+});
+
+test('saving preferences accepts a snapshot that clears the previous repair error', async () => {
+    files.repairable = true; files.error = 'Corrupt history';
+    const preferences = { format: 'webp', quality: 82, maxEdge: 1280, background: null, historyLimit: 20 };
+    invoke = async (command, args) => {
+        assert.equal(command, 'files_preferences'); assert.deepEqual(args.preferences, preferences);
+        return { sequence: 5, jobs: [], inputs: [], destination: 'exports', preferences, repairable: false, error: null };
+    };
+    await configure('files_preferences', { preferences });
+    assert.equal(files.preferences.historyLimit, 20);
+    assert.equal(files.error, ''); assert.equal(files.repairable, false);
+});
+
+test('failed preference writes keep the saved configuration and report the error', async () => {
+    const before = files.preferences;
+    invoke = async () => { throw new Error('Disque indisponible'); };
+    await configure('files_preferences', { preferences: { ...before, historyLimit: 50 } });
+    assert.equal(files.preferences, before);
+    assert.match(files.error, /Disque indisponible/);
+});
+
+test('incremental progress updates one job and rejects delayed history snapshots', () => {
+    handlers.get('files-job-changed')({ payload: { sequence: 6, job: { id: 'progress-job', completed: 1 }, error: null } });
+    assert.equal(files.jobs[0].completed, 1);
+    handlers.get('files-changed')({ payload: { sequence: 5, jobs: [], destination: 'old', error: null } });
+    assert.equal(files.jobs[0].id, 'progress-job');
+    handlers.get('files-job-changed')({ payload: { sequence: 7, job: { id: 'progress-job', completed: 2 }, error: null } });
+    assert.equal(files.jobs.length, 1); assert.equal(files.jobs[0].completed, 2);
 });

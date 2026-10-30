@@ -13,6 +13,20 @@
  * Ce module doit être importé avant tout autre (voir island/main.js).
  */
 const LOADED_KEY = 'nolys_ui_settings_loaded';
+let persistence = { status: 'saved', error: '' };
+const persistenceListeners = new Set();
+let retryPersistence = () => Promise.resolve();
+export const getSettingsPersistence = () => persistence;
+export const subscribeSettingsPersistence = listener => { persistenceListeners.add(listener); return () => persistenceListeners.delete(listener); };
+export const retrySettingsPersistence = () => retryPersistence();
+export async function ensureSettingsSaved() {
+    await retryPersistence();
+    if (persistence.status === 'error') throw new Error(`Enregistrement impossible : ${persistence.error}`);
+}
+function publishPersistence(status, error = '') {
+    persistence = { status, error };
+    persistenceListeners.forEach(listener => listener(persistence));
+}
 
 export const isSyncedKey = (key) => typeof key === 'string' && (key.startsWith('liquid_') || key === 'island_standalone_config');
 
@@ -31,9 +45,31 @@ export function installSettingsStore({ storage, session, snapshot, invoke, proto
 
     // Envois en série : le fichier reçoit les modifications dans l'ordre.
     let chain = Promise.resolve();
+    let failed = {}, attempts = 0, retryTimer;
     const send = (command, args) => {
-        chain = chain.then(() => invoke(command, args)).catch((error) => console.warn(`[Settings] ${command} a échoué :`, error));
+        publishPersistence('saving');
+        chain = chain.then(async () => {
+            const changes = { ...failed, ...(args.changes || args.values || {}) };
+            try {
+                await invoke(command, command === 'ui_settings_seed' ? { values: changes } : { changes });
+                failed = {}; attempts = 0; clearTimeout(retryTimer);
+                publishPersistence('saved');
+            } catch (error) {
+                failed = changes;
+                publishPersistence('error', String(error?.message || error));
+                if (attempts < 3) {
+                    clearTimeout(retryTimer);
+                    retryTimer = setTimeout(() => retryPersistence(), [1000, 3000, 9000][attempts++]);
+                    retryTimer.unref?.();
+                }
+            }
+        });
         return chain;
+    };
+    retryPersistence = () => {
+        const changes = { ...failed };
+        for (const key of syncedKeys()) changes[key] = storage.getItem(key);
+        return send('ui_settings_write', { changes });
     };
 
     // Seul le premier chargement de la session reprend le fichier : après un rechargement,

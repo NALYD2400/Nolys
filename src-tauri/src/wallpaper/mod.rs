@@ -49,6 +49,7 @@ struct State {
     last_cover: String,
     pending_cover: Option<String>,
     file_index: u8,
+    suspended: bool,
 }
 
 pub struct WallpaperSync {
@@ -57,6 +58,8 @@ pub struct WallpaperSync {
     generation: AtomicU64,
     /// Sérialise les écritures disque / appels SPI.
     apply_lock: Mutex<()>,
+    /// Rendering may be expensive; restoration never waits for this lock.
+    render_lock: Mutex<()>,
 }
 
 /// Dernier recours : le fond fourni avec Windows, plutôt qu'une pochette laissée sur le bureau.
@@ -82,14 +85,28 @@ impl WallpaperSync {
                 last_cover: String::new(),
                 pending_cover: None,
                 file_index: 1,
+                suspended: false,
             }),
             generation: AtomicU64::new(0),
             apply_lock: Mutex::new(()),
+            render_lock: Mutex::new(()),
         })
     }
 
     pub fn is_enabled(&self) -> bool {
         self.state.lock().settings.enabled
+    }
+
+    /// Shutdown/installation must also reject media events that arrive after
+    /// the current desktop has been restored.
+    pub fn suspend_updates(&self) {
+        let mut state = self.state.lock();
+        state.suspended = true; state.pending_cover = None;
+        self.generation.fetch_add(1, Ordering::SeqCst);
+    }
+    pub fn resume_updates(&self) {
+        let mut state = self.state.lock();
+        state.suspended = false; state.last_cover.clear();
     }
 
     fn is_temp_wallpaper(&self, path: &str) -> bool {
@@ -219,17 +236,19 @@ impl WallpaperSync {
         let mut state = self.state.lock();
         state.last_cover.clear();
         state.pending_cover = None;
+        self.generation.fetch_add(1, Ordering::SeqCst);
     }
 
     /// Demande l'application d'une pochette (avec anti-rebond). Pochette vide = restaurer.
     pub fn update(self: &Arc<Self>, cover: String) {
-        let delay = {
+        if cover.len() > http::MAX_IMAGE_BYTES * 4 / 3 + 256 { return; }
+        let (delay, generation) = {
             let mut state = self.state.lock();
-            if !state.settings.enabled {
+            if !state.settings.enabled || state.suspended {
                 return;
             }
             if cover.is_empty() {
-                if state.last_cover.is_empty() {
+                if state.last_cover.is_empty() && state.pending_cover.is_none() {
                     return;
                 }
                 state.pending_cover = None;
@@ -243,10 +262,9 @@ impl WallpaperSync {
                 return;
             }
             state.pending_cover = Some(cover.clone());
-            state.settings.delay_ms.max(0) as u64
+            (state.settings.delay_ms.clamp(0, 30_000) as u64, self.generation.fetch_add(1, Ordering::SeqCst) + 1)
         };
 
-        let generation = self.generation.fetch_add(1, Ordering::SeqCst) + 1;
         let this = Arc::clone(self);
         tauri::async_runtime::spawn(async move {
             if delay > 0 {
@@ -260,62 +278,99 @@ impl WallpaperSync {
     }
 
     fn execute(&self, cover: &str, generation: u64) {
-        let _guard = self.apply_lock.lock();
-        // Option coupée ou pochette remplacée pendant l'attente : on n'applique rien.
-        let still_wanted = || self.state.lock().settings.enabled && self.generation.load(Ordering::SeqCst) == generation;
-        if !still_wanted() {
-            self.state.lock().pending_cover = None;
-            return;
-        }
-        let (path, settings) = {
-            let mut state = self.state.lock();
-            state.file_index = if state.file_index == 1 { 2 } else { 1 };
-            (self.data_dir.join(format!("current_wallpaper_{}.jpg", state.file_index)), state.settings.clone())
+        let cancelled = || {
+            let state = self.state.lock();
+            !state.settings.enabled || state.suspended || self.generation.load(Ordering::SeqCst) != generation
         };
-
+        if cancelled() { return; }
+        let settings = self.state.lock().settings.clone();
         let bytes = if let Some(rest) = cover.strip_prefix("data:image/") {
             rest.split_once(";base64,").and_then(|(_, data)| base64::engine::general_purpose::STANDARD.decode(data).ok())
         } else if cover.starts_with("http://") || cover.starts_with("https://") {
-            http::get_bytes(cover)
+            http::get_bytes_cancellable(cover, &cancelled)
         } else {
             None
         };
 
         let Some(bytes) = bytes else {
-            self.state.lock().pending_cover = None;
+            self.clear_pending(generation);
             return;
         };
-        if let Err(error) = std::fs::write(&path, bytes) {
-            log(&format!("[Wallpaper Sync] Failed to update wallpaper: {error}"));
-            self.state.lock().pending_cover = None;
-            return;
+        if bytes.len() > http::MAX_IMAGE_BYTES || cancelled() { self.clear_pending(generation); return; }
+        if std::fs::create_dir_all(&self.data_dir).is_err() { self.clear_pending(generation); return; }
+        let Ok(staged) = tempfile::Builder::new().prefix("wallpaper-stage-").tempdir_in(&self.data_dir) else { self.clear_pending(generation); return; };
+        let rendered = staged.path().join("wallpaper.jpg");
+        {
+            let _render = self.render_lock.lock();
+            if cancelled() { return; }
+            let passes = match settings.intensity.as_str() { "light" => 3, "strong" => 8, _ => 5 };
+            if let Err(error) = render::prepare(&bytes, &rendered, &settings.style, passes, settings.darken.clamp(0, 50) as u32, system::largest_screen_size(), &cancelled) {
+                if !cancelled() { log(&format!("[Wallpaper Sync] Cover render failed: {error}")); }
+                self.clear_pending(generation);
+                return;
+            }
         }
-
-        // Le rendu flou prend du temps : on revérifie juste avant de toucher au bureau.
-        if !still_wanted() {
-            self.state.lock().pending_cover = None;
-            return;
-        }
-        if settings.style == "sharp" {
-            system::set_wallpaper(&path.to_string_lossy());
-            log(&format!("[Wallpaper Sync] Applied sharp wallpaper: {}", path.display()));
-        } else {
-            let style = if settings.style == "cinematic" { "cinematic" } else { "blur" };
-            let passes = match settings.intensity.as_str() {
-                "light" => 3,
-                "strong" => 8,
-                _ => 5,
-            };
-            let darken = settings.darken.clamp(0, 50) as u32;
-            render::apply_blurred(&path, style, passes, darken);
-            log(&format!(
-                "[Wallpaper Sync] Applied blurred/cinematic wallpaper: {} style={style} passes={passes} darken={darken}",
-                path.display()
-            ));
-        }
-
+        // Network and image processing have finished. Only the short atomic
+        // publication and SPI call share the restoration lock.
+        let _apply = self.apply_lock.lock();
         let mut state = self.state.lock();
+        if !state.settings.enabled || state.suspended || self.generation.load(Ordering::SeqCst) != generation { return; }
+        let next_index = if state.file_index == 1 { 2 } else { 1 };
+        let path = self.data_dir.join(format!("current_wallpaper_{next_index}.jpg"));
+        let publish = || -> Result<(), String> {
+            let mut temporary = tempfile::NamedTempFile::new_in(&self.data_dir).map_err(|e| e.to_string())?;
+            let mut image = std::fs::File::open(&rendered).map_err(|e| e.to_string())?;
+            std::io::copy(&mut image, temporary.as_file_mut()).and_then(|_| temporary.as_file().sync_all()).map_err(|e| e.to_string())?;
+            temporary.persist(&path).map_err(|e| e.to_string())?;
+            system::set_wallpaper(&path.to_string_lossy());
+            Ok(())
+        };
+        if let Err(error) = publish() {
+            log(&format!("[Wallpaper Sync] Wallpaper publication failed: {error}"));
+            state.pending_cover = None;
+            return;
+        }
+        state.file_index = next_index;
         state.last_cover = cover.to_string();
         state.pending_cover = None;
+    }
+
+    fn clear_pending(&self, generation: u64) {
+        let mut state = self.state.lock();
+        if self.generation.load(Ordering::SeqCst) == generation { state.pending_cover = None; }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn a_superseded_worker_cannot_clear_the_new_pending_cover() {
+        let dir = tempfile::tempdir().unwrap(); let sync = WallpaperSync::new(dir.path().into());
+        sync.state.lock().pending_cover = Some("new cover".into());
+        sync.generation.store(2, Ordering::SeqCst);
+        sync.clear_pending(1);
+        assert_eq!(sync.state.lock().pending_cover.as_deref(), Some("new cover"));
+        sync.clear_pending(2); assert!(sync.state.lock().pending_cover.is_none());
+    }
+    #[test]
+    fn cancelling_a_pending_render_invalidates_its_generation_without_waiting_for_rendering() {
+        let dir = tempfile::tempdir().unwrap(); let sync = WallpaperSync::new(dir.path().into());
+        sync.state.lock().pending_cover = Some("cover".into());
+        let _render = sync.render_lock.lock();
+        assert_eq!(sync.cancel_pending(), 1);
+        assert!(sync.state.lock().pending_cover.is_none());
+        assert!(sync.apply_lock.try_lock().is_some());
+    }
+    #[test]
+    fn shutdown_suspension_rejects_new_media_events_until_an_explicit_resume() {
+        let dir = tempfile::tempdir().unwrap(); let sync = WallpaperSync::new(dir.path().into());
+        sync.state.lock().settings.enabled = true;
+        sync.suspend_updates();
+        let generation = sync.generation.load(Ordering::SeqCst);
+        sync.update("data:image/png;base64,ignored".into());
+        assert_eq!(sync.generation.load(Ordering::SeqCst), generation);
+        assert!(sync.state.lock().pending_cover.is_none());
+        sync.resume_updates(); assert!(!sync.state.lock().suspended); assert!(sync.is_enabled());
     }
 }

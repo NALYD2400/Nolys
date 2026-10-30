@@ -146,17 +146,30 @@ pub fn replay_media(app: AppHandle, window: WebviewWindow, id: String) -> Result
 }
 
 #[tauri::command]
-pub async fn replay_thumbnail(app: AppHandle, window: WebviewWindow, id: String) -> Result<String, String> {
+pub async fn replay_thumbnail(
+    app: AppHandle,
+    window: WebviewWindow,
+    id: String,
+) -> Result<String, String> {
     authorize(&window)?;
     tauri::async_runtime::spawn_blocking(move || {
         let path = app.state::<Store>().thumbnail(&id)?;
-        app.asset_protocol_scope().allow_file(&path).map_err(|e| e.to_string())?;
+        app.asset_protocol_scope()
+            .allow_file(&path)
+            .map_err(|e| e.to_string())?;
         Ok(path.to_string_lossy().into_owned())
-    }).await.map_err(|e| e.to_string())?
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub async fn replay_rename(app: AppHandle, window: WebviewWindow, id: String, name: String) -> Result<Snapshot, String> {
+pub async fn replay_rename(
+    app: AppHandle,
+    window: WebviewWindow,
+    id: String,
+    name: String,
+) -> Result<Snapshot, String> {
     authorize(&window)?;
     tauri::async_runtime::spawn_blocking(move || {
         let store = app.state::<Store>();
@@ -164,7 +177,9 @@ pub async fn replay_rename(app: AppHandle, window: WebviewWindow, id: String, na
         store.shared.notify();
         result?;
         Ok(store.snapshot())
-    }).await.map_err(|e| e.to_string())?
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -180,6 +195,100 @@ pub async fn replay_delete(
         store.delete_clip(&id, |path| super::recycle::recycle(path, owner))?;
         store.shared.notify();
         Ok(store.snapshot())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn replay_reindex(app: AppHandle, window: WebviewWindow) -> Result<Snapshot, String> {
+    authorize(&window)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = app.state::<Store>();
+        store.reindex()?;
+        store.shared.notify();
+        Ok(store.snapshot())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+pub async fn replay_relocate(
+    app: AppHandle,
+    window: WebviewWindow,
+    id: String,
+) -> Result<Snapshot, String> {
+    authorize(&window)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = app.state::<Store>();
+        if let Some(path) = rfd::FileDialog::new()
+            .set_parent(&window)
+            .set_title("Retrouver ce clip déplacé")
+            .add_filter("Vidéo MP4", &["mp4"])
+            .pick_file()
+        {
+            store.relocate(&id, path)?;
+        }
+        store.shared.notify();
+        Ok(store.snapshot())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+pub async fn replay_recovery_list(
+    app: AppHandle,
+    window: WebviewWindow,
+) -> Result<Vec<super::recovery::RecoveryFile>, String> {
+    authorize(&window)?;
+    tauri::async_runtime::spawn_blocking(move || app.state::<Store>().recovery_list())
+        .await
+        .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+pub async fn replay_recover(
+    app: AppHandle,
+    window: WebviewWindow,
+    id: String,
+) -> Result<Snapshot, String> {
+    authorize(&window)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = app.state::<Store>();
+        store.recover(&id)?;
+        store.shared.notify();
+        Ok(store.snapshot())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+pub async fn replay_cache(
+    app: AppHandle,
+    window: WebviewWindow,
+    clear: bool,
+) -> Result<super::thumbnail::CacheUsage, String> {
+    authorize(&window)?;
+    tauri::async_runtime::spawn_blocking(move || app.state::<Store>().cache_usage(clear))
+        .await
+        .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+pub async fn replay_preflight(
+    app: AppHandle,
+    window: WebviewWindow,
+    kind: String,
+    config: Config,
+) -> Result<serde_json::Value, String> {
+    authorize(&window)?;
+    tauri::async_runtime::spawn_blocking(move || match kind.as_str() {
+        "preview" => app
+            .state::<Store>()
+            .preview(config)
+            .map(serde_json::Value::String),
+        "audio" => {
+            serde_json::to_value(super::preflight::audio(&config)?).map_err(|e| e.to_string())
+        }
+        _ => Err("Vérification inconnue.".into()),
     })
     .await
     .map_err(|e| e.to_string())?

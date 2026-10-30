@@ -1,3 +1,5 @@
+import { readJSON, isRecord } from '../../../shared/safe-storage.js';
+import { sanitizeShortcuts } from '../../../settings/state/validation.js';
 /** Centre de contrôle (tuiles, curseurs, widgets). */
 import { ipcRenderer } from '../../../shared/ipc.js';
 import { SoundService } from '../../../services/SoundService.js';
@@ -5,6 +7,7 @@ import { escapeHtml } from '../helpers/format.js';
 import { APP_LOGO_ART, getDisplayMediaArt } from '../helpers/media-art.js';
 import { getMixerIcon, getMuteIcon } from '../helpers/mixer-icons.js';
 import { getMusicHistoryKey } from '../helpers/music-search.js';
+import { systemMetrics, percentLabel } from '../../../shared/system-metrics.js';
 
 export const controlCenterView = {
     renderControl() {
@@ -15,38 +18,50 @@ export const controlCenterView = {
         const isFocusMode = localStorage.getItem('liquid_focus_mode') === 'true';
 
         // 1. Synchronously render UI with cached/default states immediately
-        let sysVol = 70; // Will be updated asynchronously
+        let sysVol = null;
         
         // CPU / RAM / disque réels lus par le cœur natif (dernières valeurs connues en attendant).
         const getSystemStats = async () => {
             try {
                 const live = await ipcRenderer.invoke('get-system-stats');
-                if (live) this._systemStats = live;
-            } catch(e){}
-            return this._systemStats || { cpu: 12, ram: 45 };
+                this._systemStats = systemMetrics(live);
+            } catch { this._systemStats = systemMetrics(null); }
+            return this._systemStats;
         };
         const applySystemStats = (currentStats) => {
+            if (!container.isConnected) return;
             const cpuVal = document.getElementById('ic-stat-val-cpu');
             const cpuFill = document.getElementById('ic-stat-fill-cpu');
             const ramVal = document.getElementById('ic-stat-val-ram');
             const ramFill = document.getElementById('ic-stat-fill-ram');
 
-            if (cpuVal) cpuVal.innerText = `${currentStats.cpu}%`;
-            if (cpuFill) cpuFill.style.width = `${currentStats.cpu}%`;
-            if (ramVal) ramVal.innerText = `${currentStats.ram}%`;
-            if (ramFill) ramFill.style.width = `${currentStats.ram}%`;
+            if (cpuVal) cpuVal.innerText = percentLabel(currentStats.cpu);
+            if (cpuFill) cpuFill.style.width = `${currentStats.cpu ?? 0}%`;
+            if (ramVal) ramVal.innerText = percentLabel(currentStats.ram);
+            if (ramFill) ramFill.style.width = `${currentStats.ram ?? 0}%`;
+            const diskVal = container.querySelector('#ic-mach-val-disk');
+            const diskFill = container.querySelector('#ic-mach-fill-disk');
+            if (diskVal) diskVal.textContent = currentStats.diskTotal ? `${Math.round(currentStats.diskFree / 1024 ** 3)} Go libres` : '—';
+            if (diskFill) diskFill.style.width = `${currentStats.diskTotal ? (1 - currentStats.diskFree / currentStats.diskTotal) * 100 : 0}%`;
         };
 
-        const stats = this._systemStats || { cpu: 12, ram: 45 };
+        const stats = systemMetrics(null);
         getSystemStats().then(applySystemStats);
 
         // Default battery status
-        let batteryLevel = 100;
-        let batteryCharging = true;
+        let batteryLevel = null;
+        let batteryCharging = null;
+        const clearBattery = () => {
+            if (!container.isConnected) return;
+            const label = container.querySelector('#ic-mach-val-batt');
+            const fill = container.querySelector('#ic-mach-fill-batt');
+            if (label) label.textContent = '—';
+            if (fill) fill.style.width = '0%';
+        };
         
         // Default disk space status (C: drive)
-        let diskFreeGb = 150;
-        let diskPercent = 70;
+        let diskFreeGb = null;
+        let diskPercent = 0;
 
         // Music info fallback
         const musicData = this.musicData || { title: "Aucune lecture", artist: "Système", cover: "", isPlaying: false };
@@ -69,7 +84,7 @@ export const controlCenterView = {
                 { name: "TaskMgr", preset: "taskmgr", icon: "ph ph-cpu", cmd: "taskmgr.exe" },
                 { name: "Calc", preset: "calc", icon: "ph ph-calculator", cmd: "calc.exe" }
             ];
-            const shortcuts = JSON.parse(localStorage.getItem('liquid_control_shortcuts') || JSON.stringify(defaultShortcuts));
+            const shortcuts = sanitizeShortcuts(readJSON('liquid_control_shortcuts', defaultShortcuts, value => Array.isArray(value) && value.every(isRecord)));
             
             thirdCardHtml = `
                 <div class="ic-launchpad-card">
@@ -86,19 +101,19 @@ export const controlCenterView = {
                     <div class="ic-stats-half">
                         <div class="ic-stats-info">
                             <span class="ic-stats-label"><i class="ph ph-cpu"></i> CPU</span>
-                            <span id="ic-stat-val-cpu" class="ic-stats-val">${stats.cpu}%</span>
+                            <span id="ic-stat-val-cpu" class="ic-stats-val">${percentLabel(stats.cpu)}</span>
                         </div>
                         <div class="ic-stats-bar">
-                            <div id="ic-stat-fill-cpu" class="ic-stats-fill" style="width: ${stats.cpu}%; background: var(--neon-primary);"></div>
+                            <div id="ic-stat-fill-cpu" class="ic-stats-fill" style="width: ${stats.cpu ?? 0}%; background: var(--neon-primary);"></div>
                         </div>
                     </div>
                     <div class="ic-stats-half" style="border-left: 1px solid rgba(255,255,255,0.06); padding-left: 12px;">
                         <div class="ic-stats-info">
                             <span class="ic-stats-label"><i class="ph ph-database"></i> RAM</span>
-                            <span id="ic-stat-val-ram" class="ic-stats-val">${stats.ram}%</span>
+                            <span id="ic-stat-val-ram" class="ic-stats-val">${percentLabel(stats.ram)}</span>
                         </div>
                         <div class="ic-stats-bar">
-                            <div id="ic-stat-fill-ram" class="ic-stats-fill" style="width: ${stats.ram}%; background: var(--neon-secondary);"></div>
+                            <div id="ic-stat-fill-ram" class="ic-stats-fill" style="width: ${stats.ram ?? 0}%; background: var(--neon-secondary);"></div>
                         </div>
                     </div>
                 </div>
@@ -139,16 +154,16 @@ export const controlCenterView = {
                     <div class="ic-machine-half">
                         <div class="ic-machine-info">
                             <span class="ic-machine-label" id="ic-mach-lbl-batt"><i class="ph ${battIcon}" style="${batteryCharging ? 'color: #34c759;' : ''}"></i> ${battLabelText}</span>
-                            <span id="ic-mach-val-batt" class="ic-machine-val">${batteryLevel}%</span>
+                            <span id="ic-mach-val-batt" class="ic-machine-val">${percentLabel(batteryLevel)}</span>
                         </div>
                         <div class="ic-machine-bar">
-                            <div id="ic-mach-fill-batt" class="ic-machine-fill" style="width: ${batteryLevel}%; background: #34c759;"></div>
+                            <div id="ic-mach-fill-batt" class="ic-machine-fill" style="width: ${batteryLevel ?? 0}%; background: #34c759;"></div>
                         </div>
                     </div>
                     <div class="ic-machine-half" style="border-left: 1px solid rgba(255,255,255,0.06); padding-left: 12px;">
                         <div class="ic-machine-info">
                             <span class="ic-machine-label"><i class="ph ph-hard-drive"></i> Disque C:</span>
-                            <span class="ic-machine-val" id="ic-mach-val-disk">${diskFreeGb} Go libres</span>
+                            <span class="ic-machine-val" id="ic-mach-val-disk">—</span>
                         </div>
                         <div class="ic-machine-bar">
                             <div class="ic-machine-fill" id="ic-mach-fill-disk" style="width: ${diskPercent}%; background: var(--neon-primary);"></div>
@@ -176,48 +191,49 @@ export const controlCenterView = {
                     <!-- Left Column: Frosted Toggles + Now Playing + customizable third widget -->
                     <div class="ic-control-stack">
                         <div class="ic-toggles-grid">
-                            <div class="ic-tile ${wifiEnabled ? 'active' : ''}" id="ic-wifi">
+                            <button type="button" class="ic-tile ${wifiEnabled ? 'active' : ''}" id="ic-wifi" aria-pressed="${wifiEnabled}">
                                 <i class="ph ph-wifi-high"></i>
                                 <div class="ic-tile-text">
                                     <span class="ic-tile-label">Wi-Fi</span>
                                     <span class="ic-tile-status">${wifiEnabled ? 'Activé' : 'Désactivé'}</span>
                                 </div>
-                            </div>
-                            <div class="ic-tile ${btEnabled ? 'active' : ''}" id="ic-bluetooth">
+                            </button>
+                            <button type="button" class="ic-tile ${btEnabled ? 'active' : ''}" id="ic-bluetooth" aria-pressed="${btEnabled}">
                                 <i class="ph ph-bluetooth"></i>
                                 <div class="ic-tile-text">
                                     <span class="ic-tile-label">Bluetooth</span>
                                     <span class="ic-tile-status">${btEnabled ? 'Activé' : 'Désactivé'}</span>
                                 </div>
-                            </div>
-                            <div class="ic-tile ${dndEnabled ? 'active' : ''}" id="ic-dnd" title="Ne pas déranger : coupe les notifications de Windows">
+                            </button>
+                            <button type="button" class="ic-tile ${dndEnabled ? 'active' : ''}" id="ic-dnd" aria-pressed="${dndEnabled}" title="Ne pas déranger : coupe les notifications de Windows">
                                 <i class="ph ph-moon"></i>
                                 <div class="ic-tile-text">
                                     <span class="ic-tile-label">DND</span>
                                     <span class="ic-tile-status">${dndEnabled ? 'Activé' : 'Désactivé'}</span>
                                 </div>
-                            </div>
-                            <div class="ic-tile ${isFocusMode ? 'active' : ''}" id="ic-focus" title="Focus : plus de notifications dans l’Island, pilule estompée au repos">
+                            </button>
+                            <button type="button" class="ic-tile ${isFocusMode ? 'active' : ''}" id="ic-focus" aria-pressed="${isFocusMode}" title="Focus : plus de notifications dans l’Island, pilule estompée au repos">
                                 <i class="ph ph-target"></i>
                                 <div class="ic-tile-text">
                                     <span class="ic-tile-label">Focus</span>
                                     <span class="ic-tile-status">${isFocusMode ? 'Activé' : 'Désactivé'}</span>
                                 </div>
-                            </div>
-                            <div class="ic-tile ${isEcoMode ? 'active' : ''}" id="ic-eco">
+                            </button>
+                            <button type="button" class="ic-tile ${isEcoMode ? 'active' : ''}" id="ic-eco" aria-pressed="${isEcoMode}">
                                 <i class="ph ph-leaf"></i>
                                 <div class="ic-tile-text">
                                     <span class="ic-tile-label">Éco</span>
                                     <span class="ic-tile-status">${isEcoMode ? 'Activé' : 'Désactivé'}</span>
                                 </div>
-                            </div>
-                            <div class="ic-tile ${this.micConfig.enabled ? 'active' : ''}" id="ic-mic" title="Retour micro : t’entendre dans le casque">
+                            </button>
+                            <div class="ic-tile ${this.micConfig.enabled ? 'active' : ''}" id="ic-mic" role="group" aria-label="Retour micro">
+                                <button type="button" class="ic-mic-toggle" aria-label="Retour micro" aria-pressed="${Boolean(this.micConfig.enabled)}" style="display:flex;align-items:center;gap:inherit;flex:1;padding:0;border:0;background:transparent;color:inherit;text-align:left">
                                 <i class="ph ph-microphone"></i>
                                 <div class="ic-tile-text">
                                     <span class="ic-tile-label">Micro</span>
                                     <span class="ic-tile-status">${this.micConfig.enabled ? 'Activé' : 'Coupé'}</span>
                                 </div>
-                                <span class="ic-tile-more" title="Régler le retour micro"><i class="ph-bold ph-caret-right"></i></span>
+                                </button><button type="button" class="ic-tile-more" title="Régler le retour micro" aria-label="Régler le retour micro" style="padding:0;border:0;background:transparent;color:inherit"><i class="ph-bold ph-caret-right"></i></button>
                             </div>
                         </div>
 
@@ -241,7 +257,7 @@ export const controlCenterView = {
                     
                     <!-- Right Column: Stretched Volume Vertical Slider -->
                     <div class="ic-sliders-layout" style="width: 60px;">
-                        <div class="ic-vertical-slider" id="ic-volume-slider" style="--slider-val-pct: ${Math.round(sysVol)}%" title="Volume Système">
+                        <div class="ic-vertical-slider" id="ic-volume-slider" role="slider" tabindex="0" aria-label="Volume système" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuetext="Indisponible" style="--slider-val-pct: 0%" title="Volume Système">
                             <div class="ic-slider-fill"></div>
                             <div class="ic-slider-icon"><i class="ph ph-speaker-high"></i></div>
                         </div>
@@ -262,7 +278,7 @@ export const controlCenterView = {
                 { name: "TaskMgr", preset: "taskmgr", icon: "ph ph-cpu", cmd: "taskmgr.exe" },
                 { name: "Calc", preset: "calc", icon: "ph ph-calculator", cmd: "calc.exe" }
             ];
-            const shortcuts = JSON.parse(localStorage.getItem('liquid_control_shortcuts') || JSON.stringify(defaultShortcuts));
+            const shortcuts = sanitizeShortcuts(readJSON('liquid_control_shortcuts', defaultShortcuts, value => Array.isArray(value) && value.every(isRecord)));
             
             shortcuts.forEach((s, idx) => {
                 const btn = container.querySelector(`#ic-lp-btn-${idx}`);
@@ -337,9 +353,23 @@ export const controlCenterView = {
         // Bind Volume Vertical Slider
         const volSlider = container.querySelector('#ic-volume-slider');
         this._controlSliderCleanup = bindVerticalSlider(volSlider, (val) => {
+            sysVol = val;
+            volSlider.setAttribute('aria-valuenow', val);
+            volSlider.setAttribute('aria-valuetext', `${val} %`);
             if (ipcRenderer) {
                 ipcRenderer.invoke('set-system-volume', val);
             }
+        });
+        volSlider?.addEventListener('keydown', event => {
+            if (!['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft', 'PageUp', 'PageDown', 'Home', 'End'].includes(event.key)) return;
+            event.preventDefault(); event.stopPropagation();
+            sysVol = volSlider.hasAttribute('aria-valuenow') ? Number(volSlider.getAttribute('aria-valuenow')) : null;
+            if (sysVol === null && !['Home', 'End'].includes(event.key)) return;
+            const direction = ['ArrowUp', 'ArrowRight', 'PageUp'].includes(event.key) ? 1 : -1;
+            sysVol = event.key === 'Home' ? 0 : event.key === 'End' ? 100 : Math.max(0, Math.min(100, sysVol + direction * (event.key.startsWith('Page') ? 10 : 5)));
+            volSlider.style.setProperty('--slider-val-pct', `${sysVol}%`);
+            volSlider.setAttribute('aria-valuenow', sysVol); volSlider.setAttribute('aria-valuetext', `${sysVol} %`);
+            ipcRenderer.invoke('set-system-volume', sysVol).catch(() => {});
         });
 
         // Bind Quick Tiles Toggle Handlers
@@ -347,6 +377,7 @@ export const controlCenterView = {
         const setTileState = (el, key, enabled, message) => {
             localStorage.setItem(key, enabled);
             el.classList.toggle('active', enabled);
+            el.setAttribute('aria-pressed', String(enabled));
             el.classList.toggle('has-error', Boolean(message));
             const statusText = el.querySelector('.ic-tile-status');
             if (statusText) statusText.innerText = message || (enabled ? 'Activé' : 'Désactivé');
@@ -427,8 +458,10 @@ export const controlCenterView = {
                     // Le cœur natif répond « ok » ou la raison de l'échec : on revient
                     // en arrière au lieu d'afficher un état faux.
                     el.classList.add('is-busy');
+                    el.setAttribute('aria-busy', 'true');
                     const result = await tile.onToggle(newVal);
                     el.classList.remove('is-busy');
+                    el.removeAttribute('aria-busy');
                     if (typeof result === 'string' && result !== 'ok') {
                         setTileState(el, tile.key, currentVal, TOGGLE_ERRORS[result] || 'Échec');
                     }
@@ -443,9 +476,11 @@ export const controlCenterView = {
             if (currentWidget === 'stats') {
                 applySystemStats(await getSystemStats());
             } else if (currentWidget === 'machine') {
+                applySystemStats(await getSystemStats());
                 if (navigator.getBattery) {
                     try {
                         const batt = await navigator.getBattery();
+                        if (!Number.isFinite(batt.level) || batt.level < 0 || batt.level > 1) throw new Error('Batterie indisponible');
                         const bLevel = Math.round(batt.level * 100);
                         const bCharging = batt.charging;
                         
@@ -460,7 +495,7 @@ export const controlCenterView = {
                             const bText = bCharging ? 'Secteur' : 'Batterie';
                             battLabel.innerHTML = `<i class="ph ${bIcon}" style="${bCharging ? 'color: #34c759;' : ''}"></i> ${bText}`;
                         }
-                    } catch(e){}
+                    } catch { clearBattery(); }
                 }
             }
         }, 2000);
@@ -531,10 +566,11 @@ export const controlCenterView = {
             // System Volume
             try {
                 const fetchedVol = await ipcRenderer.invoke('get-system-volume');
-                if (fetchedVol !== undefined && fetchedVol !== null) {
+                if (Number.isFinite(fetchedVol) && fetchedVol >= 0 && fetchedVol <= 100) {
                     sysVol = fetchedVol;
                     if (volSlider) {
                         volSlider.style.setProperty('--slider-val-pct', `${Math.round(sysVol)}%`);
+                        volSlider.setAttribute('aria-valuenow', sysVol); volSlider.setAttribute('aria-valuetext', `${Math.round(sysVol)} %`);
                     }
                 }
             } catch (e) { }
@@ -548,6 +584,7 @@ export const controlCenterView = {
                     const tileEl = container.querySelector('#ic-wifi');
                     if (tileEl) {
                         tileEl.classList.toggle('active', active);
+                        tileEl.setAttribute('aria-pressed', String(active));
                         const statusText = tileEl.querySelector('.ic-tile-status');
                         if (statusText) statusText.innerText = active ? 'Activé' : 'Désactivé';
                     }
@@ -563,6 +600,7 @@ export const controlCenterView = {
                     const tileEl = container.querySelector('#ic-bluetooth');
                     if (tileEl) {
                         tileEl.classList.toggle('active', active);
+                        tileEl.setAttribute('aria-pressed', String(active));
                         const statusText = tileEl.querySelector('.ic-tile-status');
                         if (statusText) statusText.innerText = active ? 'Activé' : 'Désactivé';
                     }
@@ -578,6 +616,7 @@ export const controlCenterView = {
                     const tileEl = container.querySelector('#ic-dnd');
                     if (tileEl) {
                         tileEl.classList.toggle('active', active);
+                        tileEl.setAttribute('aria-pressed', String(active));
                         const statusText = tileEl.querySelector('.ic-tile-status');
                         if (statusText) statusText.innerText = active ? 'Activé' : 'Désactivé';
                     }
@@ -588,6 +627,7 @@ export const controlCenterView = {
             if (widgetType === 'machine' && navigator.getBattery) {
                 try {
                     const batt = await navigator.getBattery();
+                    if (!Number.isFinite(batt.level) || batt.level < 0 || batt.level > 1) throw new Error('Batterie indisponible');
                     batteryLevel = Math.round(batt.level * 100);
                     batteryCharging = batt.charging;
                     
@@ -602,7 +642,7 @@ export const controlCenterView = {
                         const battLabelText = batteryCharging ? 'Secteur' : 'Batterie';
                         battLabel.innerHTML = `<i class="ph ${battIcon}" style="${batteryCharging ? 'color: #34c759;' : ''}"></i> ${battLabelText}`;
                     }
-                } catch(e){}
+                } catch { clearBattery(); }
             }
 
             // Disk Space Status (cœur natif)
@@ -702,6 +742,7 @@ export const controlCenterView = {
         if (tile.classList.contains('active') === enabled && tile.classList.contains('has-error') === Boolean(error)) return;
         tile.classList.toggle('active', enabled);
         tile.classList.toggle('has-error', Boolean(error));
+        tile.querySelector('.ic-mic-toggle')?.setAttribute('aria-pressed', String(enabled));
         const status = tile.querySelector('.ic-tile-status');
         if (status) status.textContent = error ? 'Erreur' : (enabled ? 'Activé' : 'Coupé');
         this.syncGlassControls();

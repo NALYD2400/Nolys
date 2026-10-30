@@ -5,6 +5,8 @@
  * mêmes clés qu'avant. Chaque modification est aussi envoyée à l'Island via
  * `config-changed`, au format qu'elle sait déjà interpréter (island/main.js).
  */
+import { sanitizeSettings, sanitizeShortcuts } from './validation.js';
+import { readJSON, isRecord } from '../../shared/safe-storage.js';
 import { DEFAULT_SHORTCUTS } from './presets.js';
 import { readHotkeys, sanitizeHotkeys } from '../../shared/hotkeys.js';
 import { readMenus, sanitizeMenus, MENU_STORAGE_KEY } from '../../shared/menu-config.js';
@@ -13,14 +15,7 @@ const read = (key, fallback = null) => {
     const value = localStorage.getItem(key);
     return value === null ? fallback : value;
 };
-const readJson = (key, fallback) => {
-    try {
-        const parsed = JSON.parse(localStorage.getItem(key) || 'null');
-        return parsed ?? fallback;
-    } catch {
-        return fallback;
-    }
-};
+const readJson = (key, fallback) => readJSON(key, fallback, Array.isArray(fallback) ? Array.isArray : isRecord);
 const flag = (key) => read(key) !== 'false'; // activé par défaut
 const optIn = (key) => read(key) === 'true'; // désactivé par défaut
 const number = (key, fallback) => {
@@ -33,13 +28,14 @@ export function loadSettings() {
     const motion = read('liquid_motion_level', 'fluid');
     const shortcuts = readJson('liquid_control_shortcuts', DEFAULT_SHORTCUTS);
 
-    return {
+    return sanitizeSettings({
         // Général
         // Au premier plan par défaut : une Island cachée derrière le navigateur ne sert à rien.
         persistent: flag('liquid_island_persistent'),
         gameDetection: flag('liquid_game_detection_enabled'),
         notifications: flag('liquid_notifications_enabled'),
         soundEffects: flag('liquid_sound_effects_enabled'),
+        onlineCovers: flag('liquid_online_covers'), offlineMode: optIn('liquid_offline_mode'),
         ecoMode: optIn('liquid_eco_mode'),
         // Plafond des animations continues : 60 par défaut, '0' pour la cadence de l'écran.
         maxFps: read('liquid_max_fps', '60'),
@@ -101,7 +97,7 @@ export function loadSettings() {
         widgetType: read('liquid_control_widget_type', 'launchpad'),
         weatherCity: read('liquid_weather_city', ''),
         shortcuts: Array.isArray(shortcuts) ? DEFAULT_SHORTCUTS.map((fallback, i) => shortcuts[i] || fallback) : DEFAULT_SHORTCUTS,
-    };
+    });
 }
 
 /** Message `config-changed` attendu par l'Island. */
@@ -109,6 +105,7 @@ export function buildConfig(s) {
     return {
         preset: readJson('island_standalone_config', {}).preset || 'copper',
         isPersistent: s.persistent,
+        soundEffects: s.soundEffects, weatherCity: s.weatherCity, onlineCovers: s.onlineCovers, offlineMode: s.offlineMode,
         motion: s.motion,
         notifications: s.notifications,
         ecoMode: s.ecoMode,
@@ -173,6 +170,7 @@ export function buildConfig(s) {
 
 /** Enregistre les réglages sous les clés historiques. */
 export function saveSettings(s) {
+    s = sanitizeSettings(s);
     const config = buildConfig(s);
     const entries = {
         island_standalone_config: JSON.stringify(config),
@@ -184,6 +182,7 @@ export function saveSettings(s) {
         liquid_island_control_enabled: s.controlEnabled,
         liquid_game_detection_enabled: s.gameDetection,
         liquid_sound_effects_enabled: s.soundEffects,
+        liquid_online_covers: s.onlineCovers, liquid_offline_mode: s.offlineMode,
         liquid_max_fps: s.maxFps,
         liquid_island_persistent: s.persistent,
         liquid_cover_color_sync: s.coverSync,
@@ -220,6 +219,7 @@ export function saveSettings(s) {
 export function toSnapshot(s, layout) {
     const config = buildConfig(s);
     return {
+        soundEffects: s.soundEffects, weatherCity: s.weatherCity, onlineCovers: s.onlineCovers, offlineMode: s.offlineMode,
         motion: s.motion,
         widgetType: s.widgetType,
         persistent: s.persistent,
@@ -261,13 +261,16 @@ function hotkeysFrom(snapshot, current) {
 
 /** Applique un instantané (profil, profil rapide ou fichier importé) sur l'état courant. */
 export function fromSnapshot(current, snapshot = {}) {
-    const glow = snapshot.glow || snapshot.appConfig?.glow || {};
+    snapshot = isRecord(snapshot) ? snapshot : {};
+    const glow = isRecord(snapshot.glow) ? snapshot.glow : isRecord(snapshot.appConfig?.glow) ? snapshot.appConfig.glow : {};
     const modules = snapshot.modules || snapshot.appConfig?.modules || {};
     const player = snapshot.player || {};
     const pick = (value, fallback) => (value === undefined || value === null ? fallback : value);
 
-    return {
+    return sanitizeSettings({
         ...current,
+        soundEffects: pick(snapshot.soundEffects, current.soundEffects), weatherCity: pick(snapshot.weatherCity, current.weatherCity),
+        onlineCovers: pick(snapshot.onlineCovers, current.onlineCovers), offlineMode: pick(snapshot.offlineMode, current.offlineMode),
         motion: pick(snapshot.motion, current.motion),
         widgetType: pick(snapshot.widgetType, current.widgetType),
         persistent: snapshot.persistent !== false,
@@ -311,7 +314,7 @@ export function fromSnapshot(current, snapshot = {}) {
         glowBreath: pick(glow.glowBreath, current.glowBreath),
         hotkeys: hotkeysFrom(snapshot, current.hotkeys),
         menus: sanitizeMenus(snapshot.menus ?? snapshot.appConfig?.menus ?? current.menus),
-        shortcuts: Array.isArray(snapshot.shortcuts) ? snapshot.shortcuts : current.shortcuts,
+        shortcuts: Array.isArray(snapshot.shortcuts) ? sanitizeShortcuts(snapshot.shortcuts) : current.shortcuts,
         showTimes: player.showTimes ?? current.showTimes,
         showVisualizer: player.showVisualizer ?? current.showVisualizer,
         showActions: player.showActions ?? current.showActions,
@@ -319,12 +322,12 @@ export function fromSnapshot(current, snapshot = {}) {
         ecoMode: pick(snapshot.ecoMode ?? snapshot.eco, current.ecoMode),
         idleCompactMode: pick(snapshot.idleCompactMode, current.idleCompactMode),
         maxFps: pick(snapshot.maxFps, current.maxFps),
-    };
+    });
 }
 
 export function loadCustomProfiles() {
     const parsed = readJson('liquid_custom_profiles', []);
-    return Array.isArray(parsed) ? parsed.filter((profile) => profile && profile.id && profile.settings) : [];
+    return Array.isArray(parsed) ? parsed.filter((profile) => isRecord(profile) && typeof profile.id === 'string' && typeof profile.name === 'string' && isRecord(profile.settings)).slice(0, 100) : [];
 }
 
 export function saveCustomProfiles(profiles) {

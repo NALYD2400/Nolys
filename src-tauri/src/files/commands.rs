@@ -1,4 +1,4 @@
-use super::{model::{Input, Options, Snapshot}, Store};
+use super::{model::{Input, Options, Preferences, Snapshot}, Store};
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 
 #[tauri::command]
@@ -88,11 +88,86 @@ pub async fn files_reveal(app: AppHandle, window: WebviewWindow, id: Option<Stri
     let path = match id {
         Some(id) => app.state::<Store>().paths(&[id])?.remove(0),
         None => {
-            let folder = app.state::<Store>().destination.clone();
+            let folder = app.state::<Store>().destination();
             std::fs::create_dir_all(&folder).map_err(|_| "Le dossier d’export ne peut pas être ouvert.")?;
             folder
         }
     };
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    app.run_on_main_thread(move || { let _ = sender.send(super::drag::reveal(&path)); }).map_err(|e| e.to_string())?;
+    receiver.await.map_err(|_| "L’Explorateur Windows ne répond pas.".to_string())?
+}
+
+#[tauri::command]
+pub fn files_remove_inputs(app: AppHandle, window: WebviewWindow, ids: Vec<String>) -> Result<Vec<Input>, String> {
+    authorize(&window)?;
+    let selection = app.state::<Store>().remove_inputs(&ids)?;
+    app.state::<Store>().emit(&app);
+    Ok(selection)
+}
+
+#[tauri::command]
+pub async fn files_retry(app: AppHandle, window: WebviewWindow, job_id: String, request_id: String) -> Result<String, String> {
+    authorize(&window)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let id = app.state::<Store>().retry(&job_id, request_id)?;
+        app.state::<Store>().emit(&app);
+        super::kick(app);
+        Ok(id)
+    }).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn files_preferences(app: AppHandle, window: WebviewWindow, preferences: Preferences) -> Result<Snapshot, String> {
+    authorize(&window)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = app.state::<Store>();
+        store.configure(preferences, None)?;
+        store.emit(&app);
+        Ok(store.snapshot())
+    }).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn files_pick_destination(app: AppHandle, window: WebviewWindow) -> Result<Snapshot, String> {
+    authorize(&window)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let handle = app.clone();
+        let current = app.state::<Store>().destination();
+        let chosen = std::thread::spawn(move || {
+            let mut dialog = rfd::FileDialog::new().set_title("Dossier des prochains exports Nolys").set_directory(current);
+            if let Some(parent) = crate::island::window(&handle) { dialog = dialog.set_parent(&parent); }
+            dialog.pick_folder()
+        }).join().map_err(|_| "Le sélecteur de dossier s’est fermé.")?;
+        let store = app.state::<Store>();
+        if let Some(path) = chosen {
+            let path = path.canonicalize().map_err(|_| "Ce dossier n’est pas accessible.")?;
+            if !path.is_dir() { return Err("Choisissez un dossier accessible.".into()); }
+            // A temporary probe checks write access; no existing user file is touched.
+            tempfile::NamedTempFile::new_in(&path).map_err(|_| "Ce dossier n’autorise pas les exports.")?;
+            let preferences = store.inner.lock().preferences.clone();
+            store.configure(preferences, Some(path))?;
+            store.emit(&app);
+        }
+        Ok(store.snapshot())
+    }).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn files_repair_history(app: AppHandle, window: WebviewWindow) -> Result<Snapshot, String> {
+    authorize(&window)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = app.state::<Store>();
+        store.repair_history()?;
+        store.emit(&app);
+        Ok(store.snapshot())
+    }).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn files_reveal_history(app: AppHandle, window: WebviewWindow) -> Result<(), String> {
+    authorize(&window)?;
+    let path = app.state::<Store>().history_path();
     let (sender, receiver) = tokio::sync::oneshot::channel();
     app.run_on_main_thread(move || { let _ = sender.send(super::drag::reveal(&path)); }).map_err(|e| e.to_string())?;
     receiver.await.map_err(|_| "L’Explorateur Windows ne répond pas.".to_string())?

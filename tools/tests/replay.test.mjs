@@ -1,8 +1,29 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createReplayStore, activeCapture, duration, presets } from '../../src/replay/model.js';
+import { createReplayStore, activeCapture, duration, presets, queryClips } from '../../src/replay/model.js';
 const snapshot = (phase = 'idle') => ({ phase, config: { fps: 60, sourceId: '', microphone: false, destination: 'C:\\Videos' }, clips: [] });
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
+
+test('clip discovery remains searchable beyond 200 with deterministic sort and bounded pages', () => {
+    const clips = Array.from({ length: 260 }, (_, i) => ({ id: `${i}`, name: `Partie ${i}.mp4`, path: `C:/Vidéos/${i}.mp4`, kind: i % 2 ? 'recording' : 'replay', createdAt: i, bytes: 260 - i }));
+    const last = queryClips(clips, { sort: 'oldest', page: 999 });
+    assert.equal(last.pages, 11); assert.equal(last.page, 10); assert.equal(last.clips.length, 10);
+    assert.equal(queryClips(clips, { search: 'partie 259', kind: 'recording' }).clips[0].id, '259');
+    assert.equal(queryClips(clips, { search: 'PARTIE 259', kind: 'replay' }).total, 0);
+    assert.equal(queryClips(clips, { sort: 'size' }).clips[0].id, '0');
+    assert.equal(clips[0].id, '0', 'queries do not mutate persisted order');
+});
+
+test('group deletion preserves successful progress and stops on the first refused recycle', async () => {
+    let clips = [{ id: 'one' }, { id: 'two' }, { id: 'three' }]; const calls = [];
+    const store = createReplayStore(async (command, args) => {
+        if (command === 'replay_snapshot') return { ...snapshot(), clips };
+        calls.push(args.id); if (args.id === 'two') throw new Error('Fichier utilisé');
+        clips = clips.filter(c => c.id !== args.id); return { ...snapshot(), clips };
+    });
+    await store.refresh(); assert.equal(await store.deleteClips(['one', 'one', 'two', 'three']), false);
+    assert.deepEqual(calls, ['one', 'two']); assert.deepEqual(store.state.snapshot.clips.map(c => c.id), ['two', 'three']);
+});
 
 test('rapid recording requests cannot start duplicate operations', async () => {
     const wait = deferred(); let calls = 0;

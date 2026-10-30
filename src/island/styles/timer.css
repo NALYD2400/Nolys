@@ -4,11 +4,12 @@
 .island-timer-container {
     width: 100%;
     height: 100%;
-    padding: 18px 20px 20px;
+    padding: 14px 20px 14px;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
+    overflow-y: auto;
 }
 
 .island-timer-header {
@@ -82,7 +83,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 8px;
+    min-height: 120px;
 }
 
 .timer-status {
@@ -180,3 +182,36 @@
     font-size: 11px;
     text-align: center;
 }
+
+.timer-management { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+.timer-selector-row, .timer-duration-row { display: flex; gap: 6px; align-items: center; }
+.timer-select, .timer-name-input, .timer-duration-input {
+    min-width: 0;
+    height: 26px;
+    padding: 3px 9px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.055);
+    color: var(--text-primary, #fff);
+    font: 500 11px 'Inter', sans-serif;
+    box-sizing: border-box;
+}
+.timer-select, .timer-duration-input { flex: 1; }
+.timer-select option { color: #fff; background: #222; }
+.timer-small-btn {
+    height: 26px;
+    min-width: 28px;
+    padding: 0 8px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.07);
+    color: var(--text-primary, #fff);
+    font: 600 10px 'Inter', sans-serif;
+    cursor: pointer;
+}
+.timer-small-btn:disabled { opacity: .35; cursor: default; }
+.timer-policy { flex-shrink: 0; color: var(--text-secondary, rgba(255,255,255,.65)); font-size: 9px; line-height: 1.4; text-align: center; }
+.timer-message:empty { display: none; }
+.timer-message { flex-shrink: 0; font-size: 10px; color: var(--text-primary, #fff); line-height: 1.3; }
+.island-timer-container :is(button,input,select):focus-visible { outline: 2px solid var(--neon-primary, #d49460); outline-offset: 2px; }
+.island-timer-container [aria-invalid="true"] { border-color: #f99; outline: 1px solid #f99; }

@@ -2,7 +2,7 @@
  * Briques d'interface des réglages. Tout est en HTML et CSS simples (styles.css) : pas de
  * verre réfracté. Un verre recalculé à chaque image faisait traîner le défilement des pages.
  */
-import { startTransition, useEffect, useRef, useState } from 'react';
+import { startTransition, useEffect, useId, useRef, useState } from 'react';
 import { playClick } from '../state/sound.js';
 
 /** Vert « activé » façon iOS : l'état reste lisible quelle que soit la pochette. */
@@ -148,7 +148,7 @@ export function Segmented({ label, description, value, options, onChange }) {
     return (
         <Row label={label} description={description}>
             <div className="segmented" role="radiogroup" aria-label={label}>
-                {options.map((option) => {
+                {options.map((option, index) => {
                     const selected = option.value === value;
                     return (
                         <button
@@ -156,7 +156,16 @@ export function Segmented({ label, description, value, options, onChange }) {
                             type="button"
                             role="radio"
                             aria-checked={selected}
+                            tabIndex={selected || (!options.some(item => item.value === value) && index === 0) ? 0 : -1}
                             className={`segment${selected ? ' is-selected' : ''}`}
+                            onKeyDown={event => {
+                                if (!['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+                                event.preventDefault();
+                                const next = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1
+                                    : (index + (['ArrowRight', 'ArrowDown'].includes(event.key) ? 1 : -1) + options.length) % options.length;
+                                event.currentTarget.parentElement.querySelectorAll('[role="radio"]')[next]?.focus();
+                                playClick(); onChange(options[next].value);
+                            }}
                             onClick={() => {
                                 if (selected) return;
                                 playClick();
@@ -206,84 +215,92 @@ const MENU_SPACE = 260;
  */
 export function Select({ value, options, groups, title, onChange, placeholder = 'Choisir…' }) {
     const [open, setOpen] = useState(false);
-    // Menu ouvert vers le haut quand il n'a pas la place sous le bouton (fin de page).
     const [up, setUp] = useState(false);
+    const [active, setActive] = useState(0);
     const root = useRef(null);
-    const sections = groups ?? [{ label: title, options }];
-    const allOptions = sections.flatMap((group) => group.options);
-    const current = allOptions.find((option) => option.value === value);
-
-    // Fermeture au clic ailleurs et à Échap.
+    const trigger = useRef(null);
+    const search = useRef({ text: '', at: 0 });
+    const id = useId();
+    const sections = groups ?? [{ label: title, options: options ?? [] }];
+    const allOptions = sections.flatMap(group => group.options);
+    const selectedIndex = allOptions.findIndex(option => option.value === value);
+    const current = allOptions[selectedIndex];
+    const show = (index = Math.max(0, selectedIndex)) => {
+        if (!allOptions.length) return;
+        const rect = trigger.current.getBoundingClientRect();
+        const below = window.innerHeight - rect.bottom;
+        setUp(below < MENU_SPACE && rect.top > below);
+        setActive(index);
+        setOpen(true);
+    };
+    const close = (restore = false) => { setOpen(false); if (restore) trigger.current?.focus(); };
+    const choose = index => {
+        const option = allOptions[index];
+        if (!option) return;
+        playClick(); close(true); onChange(option.value);
+    };
     useEffect(() => {
         if (!open) return undefined;
-        // Le chemin composé traverse le shadow DOM : `target` vaudrait l'hôte, et le menu se
-        // fermerait avant que le clic sur un de ses choix ne soit reçu.
-        const onPointer = (event) => { if (root.current && !event.composedPath().includes(root.current)) setOpen(false); };
-        const onKey = (event) => { if (event.key === 'Escape') setOpen(false); };
+        const onPointer = event => { if (root.current && !event.composedPath().includes(root.current)) setOpen(false); };
         document.addEventListener('pointerdown', onPointer, true);
-        document.addEventListener('keydown', onKey);
-        return () => {
-            document.removeEventListener('pointerdown', onPointer, true);
-            document.removeEventListener('keydown', onKey);
-        };
+        return () => document.removeEventListener('pointerdown', onPointer, true);
     }, [open]);
-
-    const renderItems = (items) =>
-        items.map((option) => {
-            const selected = option.value === value;
-            return (
-                <button
-                    key={option.value}
-                    type="button"
-                    role="option"
-                    aria-selected={selected}
-                    className={selected ? 'menu-item is-selected' : 'menu-item'}
-                    onClick={() => {
-                        playClick();
-                        setOpen(false);
-                        onChange(option.value);
-                    }}
-                >
-                    {option.icon && <Icon name={option.icon.replace(/^ph(-fill|-bold)? /, '')} />}
-                    <span>{option.label}</span>
-                    {selected && <Icon name="ph-check" weight="bold" className="menu-check" />}
-                </button>
-            );
-        });
-
+    useEffect(() => {
+        if (!open) return;
+        const item = root.current?.querySelector(`[data-option-index="${active}"]`);
+        item?.focus(); item?.scrollIntoView({ block: 'nearest' });
+    }, [open, active]);
+    const onKeyDown = event => {
+        const key = event.key;
+        if (key === 'Escape' && open) { event.preventDefault(); event.stopPropagation(); close(true); return; }
+        if (key === 'Tab') { close(); return; }
+        if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(key)) {
+            event.preventDefault(); event.stopPropagation();
+            if (!allOptions.length) return;
+            const next = key === 'Home' ? 0 : key === 'End' ? allOptions.length - 1
+                : !open ? Math.max(0, selectedIndex) : (active + (key === 'ArrowDown' ? 1 : -1) + allOptions.length) % allOptions.length;
+            if (open) setActive(next); else show(next);
+        } else if (open && (key === 'Enter' || key === ' ')) {
+            event.preventDefault(); event.stopPropagation(); choose(active);
+        } else if (key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey && key !== ' ') {
+            const now = performance.now();
+            search.current.text = now - search.current.at > 700 ? key : search.current.text + key;
+            search.current.at = now;
+            const text = search.current.text.toLocaleLowerCase();
+            const start = open ? active : Math.max(0, selectedIndex);
+            const indices = allOptions.map((_, index) => (start + index + 1) % allOptions.length);
+            const index = indices.find(index => allOptions[index].label.toLocaleLowerCase().startsWith(text));
+            if (index !== undefined) { event.preventDefault(); if (open) setActive(index); else show(index); }
+        }
+    };
+    let optionIndex = 0;
     return (
-        <div className="select" ref={root}>
-            <button
-                type="button"
-                className="select-trigger glass"
-                aria-haspopup="listbox"
-                aria-expanded={open}
-                onClick={(event) => {
-                    if (!open) {
-                        const rect = event.currentTarget.getBoundingClientRect();
-                        const below = window.innerHeight - rect.bottom;
-                        setUp(below < MENU_SPACE && rect.top > below);
-                    }
-                    setOpen((state) => !state);
-                }}
-            >
-                <span>{current?.label ?? placeholder}</span>
-                <Icon name="ph-caret-up-down" />
+        <div className="select" ref={root} onKeyDown={onKeyDown}
+            onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) close(); }}>
+            <button type="button" ref={trigger} id={`${id}-trigger`} className="select-trigger glass"
+                aria-haspopup="listbox" aria-expanded={open} aria-controls={open ? `${id}-list` : undefined}
+                aria-label={title ? `${title} : ${current?.label ?? placeholder}` : undefined}
+                onClick={() => open ? close() : show()}>
+                <span>{current?.label ?? placeholder}</span><Icon name="ph-caret-up-down" />
             </button>
-            {open && (
-                <div className={`select-menu glass${up ? ' is-up' : ''}`} role="listbox">
-                    {sections.map((group, index) => (
-                        <div key={group.label ?? index} role="group" aria-label={group.label}>
-                            {group.label && <div className="menu-group-label">{group.label}</div>}
-                            {renderItems(group.options)}
-                        </div>
-                    ))}
-                </div>
-            )}
+            {open && <div id={`${id}-list`} className={`select-menu glass${up ? ' is-up' : ''}`} role="listbox" aria-labelledby={`${id}-trigger`}>
+                {sections.map((group, groupIndex) => <div key={group.label ?? groupIndex} role="group" aria-label={group.label}>
+                    {group.label && <div className="menu-group-label">{group.label}</div>}
+                    {group.options.map(option => {
+                        const index = optionIndex++;
+                        const selected = option.value === value;
+                        return <button key={option.value} type="button" role="option" aria-selected={selected}
+                            tabIndex={index === active ? 0 : -1} data-option-index={index}
+                            className={selected ? 'menu-item is-selected' : 'menu-item'} onClick={() => choose(index)}>
+                            {option.icon && <Icon name={option.icon.replace(/^ph(-fill|-bold)? /, '')} />}
+                            <span>{option.label}</span>{selected && <Icon name="ph-check" weight="bold" className="menu-check" />}
+                        </button>;
+                    })}
+                </div>)}
+            </div>}
         </div>
     );
 }
-
 /** Pastille de couleur (sélecteur natif). */
 export function ColorSwatch({ label, value, onChange }) {
     return (

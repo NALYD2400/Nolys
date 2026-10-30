@@ -13,7 +13,7 @@ const VIEWS = ['all', 'favorites', 'queue'];
  * progression au lieu de relancer un second import (« Un import est déjà en cours »).
  * phase : pick (sélecteur Windows ouvert), scan, read, save ; vide quand rien ne tourne.
  */
-const importJob = { phase: '', done: 0, total: 0, result: null, error: '', listeners: new Set(), listening: null };
+const importJob = { phase: '', done: 0, total: 0, cancelPending: false, result: null, error: '', listeners: new Set(), listening: null };
 const notifyImport = () => importJob.listeners.forEach(listener => listener());
 
 async function startImport(player, kind) {
@@ -23,7 +23,7 @@ async function startImport(player, kind) {
         Object.assign(importJob, progress);
         notifyImport();
     }).catch(() => { importJob.listening = null; });
-    Object.assign(importJob, { phase: 'pick', done: 0, total: 0, result: null, error: '' });
+    Object.assign(importJob, { phase: 'pick', done: 0, total: 0, cancelPending: false, result: null, error: '' });
     notifyImport();
     try {
         await importJob.listening;
@@ -34,6 +34,7 @@ async function startImport(player, kind) {
         importJob.error = String(error?.message || error);
     } finally {
         importJob.phase = '';
+        importJob.cancelPending = false;
         notifyImport();
     }
 }
@@ -55,7 +56,7 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
 
     const state = {
         view: 'all', query: '', sort: 'title', ...savedState,
-        limit: PAGE, selecting: false, selection: new Set(), busy: false,
+        limit: PAGE, selecting: false, selection: new Set(), busy: false, loadError: '',
     };
     let library = null;
     let queueKey = '';
@@ -87,7 +88,15 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
         renderList(tracks);
         renderSelection(tracks);
         renderPlayer();
+        renderRecovery();
         $('#chips .chip.is-active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+
+    function renderRecovery() {
+        const section = $('#library-recovery');
+        section.hidden = !state.loadError;
+        if (!state.loadError) { section.replaceChildren(); return; }
+        section.innerHTML = `<p role="alert">${e(state.loadError)}</p><p>Une reconstruction conserve une copie du journal original. Les fichiers audio restent à leur emplacement et pourront être réimportés.</p><div class="empty-actions"><button type="button" class="pill-btn" data-action="reveal-library">Ouvrir l’emplacement</button><button type="button" class="pill-btn" data-action="repair-library">Reconstruire la bibliothèque…</button></div>`;
     }
 
     function renderList(tracks = visibleTracks()) {
@@ -298,6 +307,11 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
             bar.setAttribute('aria-valuenow', String(pct));
             $('#progress-label').textContent = IMPORT_LABELS[importJob.phase] || 'Import…';
             $('#progress-count').textContent = counted ? `${importJob.done} / ${importJob.total}` : '';
+            const cancel = $('[data-action="cancel-import"]');
+            cancel.hidden = importJob.phase === 'pick';
+            cancel.disabled = importJob.cancelPending || importJob.phase === 'save';
+            cancel.textContent = importJob.cancelPending ? 'Annulation…' : 'Annuler';
+            if (importJob.cancelPending) $('#progress-label').textContent = 'Annulation après le fichier en cours…';
         }
         if (importWasRunning && !running) finishImport();
         importWasRunning = running;
@@ -306,13 +320,14 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
     function finishImport() {
         const { result, error } = importJob;
         if (error) { toast(error, true); return; }
-        if (!result || result.cancelled) return;
+        if (!result) return;
+        if (result.cancelled) { toast('Import annulé. La bibliothèque a été conservée.'); return; }
         if (result.added) { state.view = 'all'; state.query = ''; $('#search').value = ''; syncClearButton(); }
         render();
         const s = count => (count > 1 ? 's' : '');
         // Dossier déplacé puis réimporté : les titres retrouvés gardent playlists et favoris.
         const found = result.relinked ? `${result.relinked} titre${s(result.relinked)} retrouvé${s(result.relinked)} à son nouvel emplacement` : '';
-        const details = [result.duplicates && `${result.duplicates} déjà présent${s(result.duplicates)}`, result.skipped && `${result.skipped} illisible${s(result.skipped)}`].filter(Boolean);
+        const details = [result.duplicates && `${result.duplicates} déjà présent${s(result.duplicates)}`, result.skipped && `${result.skipped} élément${s(result.skipped)} ignoré${s(result.skipped)} (lien ou accès impossible)`].filter(Boolean);
         const head = [result.added && `${result.added} titre${s(result.added)} ajouté${s(result.added)}`, found].filter(Boolean).join(' · ');
         toast(head
             ? `${head}${details.length ? ` · ${details.join(' · ')}` : ''}.`
@@ -367,6 +382,28 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
             case 'import': openMenu(button, menuItem('import-folder', 'Un dossier', 'folder-open') + menuItem('import-files', 'Des fichiers', 'file-audio')); break;
             case 'import-folder': await importMusic('folder'); break;
             case 'import-files': await importMusic('files'); break;
+            case 'cancel-import': {
+                if (importJob.cancelPending || !importJob.phase) break;
+                importJob.cancelPending = true; notifyImport();
+                try { await native.invoke('library_cancel_import'); }
+                catch (error) { importJob.cancelPending = false; notifyImport(); throw error; }
+                break;
+            }
+            case 'cover-cache': {
+                const info = await native.invoke('library_cache_info');
+                const size = bytes => `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(bytes / 1024 ** 2)} Mo`;
+                openSheet({ title: 'Pochettes de la bibliothèque', confirm: info.orphans ? 'Nettoyer les orphelines' : 'Fermer', body: `<p class="sheet-note">${info.files} pochettes générées · ${size(info.bytes)} sur ${size(info.budgetBytes)}.<br>${info.orphans} sans morceau associé · ${size(info.orphanBytes)} récupérables.</p><p class="sheet-note">Le nettoyage retire uniquement les miniatures générées qui ne sont plus utilisées. Les pochettes utilisées et vos fichiers audio sont conservés. Le plafond bloque l’ajout de nouvelles miniatures quand il est atteint.</p>`, submit: async () => {
+                    if (info.orphans) { const result = await native.invoke('library_clean_cache'); toast(`${result.removed} pochette${result.removed > 1 ? 's' : ''} retirée${result.removed > 1 ? 's' : ''} · ${size(result.reclaimedBytes)} récupérés.`); }
+                } });
+                break;
+            }
+            case 'reveal-library': await native.invoke('library_reveal_store'); break;
+            case 'repair-library': openSheet({ title: 'Reconstruire la bibliothèque ?', confirm: 'Conserver l’original et reconstruire', body: '<p class="sheet-note">Une copie du journal original sera conservée dans son dossier avant de créer une bibliothèque vide. Vous pourrez réimporter vos titres ; vos fichiers audio ne sont pas modifiés.</p>', submit: async () => {
+                player.library = await native.invoke('library_repair');
+                state.loadError = ''; player.error = ''; render();
+                await player.reload();
+                toast('Bibliothèque reconstruite. Le journal original a été conservé.');
+            } }); break;
             case 'clear-search': $('#search').value = ''; state.query = ''; syncClearButton(); render(); $('#search').focus(); break;
             case 'new-playlist': askNewPlaylist(); break;
             case 'rename-playlist': {
@@ -513,7 +550,7 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
     importWasRunning = Boolean(importJob.phase);
     renderImport();
     panel.focus();
-    if (!player.library.tracks.length) player.reload().catch(error => toast(`Impossible d’ouvrir la bibliothèque : ${errorText(error)}`, true));
+    if (!player.library.tracks.length) player.reload().catch(error => { state.loadError = errorText(error); renderRecovery(); toast(`Impossible d’ouvrir la bibliothèque : ${errorText(error)}`, true); });
 
     return {
         /** Ce qui survit à une fermeture : vue, recherche et tri. */

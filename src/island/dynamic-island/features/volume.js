@@ -4,15 +4,16 @@ import { escapeHtml } from '../helpers/format.js';
 import { getMusicSearchProvider, isHistoryTrack } from '../helpers/music-search.js';
 
 export const volumeMethods = {
-    async adjustVolume(delta) {
-        if (ipcRenderer) {
-            try {
-                let current = await ipcRenderer.invoke('get-system-volume') || 50;
-                let next = Math.min(100, Math.max(0, current + delta));
-                await ipcRenderer.invoke('set-system-volume', next);
-                this.showVolumeIndicator(next);
-            } catch (e) { }
-        }
+    adjustVolume(delta) {
+        if (!Number.isFinite(delta)) return Promise.resolve();
+        this._volumeAdjustment = (this._volumeAdjustment || Promise.resolve()).catch(() => {}).then(async () => {
+            const current = await ipcRenderer.invoke('get-system-volume');
+            if (typeof current !== 'number' || !Number.isFinite(current)) return;
+            const next = Math.min(100, Math.max(0, current + delta));
+            if (await ipcRenderer.invoke('set-system-volume', next) === false) throw new Error('Volume refusé');
+            this.showVolumeIndicator(next);
+        }).catch(() => this.showIslandFeedback?.('Volume indisponible', 'ph-warning'));
+        return this._volumeAdjustment;
     },
 
     showVolumeIndicator(vol) {

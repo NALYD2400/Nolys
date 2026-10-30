@@ -6,6 +6,7 @@
  * au prototype : le comportement est identique à une classe d'un seul bloc.
  */
 import { ipcRenderer } from '../../shared/ipc.js';
+import { readRecord } from '../../shared/safe-storage.js';
 import { activeHotkeys, hotkeyLabel, readHotkeys } from '../../shared/hotkeys.js';
 
 import { visualizerMethods } from './features/visualizer.js';
@@ -46,10 +47,7 @@ export class DynamicIsland {
         this.isExpanded = false;
         this.isPlaying = false;
         this.mode = 'music';
-        this.timerValue = 0; // secondes : écoulées (chrono) ou restantes (minuteur)
-        this.isTimerRunning = false;
-        this.timerMode = 'stopwatch'; // 'stopwatch' | 'countdown'
-        this.timerPreset = 0; // dernière durée choisie pour le minuteur, en secondes
+        this.initTimerState();
         this.fps = 60;
         this.lastTime = performance.now();
         this.frameCount = 0;
@@ -73,12 +71,12 @@ export class DynamicIsland {
         this._preloadedMediaArt = new Set();
         this._pendingMediaArt = new Set();
         this._lastStableDisplayArt = "";
-        this._islandConfig = JSON.parse(localStorage.getItem('liquid_island_config') || '{}');
+        this._islandConfig = readRecord('liquid_island_config');
         this._lastRenderedTrack = null;
         this._lastTrackId = null;
         this._isNewTrackSignal = false;
         this._pendingCoverAnimationTrackKey = "";
-        this._layoutConfig = JSON.parse(localStorage.getItem('liquid_layout_config') || '{"scale":1}');
+        this._layoutConfig = readRecord('liquid_layout_config', { scale: 1 });
         this._layoutEditMode = false;
         this._layoutEditArmTimeout = null;
         this.musicHistory = this.loadMusicHistory();

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Card, Reveal, Row, Segmented, Select, SliderRow, Toggle } from '../components/controls.jsx';
+import { Button, Card, Reveal, Row, Segmented, Select, SliderRow, Toggle } from '../components/controls.jsx';
 import { useMicMonitor } from '../state/useSettings.js';
+import { useMicProfiles } from '../state/useMicProfiles.js';
 
 const LATENCY_OPTIONS = [
     { value: 'low', label: 'Faible' },
@@ -39,6 +40,7 @@ function LevelMeter({ config, subscribeLevels }) {
 export default function MicMonitor() {
     const { status, inputs, outputs, update, subscribeLevels } = useMicMonitor();
     const [satellite, setSatellite] = useState(() => localStorage.getItem('liquid_mic_satellite') !== 'false');
+    const profiles = useMicProfiles(status?.config, update);
 
     if (!status) return null;
     const config = status.config;
@@ -145,6 +147,15 @@ export default function MicMonitor() {
                         onChange={(outputId) => update({ outputId })}
                     />
                 </Row>
+            </Card>
+
+            <Card title="Profil de ce matériel" footer="Mémorise volume, balance, traitements et latence pour le micro et la sortie choisis. Charger un profil coupe le retour ; réactive-le ensuite.">
+                <Row label={profiles.saved ? 'Un profil est enregistré' : 'Aucun profil pour cette paire'}>
+                    <Button onClick={profiles.save}>Enregistrer</Button>
+                    <Button disabled={!profiles.saved} onClick={profiles.apply}>Charger</Button>
+                    <Button disabled={!profiles.saved} onClick={profiles.remove}>Retirer</Button>
+                </Row>
+                {profiles.message && <p role="status" className="card-footer">{profiles.message}</p>}
             </Card>
 
             <Card title="Island">
