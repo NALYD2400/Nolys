@@ -6,10 +6,12 @@ import { readHotkeys } from '../shared/hotkeys.js';
 import { native } from '../shared/ipc.js';
 import styles from './styles.css?inline';
 import { createThumbnails } from './thumbnails.js';
+import { createReplaySelects } from './selects.js';
 
 let sheet;
 const icon = name => `<i class="ph-bold ph-${name}" aria-hidden="true"></i>`;
 const button = (action, label, glyph, extra = '') => `<button type="button" class="pill-btn${extra === 'primary' ? ' is-accent' : ''}" data-action="${action}"${action === 'dismiss' ? ' aria-label="Fermer le message"' : ''}>${icon(glyph)}<span>${label}</span></button>`;
+const clipAction = (action, label, glyph) => `<button type="button" class="mini-btn${action === 'delete' ? ' is-danger' : ''}" data-action="${action}" aria-label="${label}" title="${label}">${icon(glyph)}</button>`;
 const labels = { idle: 'Prêt à capturer', starting: 'Préparation de la capture…', buffering: 'Replay actif', stopping: 'Finalisation en cours…', error: 'Capture interrompue' };
 
 export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), onRender = () => {}, onPlaybackChange = () => {} }) {
@@ -18,6 +20,7 @@ export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), 
     panel.root.adoptedStyleSheets = [...panel.root.adoptedStyleSheets, sheet];
     const { root, $, on } = panel;
     const thumbnails = createThumbnails(root, on);
+    const selects = createReplaySelects(root, on);
     let destroyed = false, signature = '', rendering = false, shownTab = null;
     let selectedClip = null, mediaSource = '', loadingClip = null, playbackRequest = 0, clipListScroll = 0;
     let renameId = null, renameDraft = '';
@@ -89,7 +92,7 @@ export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), 
         return controls + `${list.length ? `<ul class="replay-clips">${list.map(clip => {
             const editing = renameId === clip.id;
             const title = editing ? `<form class="replay-rename"><input id="replay-rename-name" aria-label="Nouveau nom du clip" value="${e(renameDraft)}" maxlength="120" required autocomplete="off" spellcheck="false"><span>.mp4</span><button type="submit" class="round-btn is-accent" aria-label="Valider le nouveau nom" title="Valider">${icon('check')}</button><button type="button" class="round-btn" data-action="cancel-rename" aria-label="Annuler le renommage" title="Annuler">${icon('x')}</button></form>` : `<div class="replay-clip-title"><strong title="${e(clip.name)}">${e(clip.name)}</strong><button type="button" class="mini-btn" data-action="rename" title="Renommer le clip" aria-label="Renommer le clip">${icon('pencil-simple')}</button></div>`;
-            return `<li data-clip="${e(clip.id)}"><button type="button" class="replay-thumbnail" data-action="play" aria-label="Lire ${e(clip.name)}" title="Lire ${e(clip.name)}">${icon('play')}<img data-thumbnail="${e(JSON.stringify([clip.id, clip.path, clip.name, clip.bytes, clip.createdAt]))}" alt="" width="320" height="180" decoding="async"></button><div>${title}<small>${clip.kind === 'replay' ? 'Replay' : clip.kind === 'imported' ? 'Importé' : 'REC'} · ${clip.seconds ? duration(clip.seconds) : 'Durée à la lecture'} · ${size(clip.bytes)} · ${e(new Date(clip.createdAt * 1000).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }))}</small></div>${editing ? '' : `<div class="replay-clip-actions"><label class="replay-select"><input type="checkbox" data-select="${e(clip.id)}" aria-label="Sélectionner ${e(clip.name)}" ${selection.has(clip.id) ? 'checked' : ''}> Sélection</label>${button('play', loadingClip === clip.id ? 'Chargement…' : 'Lire', 'play')}${button('reveal', 'Afficher', 'folder-open')}${button('relocate', 'Retrouver', 'magnifying-glass')}${button('delete', 'Supprimer', 'trash')}</div>`}</li>`;
+            return `<li data-clip="${e(clip.id)}"><button type="button" class="replay-thumbnail" data-action="play" aria-label="Lire ${e(clip.name)}" title="Lire ${e(clip.name)}">${icon('play')}<img data-thumbnail="${e(JSON.stringify([clip.id, clip.path, clip.name, clip.bytes, clip.createdAt]))}" alt="" width="320" height="180" decoding="async"></button><div class="replay-clip-details">${title}<small>${clip.kind === 'replay' ? 'Replay' : clip.kind === 'imported' ? 'Importé' : 'REC'} · ${clip.seconds ? duration(clip.seconds) : 'Durée à la lecture'} · ${size(clip.bytes)} · ${e(new Date(clip.createdAt * 1000).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }))}</small>${editing ? '' : `<div class="replay-clip-actions"><label class="replay-clip-select" title="Sélectionner ${e(clip.name)}"><input type="checkbox" data-select="${e(clip.id)}" aria-label="Sélectionner ${e(clip.name)}" ${selection.has(clip.id) ? 'checked' : ''}></label>${button('play', loadingClip === clip.id ? 'Chargement…' : 'Lire', 'play')}${clipAction('reveal', 'Afficher', 'folder-open')}${clipAction('relocate', 'Retrouver', 'magnifying-glass')}${clipAction('delete', 'Supprimer', 'trash')}</div>`}</div></li>`;
         }).join('')}</ul>` : `<div class="replay-empty">${icon('film-strip')}<h3>${query.search || query.kind ? 'Aucun clip correspondant' : 'Vos clips apparaîtront ici'}</h3><p>Activez le replay, puis sauvegardez les dernières secondes. Vous pouvez aussi lancer un enregistrement.</p>${button('capture-tab', 'Ouvrir la capture', 'arrow-counter-clockwise')}</div>`}<div class="replay-toolbar">${button('previous-page', 'Page précédente', 'caret-left')}${button('next-page', 'Page suivante', 'caret-right')}${button('maintenance', 'Actualiser l’espace et les fragments', 'arrows-clockwise')}</div>${cacheUsage ? `<p class="replay-hint">Cache des aperçus : ${size(cacheUsage.bytes)} / ${size(cacheUsage.limitBytes)} · ${cacheUsage.files} image(s).</p>` : ''}${recoveryFiles.length || replay.state.snapshot?.recoveryFiles ? `<div class="replay-recovery"><strong>Fragments à récupérer</strong><p>Récupérez une copie lisible des images complètes. Les fragments d’origine sont conservés, y compris après réussite.</p>${button('recovery', 'Ouvrir les fragments', 'folder-open')}${recoveryFiles.map(file => `<div class="replay-recovery-file"><span>${e(file.id)} · ${size(file.bytes)}</span><button type="button" class="pill-btn" data-action="recover" data-recovery="${e(file.id)}">Récupérer une copie</button></div>`).join('')}</div>` : ''}`;
     }
     function telemetry() {
@@ -150,7 +153,7 @@ export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), 
             root.querySelectorAll('[role="tab"]').forEach(el => { const selected = el.dataset.tab === tab; el.setAttribute('aria-selected', selected); el.tabIndex = selected ? 0 : -1; el.classList.toggle('is-active', selected); });
             $('#list').scrollTop = scroll; thumbnails.refresh(); onRender();
         }
-        telemetry(); rendering = false;
+        selects.refresh(); telemetry(); selects.sync(); rendering = false;
     }
     const unsubscribe = replay.subscribe(() => { if (!signature || !$('#replay-content [data-setting]') && replay.state.tab === 'capture') render(true); else render(); });
     on(root, 'input', event => {
@@ -254,5 +257,5 @@ export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), 
     on(window, 'resize', () => { if (selectedClip) onPlaybackChange(true); });
     ready.then(async () => { if (destroyed) return; await initReplay(); if (destroyed) return; render(true); panel.startIntro(); panel.focus(); await replay.loadSources(); if (!destroyed) render(true); });
     render();
-    return { get busy() { return replay.state.busy; }, notify: text => panel.toast(text), destroy() { destroyed = true; ++playbackRequest; selectedClip = null; stopVideo(); onPlaybackChange(false); thumbnails.destroy(); unsubscribe(); panel.destroy(); } };
+    return { get busy() { return replay.state.busy; }, notify: text => panel.toast(text), destroy() { destroyed = true; ++playbackRequest; selectedClip = null; stopVideo(); onPlaybackChange(false); thumbnails.destroy(); selects.destroy(); unsubscribe(); panel.destroy(); } };
 }

@@ -298,6 +298,7 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
         host.toggleAttribute('data-busy', running);
         setIcon($('[data-action="import"]'), running ? 'circle-notch' : 'plus', 'ph-bold');
         const bar = $('#progress');
+        const restoreFocus = !running && bar.contains(root.activeElement);
         bar.hidden = !running;
         if (running) {
             const counted = importJob.phase === 'read' && importJob.total > 0;
@@ -314,6 +315,7 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
             if (importJob.cancelPending) $('#progress-label').textContent = 'Annulation après le fichier en cours…';
         }
         if (importWasRunning && !running) finishImport();
+        if (restoreFocus) panel.focus();
         importWasRunning = running;
     }
 
@@ -384,7 +386,9 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
             case 'import-files': await importMusic('files'); break;
             case 'cancel-import': {
                 if (importJob.cancelPending || !importJob.phase) break;
+                const hadFocus = root.activeElement?.matches('[data-action="cancel-import"]');
                 importJob.cancelPending = true; notifyImport();
+                if (hadFocus) panel.focus();
                 try { await native.invoke('library_cancel_import'); }
                 catch (error) { importJob.cancelPending = false; notifyImport(); throw error; }
                 break;

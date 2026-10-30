@@ -97,6 +97,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }, { timeout: 4000 }))
         .catch(error => console.warn('[Library]', error));
 
+    window.addEventListener('nolys-preferences-restored', () => {
+        island.musicHistory = island.loadMusicHistory();
+        island.localPlayer.restorePreferences();
+        island._fitCache = {}; island._mediaFit = null;
+    });
+
     // Première fois seulement : Windows range l'icône de la barre dans la zone masquée (flèche ^).
     // Une indication dans l'Island évite de croire que l'app n'a pas démarré.
     const TRAY_HINT_KEY = 'liquid_tray_hint_shown';

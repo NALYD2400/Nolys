@@ -47,7 +47,7 @@ const { spawnSync } = require('node:child_process');
                 state.clips = state.clips.filter(clip => clip.id !== args.id); state.notice = null;
                 return structuredClone(state);
             }
-            if (command === 'replay_sources') return [{ id: 'monitor:1', kind: 'monitor', label: 'Écran 1 · 1920 × 1080', width: 1920, height: 1080 }, { id: 'window:42:10', kind: 'window', label: 'Jeu de test', width: 2560, height: 1440 }];
+            if (command === 'replay_sources') return [{ id: 'monitor:1', kind: 'monitor', label: 'Écran 1 · 1920 × 1080', width: 1920, height: 1080 }, { id: 'window:42:10', kind: 'window', label: 'Jeu de test', width: 2560, height: 1440 }, {id:'window:long',kind:'window',label:'Fenêtre avec un titre très long · '+ 'Texte externe & <test> '.repeat(100),width:1920,height:1080}];
             if (command === 'replay_configure') { state.config = args.config; return structuredClone(state); }
             if (command === 'replay_action') {
                 if (args.action === 'start') Object.assign(state, { phase: 'buffering', bufferedSeconds: 30.25, bufferBytes: 19 * 1024 ** 2, encoder: 'h264_amf', pipeline: 'DXGI · GPU direct', width: 1920, height: 1080 });
@@ -85,7 +85,25 @@ const { spawnSync } = require('node:child_process');
         await page.addStyleTag({ content: 'html { background: #17151b !important; }' });
         await page.evaluate(() => window.island.openExpandedMode('menu')); await settled();
         await page.getByRole('button', { name: 'Replay', exact: true }).click(); await settled();
-        await page.waitForSelector('#replay-sourceId');
+        await page.waitForSelector('#replay-sourceId-trigger');
+        // Un titre de fenêtre externe ne peut plus agrandir la liste native au-delà de l’Island.
+        await page.locator('#replay-sourceId-trigger').click();
+        await page.getByRole('listbox').waitFor();
+        const menuFits = await page.evaluate(() => {
+            const root=window.island._replayHost.shadowRoot, menu=root.querySelector('.replay-select-menu'), capsule=root.querySelector('.replay-panel');
+            const m=menu.getBoundingClientRect(), c=capsule.getBoundingClientRect();
+            return {inside:m.left>=c.left&&m.right<=c.right&&m.top>=c.top&&m.bottom<=c.bottom,width:m.width,panel:c.width,overflow:menu.scrollWidth-menu.clientWidth};
+        });
+        assert.ok(menuFits.inside && menuFits.width<menuFits.panel && menuFits.overflow===0,JSON.stringify(menuFits));
+        await page.screenshot({path:path.join(shots,'replay-source-menu.png')});
+        await page.keyboard.press('End'); await page.keyboard.press('Enter');
+        assert.equal(await page.locator('#replay-sourceId').inputValue(),'window:long');
+        assert.equal(await page.locator('#replay-sourceId-trigger').getAttribute('aria-expanded'),'false');
+        assert.ok(await page.evaluate(()=>window.island._replayHost.shadowRoot.activeElement.id==='replay-sourceId-trigger'));
+        await page.locator('#replay-sourceId-trigger').click(); await page.keyboard.press('Escape');
+        assert.equal(await page.locator('#replay-sourceId-trigger').getAttribute('aria-expanded'),'false');
+        assert.equal(await page.evaluate(()=>window.island.isExpanded),true,'Échap ferme uniquement le menu');
+        await page.locator('#replay-sourceId-trigger').click(); await page.keyboard.press('Home'); await page.keyboard.press('Enter');
         assert.equal(calls.some(call => call.command === 'replay_preflight'), false, 'no preview or audio check before explicit request');
         await page.locator('.replay-preflight summary').click();
         await page.getByRole('button', { name: 'Aperçu de la source', exact: true }).click();
@@ -102,9 +120,12 @@ const { spawnSync } = require('node:child_process');
         await page.getByRole('tab', { name: 'Capture', exact: true }).click(); await page.waitForTimeout(400);
         assert.equal(await page.getByRole('button', { name: 'Activer le replay', exact: true }).isEnabled(), true);
         await page.getByRole('tab', { name: 'Réglages', exact: true }).click();
-        await page.getByLabel('Images par seconde', { exact: false }).selectOption('120');
+        await page.getByRole('combobox', { name: /Images par seconde/ }).click();
+        await page.getByRole('option', {name:'120 FPS',exact:true}).click();
+        assert.equal(await page.locator('#replay-fps').inputValue(),'120','le menu transmet la valeur choisie');
         await page.getByLabel('Enregistrer le microphone', { exact: false }).check();
         await page.getByRole('button', { name: 'Enregistrer les réglages', exact: true }).click();
+        await page.getByText('Réglages enregistrés', {exact:true}).waitFor();
         assert.equal(state.config.fps, 120); assert.equal(state.config.microphone, true);
         await page.locator('.replay-body').evaluate(el => { el.scrollTop = 0; });
         await page.screenshot({ path: path.join(shots, 'replay-settings-desktop.png') });

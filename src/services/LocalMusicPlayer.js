@@ -1,3 +1,4 @@
+import { readRecord } from '../shared/safe-storage.js';
 /** Le son vit dans l’Island, indépendamment du mode affiché. */
 export class LocalMusicPlayer {
     constructor({ invoke, listen, fileSrc, onMedia, onError, audio = new Audio(), storage = localStorage, random = Math.random }) {
@@ -13,12 +14,7 @@ export class LocalMusicPlayer {
         this.shufflePlayed = new Set();
         this.listeners = new Set();
         this.reportedActive = false;
-        try {
-            const prefs = JSON.parse(storage.getItem('nolys_library_player') || '{}');
-            audio.volume = Number.isFinite(prefs.volume) ? Math.max(0, Math.min(1, prefs.volume)) : 0.8;
-            this.shuffle = prefs.shuffle === true;
-            this.repeat = ['off', 'all', 'one'].includes(prefs.repeat) ? prefs.repeat : 'off';
-        } catch { audio.volume = 0.8; }
+        this.restorePreferences(false);
         audio.preload = 'metadata';
         for (const event of ['play', 'pause', 'loadedmetadata', 'seeked', 'volumechange']) audio.addEventListener(event, () => this.publish());
         audio.addEventListener('timeupdate', () => { if (Date.now() - (this.lastPublish || 0) > 450) this.publish(); });
@@ -215,5 +211,12 @@ export class LocalMusicPlayer {
 
     savePreferences() {
         try { this.storage.setItem('nolys_library_player', JSON.stringify({ volume: this.audio.volume, shuffle: this.shuffle, repeat: this.repeat })); } catch { /* La lecture reste possible si le stockage est plein. */ }
+    }
+    restorePreferences(notify = true) {
+        const prefs = readRecord('nolys_library_player', {}, this.storage);
+        this.audio.volume = Number.isFinite(prefs.volume) ? Math.max(0, Math.min(1, prefs.volume)) : 0.8;
+        this.shuffle = prefs.shuffle === true;
+        this.repeat = ['off', 'all', 'one'].includes(prefs.repeat) ? prefs.repeat : 'off';
+        if (notify) this.publish();
     }
 }

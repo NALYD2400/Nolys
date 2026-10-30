@@ -25,6 +25,19 @@ function fixture(overrides = {}) {
     return { player, calls };
 }
 
+test('imported player preferences apply immediately without starting or changing the current track', async () => {
+    const values=new Map([['nolys_library_player',JSON.stringify({volume:.4,shuffle:false,repeat:'off'})]]);
+    const storage={getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)};
+    const {player}=fixture({storage});
+    await player.play('a',['a','b']); player.audio.pause(); player.audio.currentTime=12;
+    values.set('nolys_library_player',JSON.stringify({volume:0,shuffle:true,repeat:'all'}));
+    player.restorePreferences();
+    assert.equal(player.audio.volume,0); assert.equal(player.shuffle,true); assert.equal(player.repeat,'all');
+    assert.equal(player.currentId,'a'); assert.equal(player.audio.currentTime,12); assert.equal(player.audio.paused,true);
+    values.set('nolys_library_player','null'); player.restorePreferences();
+    assert.equal(player.audio.volume,.8); assert.equal(values.get('liquid_recovery_nolys_library_player'),'null');
+});
+
 test('lecture locale, pause, reprise, position et volume', async () => {
     const { player, calls } = fixture();
     await player.play('a', ['a', 'b']);

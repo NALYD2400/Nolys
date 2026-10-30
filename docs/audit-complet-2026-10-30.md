@@ -1,5 +1,7 @@
 # Audit transversal de Nolys — 30 octobre 2026
 
+> Ce document conserve le constat **avant corrections**. Le chantier autorisé ensuite est décrit dans [le bilan des corrections](bilan-corrections-2026-10-30.md). Les anciennes alertes npm et l’absence initiale d’audit Rust ne représentent plus l’état corrigé.
+
 ## Conclusion
 
 L’architecture est déjà compartimentée et protège bien plusieurs opérations sensibles : exports sans écrasement, écritures atomiques pour la bibliothèque et les travaux Fichiers, validation des paramètres Replay, limite du tampon vidéo et isolation des grandes vues. Les parcours nominaux testés dans cette conversation fonctionnent.

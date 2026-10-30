@@ -18,7 +18,7 @@ L’interface actuelle utilise les composants HTML/CSS présents dans le projet.
 | RNNoise via `nnnoiseless` | Réduction de bruit du retour micro. |
 | Phosphor | Polices d’icônes présentes dans les ressources. |
 | Inter, Outfit et Fira Code | Polices présentes dans les ressources ; leur présence ne signifie pas que chaque police est utilisée partout. |
-| Iconify, Deezer, iTunes et Open-Meteo | Services réseau référencés pour des icônes, pochettes de secours ou la météo. |
+| Deezer, iTunes et Open-Meteo | Pochettes de secours et météo ; recherches de pochettes désactivables et mode hors ligne. Les icônes distantes Iconify ont été remplacées par des monogrammes SVG embarqués propres à Nolys. |
 
 Les versions exactes sont conservées dans `package-lock.json` et `src-tauri/Cargo.lock`. Les licences et auteurs des composants conservés restent ceux de leurs projets respectifs. L’utilisation de ces composants ne permet pas de présenter chaque ligne et chaque ressource du produit comme écrite ou créée par l’auteur de Nolys.
 

@@ -16,6 +16,8 @@ const pageShots = process.env.NOLYS_SHOTS;
         const calls = [];
         const errors = [];
         let layout = { x: 0, y: 0, scale: 1, displayId: 'primary' };
+        let nativePreferences = {version:1, layout:structuredClone(layout), microphone:{enabled:false,volume:60}, replay:{destination:'C:\\Videos'}, files:{destination:'C:\\Exports'}};
+        let denyNative = false, denySettings = false;
         async function emit(channel, payload) {
             await Promise.all(context.pages().map(page => page.evaluate(({ channel, payload }) => window.__dispatch?.(channel, payload), { channel, payload }).catch(() => {})));
         }
@@ -29,6 +31,9 @@ const pageShots = process.env.NOLYS_SHOTS;
                 case 'set_layout_config': layout = { ...layout, ...args.layout }; setTimeout(() => emit('layout-config-changed', layout), 5); return null;
                 case 'set_layout_edit_mode': setTimeout(() => emit('layout-edit-mode-changed', args.enabled), 5); return null;
                 case 'save_settings_file': return true;
+                case 'preferences_bundle': return structuredClone(nativePreferences);
+                case 'preferences_restore': if (denyNative) throw Error('Dossier natif inaccessible'); nativePreferences=structuredClone(args.bundle); return null;
+                case 'ui_settings_write': if (denySettings) throw Error('Disque plein'); return null;
                 case 'get_update_status': return { state: 'idle', currentVersion: '2.2.3', canCheck: false };
                 case 'get_auto_start': return false;
                 case 'get_mic_monitor': return { config: { enabled: false }, level: 0 };
@@ -39,6 +44,7 @@ const pageShots = process.env.NOLYS_SHOTS;
             }
         });
         await context.addInitScript(() => {
+            window.__NOLYS_UI_SETTINGS__={initialized:false,values:{}};
             localStorage.setItem('liquid_tray_hint_shown', 'true');
             localStorage.setItem('liquid_sound_effects_enabled', 'false');
             localStorage.removeItem('liquid_settings_page');
@@ -150,6 +156,33 @@ const pageShots = process.env.NOLYS_SHOTS;
         const exported = calls.find(call => call.command === 'save_settings_file');
         assert.ok(exported && JSON.parse(exported.args.contents).type === 'liquid-dynamic-island-settings');
         assert.match(exported.args.fileName, /^nolys-reglages-\d{4}-\d{2}-\d{2}\.json$/);
+        const backup = JSON.parse(exported.args.contents);
+        assert.equal(backup.version,2); assert.ok(backup.uiValues && backup.nativePreferences);
+        const before = await page.evaluate(()=>localStorage.getItem('liquid_motion_level'));
+        const previousNative=structuredClone(nativePreferences);
+        const upload = payload => page.locator('input[type="file"]').setInputFiles({name:'nolys-test.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(payload))});
+        // Validation avant mutation, puis retour arrière indépendant de chaque stockage.
+        const restores=calls.filter(call=>call.command==='preferences_restore').length;
+        await upload({...backup,settings:{shortcuts:[null]}});
+        await page.getByText('Les raccourcis de la sauvegarde sont invalides.',{exact:true}).waitFor();
+        assert.equal(calls.filter(call=>call.command==='preferences_restore').length,restores);
+        denyNative=true;
+        await upload({...backup,settings:{...backup.settings,motion:'sober'}});
+        await page.getByText('Dossier natif inaccessible',{exact:true}).waitFor();
+        assert.equal(await page.evaluate(()=>localStorage.getItem('liquid_motion_level')),before);
+        denyNative=false; denySettings=true;
+        await upload({...backup,settings:{...backup.settings,motion:'sober'}});
+        await page.waitForFunction(()=>window.island._settingsHost.shadowRoot.textContent.includes('Récupération incomplète'));
+        assert.equal(await page.evaluate(()=>localStorage.getItem('liquid_motion_level')),before);
+        assert.deepEqual(nativePreferences,previousNative,'le retour arrière natif est tenté malgré la panne disque');
+        denySettings=false;
+        await page.getByRole('button',{name:'Réessayer',exact:true}).click();
+        await page.waitForFunction(()=>!window.island._settingsHost.shadowRoot.querySelector('.hotkey-error[role="alert"]'));
+        await upload({...backup,settings:{...backup.settings,motion:'sober'}});
+        await page.waitForFunction(()=>localStorage.getItem('liquid_motion_level')==='sober');
+        await page.locator('.row').filter({hasText:'Annuler le dernier import'}).getByRole('button',{name:'Restaurer',exact:true}).click();
+        await page.waitForFunction(expected=>localStorage.getItem('liquid_motion_level')===expected,before);
+        assert.deepEqual(nativePreferences,previousNative);
 
         // Sélecteur de fichier ouvert (Importer) : la perte de focus ne replie pas l'Island.
         const chooser = page.waitForEvent('filechooser');
