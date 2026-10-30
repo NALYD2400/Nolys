@@ -1,6 +1,6 @@
 import { capsuleSettled } from './library.js';
 
-// React et le SDK Liquid Glass ne sont téléchargés qu'à la première ouverture (ou au repos
+// React et les pages des Réglages sont chargés à la première ouverture (ou au repos
 // après le lancement, voir warmSettingsView) : l'Island seule n'en a pas besoin.
 let settingsModule = null;
 const loadSettings = () => (settingsModule ??= import('../../../settings/mount.jsx').catch((error) => {

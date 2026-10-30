@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// Interface de la fenêtre Tauri de l'Island (JS natif). Les Réglages (React + Liquid Glass) y
+// Interface de la fenêtre Tauri de l'Island (JS natif). Les Réglages (React et styles locaux) y
 // sont un mode de la capsule, chargé à la demande (src/settings/mount.jsx).
 export default defineConfig({
     root: 'src',
@@ -15,8 +15,8 @@ export default defineConfig({
         emptyOutDir: true,
         assetsDir: '_app',
         target: 'chrome120',
-        // React + Liquid Glass forment un seul paquet local (~230 Ko gzip), chargé au repos après le
-        // lancement ou à la première ouverture des Réglages.
+        // Le paquet React des Réglages est chargé au repos après le lancement
+        // ou à leur première ouverture.
         chunkSizeWarningLimit: 900,
         rollupOptions: {
             input: {

@@ -2,9 +2,8 @@
  * Réglages montés dans l'Island (mode `settings`), chargés à la demande par
  * island/dynamic-island/views/settings.js.
  *
- * Tout vit dans un shadow DOM : les styles des Réglages et du SDK Liquid Glass ne touchent
- * pas l'Island, et ceux de l'Island ne touchent pas les Réglages. Les menus du SDK sont
- * portés dans la racine de leur scène, donc restent eux aussi dans le shadow DOM.
+ * Tout vit dans un shadow DOM : les styles locaux des Réglages ne touchent pas l'Island,
+ * et ceux de l'Island ne touchent pas les Réglages. Les menus restent dans cette racine.
  */
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
@@ -50,8 +49,8 @@ export function mountSettings(host, { page, onBack = () => {}, onClose = () => {
     root.replaceChildren(icons, container);
 
     const abort = new AbortController();
-    // Échap ferme les Réglages, sauf s'il sert déjà à fermer un menu ouvert (le SDK l'écoute
-    // sur le document, après nous) ; l'enregistrement d'un raccourci l'intercepte avant nous.
+    // Échap ferme les Réglages, sauf s'il sert déjà à fermer un menu ouvert ; les listes
+    // l'écoutent sur le document. L'enregistrement d'un raccourci l'intercepte avant nous.
     root.addEventListener('keydown', (event) => {
         if (event.key !== 'Escape' || event.defaultPrevented) return;
         if (root.querySelector('.lg-menu-positioner, [data-open][role="menu"], [role="listbox"]')) return;

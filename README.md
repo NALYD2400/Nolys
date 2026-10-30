@@ -81,7 +81,7 @@ src/                         Interface, construite par Vite (vite.config.js) dan
 │     ├─ features/           Logique : lecture, volume, mixeur, thème…
 │     ├─ views/              Rendu des écrans : repos, lecteur, centre de contrôle…
 │     └─ helpers/            Fonctions utilitaires (couleurs, formats, pochettes)
-└─ settings/                 Réglages, un mode de l'Island (React + @glass-sdk/liquid-glass, voir docs/reglages.md)
+└─ settings/                 Réglages, un mode de l'Island (React, HTML et CSS locaux, voir docs/reglages.md)
    ├─ mount.jsx              Montage dans la capsule (shadow DOM), chargé à la demande
    ├─ App.jsx                Barre latérale, fond réfracté, navigation
    ├─ pages/                 Général, Apparence, Musique, Fond d'écran, Centre de contrôle, Position, À propos
