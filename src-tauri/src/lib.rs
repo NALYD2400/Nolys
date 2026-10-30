@@ -55,6 +55,7 @@ pub fn run() {
             replay::commands::replay_reveal,
             replay::commands::replay_play,
             replay::commands::replay_media,
+            replay::commands::replay_thumbnail,
             replay::commands::replay_delete,
             replay::commands::replay_rename,
             files::commands::files_dev_log,

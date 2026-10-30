@@ -4,6 +4,9 @@ import { duration, activeCapture } from '../../../replay/model.js';
 import { capsuleSettled, afterIntro } from './library.js';
 
 export const replayView = {
+    replayFitKey() {
+        return this.el.classList.contains('island-replay-player') ? 'replay-player' : `replay-${replay.state.tab}`;
+    },
     initReplay() {
         const indicator = document.createElement('button');
         indicator.type = 'button'; indicator.id = 'island-replay-satellite';

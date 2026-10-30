@@ -5,13 +5,9 @@ import { mountLibrary } from '../../../library/controller.js';
  * pendant ce temps faisait accrocher la fin de l'ouverture.
  */
 export function capsuleSettled(el) {
-    if (!el.classList.contains('animating')) return Promise.resolve();
-    return new Promise(resolve => {
-        const done = () => { el.removeEventListener('transitionend', onEnd); clearTimeout(timer); resolve(); };
-        const onEnd = event => { if (event.target === el && (event.propertyName === 'width' || event.propertyName === 'height')) done(); };
-        el.addEventListener('transitionend', onEnd);
-        const timer = setTimeout(done, 750);
-    });
+    // Both dimensions must finish; a short width transition must not release a longer height.
+    const transitions = el.getAnimations().filter(animation => ['width', 'height'].includes(animation.transitionProperty));
+    return Promise.allSettled(transitions.map(animation => animation.finished));
 }
 
 /**
@@ -51,8 +47,10 @@ export const libraryView = {
      */
     /** Hauteur à donner à la capsule pour ce mode : mesure en cours, ou la dernière connue (ouverture). */
     fittedHeight(mode) {
-        if (this._mediaFit?.mode === mode) return this._mediaFit.height;
-        return this._fitCache?.[mode] ?? readStoredFit(mode);
+        const key = mode === 'replay' ? this.replayFitKey() : mode;
+        if (key === 'replay-settings') return null;
+        if (this._mediaFit?.mode === mode && this._mediaFit.key === key) return this._mediaFit.height;
+        return this._fitCache && Object.hasOwn(this._fitCache, key) ? this._fitCache[key] : readStoredFit(key);
     },
 
     /** Hôte neuf : il prend tout de suite la hauteur retenue (l'en-tête ne bouge pas à la mesure). */
@@ -66,10 +64,11 @@ export const libraryView = {
     fitToContent(host, mode, expanded, max) {
         this._mediaFit = null;
         this._fitCache ??= {};
+        const key = mode === 'replay' ? this.replayFitKey() : mode;
         // Une mesure encore en attente ne doit pas écraser une demande plus récente.
         const token = this._fitToken = (this._fitToken || 0) + 1;
         if (!expanded) {
-            this._fitCache[mode] = null;
+            this._fitCache[key] = null;
             host.style.removeProperty('--panel-height');
             if (this.mode === mode) this.el.style.height = '';
             return;
@@ -79,13 +78,20 @@ export const libraryView = {
             const list = host.shadowRoot?.querySelector('#list');
             if (token !== this._fitToken || !lib || !list?.lastElementChild || !host.isConnected || this.mode !== mode) return;
             // scrollHeight vaut au moins la hauteur visible : on mesure le contenu lui-même.
-            const content = list.lastElementChild.getBoundingClientRect().bottom - list.getBoundingClientRect().top
-                + list.scrollTop + parseFloat(getComputedStyle(list).paddingBottom);
-            const height = Math.min(max, Math.ceil(lib.clientHeight - list.clientHeight + content));
-            this._mediaFit = { mode, height };
+            // Layout sizes exclude the entry animation's translate/scale. Reading visual
+            // rectangles here could retain a transient, oversized height indefinitely.
+            const style = getComputedStyle(list);
+            const children = [...list.children].filter(child => getComputedStyle(child).display !== 'none');
+            const content = children.reduce((sum, child) => {
+                const margins = getComputedStyle(child);
+                return sum + child.offsetHeight + (parseFloat(margins.marginTop) || 0) + (parseFloat(margins.marginBottom) || 0);
+            }, (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0)
+                + Math.max(0, children.length - 1) * (parseFloat(style.rowGap) || 0));
+            const height = Math.max(180, Math.min(max, Math.ceil(lib.clientHeight - list.clientHeight + content)));
+            this._mediaFit = { mode, key, height };
             // Retenue : la prochaine ouverture part directement de cette hauteur, sans se rétrécir ensuite.
-            this._fitCache[mode] = height;
-            writeStoredFit(mode, height);
+            if (this._fitCache[key] !== height) writeStoredFit(key, height);
+            this._fitCache[key] = height;
             host.classList.add('is-top-anchored');
             host.style.setProperty('--panel-height', `${height}px`);
             this.el.style.height = `${height}px`;

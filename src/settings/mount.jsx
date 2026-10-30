@@ -54,7 +54,7 @@ export function mountSettings(host, { page, onBack = () => {}, onClose = () => {
     // sur le document, après nous) ; l'enregistrement d'un raccourci l'intercepte avant nous.
     root.addEventListener('keydown', (event) => {
         if (event.key !== 'Escape' || event.defaultPrevented) return;
-        if (root.querySelector('.lg-menu-positioner, [data-open][role="menu"]')) return;
+        if (root.querySelector('.lg-menu-positioner, [data-open][role="menu"], [role="listbox"]')) return;
         event.preventDefault();
         onClose();
     }, { signal: abort.signal });

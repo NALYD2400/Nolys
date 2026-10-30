@@ -16,7 +16,11 @@ const { spawnSync } = require('node:child_process');
         const config = { sourceId: '', capture: 'auto', encoder: 'auto', codec: 'h264', preset: 'speed', height: 1080, fps: 60, bitrateMbps: 16, seconds: 60, memoryMb: 256, cursor: true, systemAudio: true, microphone: false, outputDevice: '', inputDevice: '', systemVolume: 100, micVolume: 100, audioKbps: 192, separateAudio: false, destination: 'C:\\Users\\Test\\Videos\\Nolys', enginePath: '' };
         let state = { phase: 'idle', config, bufferedSeconds: 0, bufferBytes: 0, recording: false, recordingSeconds: 0, exporting: false, encoder: '', pipeline: '', width: 0, height: 0, error: null, notice: null, clips: [], engineAvailable: true, enginePath: 'C:\\Nolys\\ffmpeg.exe', recoveryFiles: 0 };
         const calls = [], errors = [];
+        const preview = spawnSync(process.env.NOLYS_FFMPEG || path.join(process.cwd(), 'src-tauri/resources/replay/ffmpeg.exe'), ['-v', 'error', '-i', fixture, '-frames:v', '1', '-vf', 'scale=320:180', '-f', 'image2pipe', '-c:v', 'mjpeg', 'pipe:1'], { windowsHide: true });
+        assert.equal(preview.status, 0);
+        await context.route('**/__replay_thumbnail.jpg', route => route.fulfill({ contentType: 'image/jpeg', body: preview.stdout }));
         let rejectDeletion = false, rejectRename = false;
+        let networkSample = { netDown: 2048, netUp: 128 };
         await context.route('**/__replay_fixture.mp4', route => {
             const bytes = fs.readFileSync(fixture);
             const range = /^bytes=(\d+)-(\d*)$/.exec(route.request().headers().range || '');
@@ -28,6 +32,7 @@ const { spawnSync } = require('node:child_process');
             calls.push({ command, args });
             if (command === 'replay_snapshot') return structuredClone(state);
             if (command === 'replay_media') return 'http://localhost:1420/__replay_fixture.mp4';
+            if (command === 'replay_thumbnail') return 'http://localhost:1420/__replay_thumbnail.jpg';
             if (command === 'replay_rename') {
                 if (rejectRename) { rejectRename = false; throw new Error('Un fichier porte déjà ce nom.'); }
                 state.clips = state.clips.map(clip => clip.id === args.id ? { ...clip, name: `${args.name}.mp4` } : clip);
@@ -55,6 +60,7 @@ const { spawnSync } = require('node:child_process');
                 case 'get_update_status': return { state: 'idle', currentVersion: '2.4.0', canCheck: false };
                 case 'get_mic_monitor': return { config: { enabled: false }, level: 0 };
                 case 'get_system_volume': return 50;
+                case 'get_hardware_telemetry': return networkSample;
                 case 'library_get': return { tracks: [], playlists: [] };
                 case 'files_snapshot': return { jobs: [], destination: '', inputs: [] };
                 case 'get_audio_sessions': case 'get_audio_devices': case 'get_audio_input_devices': case 'register_shortcuts': return [];
@@ -177,7 +183,12 @@ const { spawnSync } = require('node:child_process');
         assert.equal(await page.getByText('Clip de test.mp4', { exact: true }).count(), 1);
         await settled();
         const clipHeight = await page.locator('#dynamic-island').evaluate(el => el.getBoundingClientRect().height);
-        assert.ok(clipHeight < 240, `single clip should be compact, got ${clipHeight}`);
+        await page.waitForFunction(() => document.querySelector('.replay-panel-host').shadowRoot.querySelector('.replay-thumbnail img')?.naturalWidth === 320);
+        assert.equal(await page.locator('.replay-thumbnail img.is-loaded').count(), 1);
+        const previewCalls = calls.filter(call => call.command === 'replay_thumbnail').length;
+        await page.evaluate(() => window.__dispatch('replay-status', {})); await settled();
+        assert.equal(calls.filter(call => call.command === 'replay_thumbnail').length, previewCalls, 'telemetry must reuse thumbnails');
+        assert.ok(clipHeight < 270, `single clip should be compact, got ${clipHeight}`);
         const originalClips = structuredClone(state.clips);
         state.clips = Array.from({ length: 12 }, (_, index) => ({ ...originalClips[0], id: `many-${index}`, name: `Clip ${index}.mp4` }));
         await page.evaluate(() => window.__dispatch('replay-status', {})); await settled();
@@ -186,7 +197,7 @@ const { spawnSync } = require('node:child_process');
         assert.equal(await page.locator('.replay-body').evaluate(el => el.scrollHeight > el.clientHeight), true);
         state.clips = originalClips;
         await page.evaluate(() => window.__dispatch('replay-status', {})); await settled();
-        assert.ok(await page.locator('#dynamic-island').evaluate(el => el.getBoundingClientRect().height) < 240);
+        assert.ok(await page.locator('#dynamic-island').evaluate(el => el.getBoundingClientRect().height) < 270);
         await page.getByRole('button', { name: 'Renommer le clip', exact: true }).click();
         const rename = page.getByRole('textbox', { name: 'Nouveau nom du clip', exact: true });
         await rename.fill('Nom annulé'); await rename.press('Escape');
@@ -218,6 +229,11 @@ const { spawnSync } = require('node:child_process');
         assert.ok(calls.some(call => call.command === 'replay_media' && call.args.id === 'fixture-replay'));
         await page.getByRole('button', { name: 'Revenir aux clips', exact: true }).click(); await settled();
         assert.equal(await page.locator('#replay-video').count(), 0);
+        await page.getByRole('tab', { name: 'Réglages', exact: true }).click(); await settled();
+        await page.getByRole('button', { name: 'Fermer Replay', exact: true }).click(); await settled();
+        await page.evaluate(() => window.island.openReplay()); await settled();
+        assert.ok(await page.locator('#dynamic-island').evaluate(el => el.clientHeight) >= 536, 'settings must reopen at full height after a compact clip list');
+        await page.getByRole('tab', { name: 'Clips', exact: true }).click(); await settled();
         assert.equal(await page.locator('#dynamic-island').evaluate(el => Math.round(el.getBoundingClientRect().width)), 562);
         await page.getByRole('button', { name: 'Afficher', exact: true }).click();
         assert.ok(calls.some(call => call.command === 'replay_play' && call.args.id === 'fixture-replay'));
@@ -251,6 +267,19 @@ const { spawnSync } = require('node:child_process');
         await page.getByRole('button', { name: 'Supprimer', exact: true }).click();
         assert.equal(state.clips.length, 0);
         assert.equal(await page.getByRole('heading', { name: 'Vos clips apparaîtront ici' }).count(), 1);
+        await page.setViewportSize({ width: 720, height: 600 });
+        for (const mode of ['music', 'timer', 'network', 'menu', 'music-search', 'music-history', 'control', 'mixer', 'mic', 'library', 'settings', 'replay', 'files']) {
+            await page.evaluate(mode => window.island.setMode(mode), mode); await settled();
+            if (mode === 'network') {
+                assert.equal(await page.locator('.net-display-dl').textContent(), '16.8Mbps');
+                networkSample = null;
+                await page.evaluate(() => window.island.refreshNetwork());
+                assert.equal(await page.locator('.net-display-dl').textContent(), '—Mbps', 'missing telemetry must not display invented speeds');
+            }
+            const box = await page.locator('#dynamic-island').boundingBox();
+            assert.ok(box.x >= 0 && box.y >= 0 && box.x + box.width <= 721 && box.y + box.height <= 601, `${mode} must fit the native viewport: ${JSON.stringify(box)}`);
+            assert.equal(await page.locator('#dynamic-island').evaluate(el => el.scrollWidth <= el.clientWidth + 2), true, `${mode} must not overflow horizontally: ${await page.locator('#dynamic-island').evaluate(el => JSON.stringify({width:el.clientWidth,scroll:el.scrollWidth,children:[...el.querySelectorAll('*')].filter(c=>c.getBoundingClientRect().right>el.getBoundingClientRect().right+2).map(c=>c.className).slice(0,12)}))}`);
+        }
         assert.deepEqual(errors, []);
         console.log('Replay browser: settings, capture, REC, satellites, embedded playback and seek, telemetry persistence, player resize/return, deletion failure/success, empty clips and compact layout passed.');
     } finally { await browser.close(); }

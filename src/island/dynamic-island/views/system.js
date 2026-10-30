@@ -1,4 +1,5 @@
 /** Vues système : statistiques, réseau, chrono et minuteur. */
+import { ipcRenderer } from '../../../shared/ipc.js';
 import { SoundService } from '../../../services/SoundService.js';
 
 /** Durées proposées par le minuteur, par défaut (en secondes). */
@@ -136,22 +137,29 @@ export const systemViews = {
     `;
     },
 
-    renderNetwork() {
-        // --- Network Simulation Logic ---
-        if (!this.networkState) {
-            this.networkState = { dl: 50, ul: 10 };
+    async refreshNetwork() {
+        if (this._networkPending || !this.isExpanded || this.mode !== 'network') return;
+        this._networkPending = true;
+        this._networkRequestedAt = Date.now();
+        try {
+            const sample = await ipcRenderer.invoke('get-hardware-telemetry');
+            if (!sample || !Number.isFinite(sample.netDown) || !Number.isFinite(sample.netUp)) throw new Error('Débit indisponible');
+            // The native counters report KiB/s; this view uses decimal megabits/s.
+            this.networkState = { dl: Math.max(0, sample.netDown) * 1024 * 8 / 1_000_000, ul: Math.max(0, sample.netUp) * 1024 * 8 / 1_000_000 };
+            this._networkAvailable = true;
+        } catch {
+            this._networkAvailable = false;
+        } finally {
+            this._networkPending = false;
+            if (this.isExpanded && this.mode === 'network') this.renderNetwork();
         }
+    },
 
-        // Random drift smoother
-        const targetDl = this.networkState.dl + (Math.random() - 0.5) * 30;
-        const targetUl = this.networkState.ul + (Math.random() - 0.5) * 5;
-
-        // Clamp
-        this.networkState.dl = Math.max(5, Math.min(950, targetDl));
-        this.networkState.ul = Math.max(1, Math.min(300, targetUl));
-
-        const dl = this.networkState.dl.toFixed(1);
-        const ul = this.networkState.ul.toFixed(1);
+    renderNetwork() {
+        this.networkState ??= { dl: 0, ul: 0 };
+        if (!this._networkRequestedAt || Date.now() - this._networkRequestedAt > 900) this.refreshNetwork();
+        const dl = this._networkAvailable ? this.networkState.dl.toFixed(1) : '—';
+        const ul = this._networkAvailable ? this.networkState.ul.toFixed(1) : '—';
 
         // Determine Speed Class
         let speedClass = 'speed-slow';

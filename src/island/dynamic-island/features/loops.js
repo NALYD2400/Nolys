@@ -156,7 +156,7 @@ export const loopMethods = {
 
         if (this.isExpanded) {
             if (this.mode === 'network') {
-                this.renderNetwork();
+                this.refreshNetwork();
             }
             if (this.mode === 'mixer') {
                 this.updateAudioSessions();

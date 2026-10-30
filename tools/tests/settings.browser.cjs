@@ -128,12 +128,13 @@ const pageShots = process.env.NOLYS_SHOTS;
         // Menu déroulant : reste dans la capsule ; Échap ferme le menu, puis les Réglages.
         await page.locator('.nav-item', { hasText: 'Position' }).click();
         await page.locator('.select-trigger').click();
-        await page.getByRole('menuitem', { name: 'Écran 2' }).waitFor();
+        await page.getByRole('option', { name: 'Écran 2' }).waitFor();
         const menuBox = await page.evaluate(() => { const r = window.island._settingsHost.shadowRoot.querySelector('.select-menu').getBoundingClientRect(); const c = window.island.el.getBoundingClientRect(); return { inside: r.left >= c.left && r.right <= c.right && r.top >= c.top && r.bottom <= c.bottom, r: [r.left, r.top, r.right, r.bottom], c: [c.left, c.top, c.right, c.bottom] }; });
         assert.ok(menuBox.inside, `menu dans la capsule : ${JSON.stringify(menuBox)}`);
         if (pageShots) await page.screenshot({ path: path.join(pageShots, 'reglages-menu.png') });
         await page.keyboard.press('Escape');
-        await page.getByRole('menuitem', { name: 'Écran 2' }).waitFor({ state: 'detached' });
+        await page.getByRole('option', { name: 'Écran 2' }).waitFor({ state: 'detached' });
+        await settled();
         assert.ok(await isOpen(), 'Échap a seulement fermé le menu');
 
         // Taille : boutons − / + par pas de 5 %.
@@ -198,6 +199,13 @@ const pageShots = process.env.NOLYS_SHOTS;
 
         assert.deepEqual(errors, []);
         console.log(`OK — Réglages dans l'Island (montés ${openMs} ms après le clic)`);
+    } catch (error) {
+        const page = browser.contexts()[0]?.pages()[0];
+        if (page) {
+            await page.screenshot({ path: path.join(process.cwd(), '.impeccable/review/settings-failure.png') });
+            console.error(await page.evaluate(() => ({ mode: window.island?.mode, expanded: window.island?.isExpanded, text: window.island?._settingsHost?.shadowRoot?.textContent?.slice(-900) })));
+        }
+        throw error;
     } finally {
         await browser.close();
     }

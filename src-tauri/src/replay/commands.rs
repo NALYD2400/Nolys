@@ -146,6 +146,16 @@ pub fn replay_media(app: AppHandle, window: WebviewWindow, id: String) -> Result
 }
 
 #[tauri::command]
+pub async fn replay_thumbnail(app: AppHandle, window: WebviewWindow, id: String) -> Result<String, String> {
+    authorize(&window)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let path = app.state::<Store>().thumbnail(&id)?;
+        app.asset_protocol_scope().allow_file(&path).map_err(|e| e.to_string())?;
+        Ok(path.to_string_lossy().into_owned())
+    }).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 pub async fn replay_rename(app: AppHandle, window: WebviewWindow, id: String, name: String) -> Result<Snapshot, String> {
     authorize(&window)?;
     tauri::async_runtime::spawn_blocking(move || {

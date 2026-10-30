@@ -1,6 +1,7 @@
 /* Modes réseau et statistiques de performance */
 
 /* ========== Network Pulse Mode ========== */
+.network-pulse-container, .network-pulse-container * { box-sizing: border-box; }
 .network-pulse-container {
     display: flex;
     flex-direction: column;

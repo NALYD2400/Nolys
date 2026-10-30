@@ -8,6 +8,15 @@
         "value": "inter",
         "createdAt": "2026-10-18T17:33:42.860Z",
         "reason": "Agent decision: Inter is the existing Nolys typeface in src/settings/styles.css:19 and src/island/index.html; this menu extension preserves the incumbent interface and typography."
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "src/replay/controller.js"
+        ],
+        "createdAt": "2026-10-30T11:52:56.808Z",
+        "reason": "Agent review: intentional deferred clip thumbnails; image remains transparent until JPEG load, with a visible play icon fallback. Verified by tools/tests/replay.browser.cjs: decoded thumbnail naturalWidth=320 and cache reuse."
       }
     ]
   }

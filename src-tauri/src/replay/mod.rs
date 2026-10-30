@@ -12,6 +12,7 @@ mod recycle;
 mod rename;
 mod ring;
 mod sources;
+mod thumbnail;
 
 pub use config::Config;
 use parking_lot::Mutex;
