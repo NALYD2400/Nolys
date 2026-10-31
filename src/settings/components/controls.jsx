@@ -2,7 +2,7 @@
  * Briques d'interface des réglages. Tout est en HTML et CSS simples (styles.css) : pas de
  * verre réfracté. Un verre recalculé à chaque image faisait traîner le défilement des pages.
  */
-import { startTransition, useEffect, useId, useRef, useState } from 'react';
+import { startTransition, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { playClick } from '../state/sound.js';
 
 /** Vert « activé » façon iOS : l'état reste lisible quelle que soit la pochette. */
@@ -206,8 +206,8 @@ export function ChoiceGrid({ value, options, onChange, columns = options.length 
     );
 }
 
-/** Place à garder sous un bouton pour que son menu s'ouvre vers le bas (hauteur du menu, marge). */
-const MENU_SPACE = 260;
+const MENU_MAX_HEIGHT = 320;
+const MENU_GAP = 6;
 
 /**
  * Menu déroulant, le même partout : intitulé de section et icône devant chaque choix.
@@ -216,9 +216,11 @@ const MENU_SPACE = 260;
 export function Select({ value, options, groups, title, onChange, placeholder = 'Choisir…' }) {
     const [open, setOpen] = useState(false);
     const [up, setUp] = useState(false);
+    const [menuSize, setMenuSize] = useState({});
     const [active, setActive] = useState(0);
     const root = useRef(null);
     const trigger = useRef(null);
+    const menu = useRef(null);
     const search = useRef({ text: '', at: 0 });
     const id = useId();
     const sections = groups ?? [{ label: title, options: options ?? [] }];
@@ -227,9 +229,6 @@ export function Select({ value, options, groups, title, onChange, placeholder = 
     const current = allOptions[selectedIndex];
     const show = (index = Math.max(0, selectedIndex)) => {
         if (!allOptions.length) return;
-        const rect = trigger.current.getBoundingClientRect();
-        const below = window.innerHeight - rect.bottom;
-        setUp(below < MENU_SPACE && rect.top > below);
         setActive(index);
         setOpen(true);
     };
@@ -239,6 +238,38 @@ export function Select({ value, options, groups, title, onChange, placeholder = 
         if (!option) return;
         playClick(); close(true); onChange(option.value);
     };
+    useLayoutEffect(() => {
+        if (!open) return undefined;
+        const page = root.current.closest('.page');
+        const position = () => {
+            const rect = root.current.getBoundingClientRect();
+            const bounds = page?.getBoundingClientRect();
+            // La fenêtre native comprend de larges marges transparentes. La page,
+            // avec son masque de défilement, est la limite réellement visible.
+            const scale = rect.height / root.current.offsetHeight || 1;
+            const top = Math.max(0, bounds?.top ?? 0) + 14 * scale;
+            const bottom = Math.min(window.innerHeight, bounds?.bottom ?? window.innerHeight) - 30 * scale;
+            const above = Math.max(0, (rect.top - top) / scale - MENU_GAP);
+            const below = Math.max(0, (bottom - rect.bottom) / scale - MENU_GAP);
+            const height = Math.min(MENU_MAX_HEIGHT, menu.current.scrollHeight);
+            const upwards = below < height && above > below;
+            setUp(upwards);
+            setMenuSize({
+                '--select-menu-height': `${Math.min(MENU_MAX_HEIGHT, upwards ? above : below)}px`,
+                '--select-menu-width': `${Math.max(0, (rect.right - Math.max(0, bounds?.left ?? 0)) / scale - 8)}px`,
+            });
+        };
+        position();
+        page?.addEventListener('scroll', position, { passive: true });
+        window.addEventListener('resize', position);
+        const observer = new ResizeObserver(position);
+        if (page) observer.observe(page);
+        return () => {
+            page?.removeEventListener('scroll', position);
+            window.removeEventListener('resize', position);
+            observer.disconnect();
+        };
+    }, [open]);
     useEffect(() => {
         if (!open) return undefined;
         const onPointer = event => { if (root.current && !event.composedPath().includes(root.current)) setOpen(false); };
@@ -248,7 +279,15 @@ export function Select({ value, options, groups, title, onChange, placeholder = 
     useEffect(() => {
         if (!open) return;
         const item = root.current?.querySelector(`[data-option-index="${active}"]`);
-        item?.focus(); item?.scrollIntoView({ block: 'nearest' });
+        if (!item || !menu.current) return;
+        item.focus({ preventScroll: true });
+        // Ne déplacer que la liste : scrollIntoView faisait aussi défiler la page
+        // et pouvait repousser le bouton et son menu hors de la capsule.
+        const bounds = menu.current.getBoundingClientRect();
+        const rect = item.getBoundingClientRect();
+        const scale = bounds.height / menu.current.offsetHeight || 1;
+        if (rect.top < bounds.top + 6 * scale) menu.current.scrollTop += (rect.top - bounds.top) / scale - 6;
+        else if (rect.bottom > bounds.bottom - 6 * scale) menu.current.scrollTop += (rect.bottom - bounds.bottom) / scale + 6;
     }, [open, active]);
     const onKeyDown = event => {
         const key = event.key;
@@ -283,7 +322,7 @@ export function Select({ value, options, groups, title, onChange, placeholder = 
                 onClick={() => open ? close() : show()}>
                 <span>{current?.label ?? placeholder}</span><Icon name="ph-caret-up-down" />
             </button>
-            {open && <div id={`${id}-list`} className={`select-menu glass${up ? ' is-up' : ''}`} role="listbox" aria-labelledby={`${id}-trigger`}>
+            {open && <div ref={menu} id={`${id}-list`} style={menuSize} className={`select-menu glass${up ? ' is-up' : ''}`} role="listbox" aria-labelledby={`${id}-trigger`}>
                 {sections.map((group, groupIndex) => <div key={group.label ?? groupIndex} role="group" aria-label={group.label}>
                     {group.label && <div className="menu-group-label">{group.label}</div>}
                     {group.options.map(option => {

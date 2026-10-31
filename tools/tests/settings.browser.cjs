@@ -1,3 +1,4 @@
+const nativeViewport = require('./island-viewport.cjs');
 /* Parcours navigateur : Réglages ouverts dans la vraie Island, pont natif simulé.
  * Lancer `npm run dev:ui`, puis `node tools/tests/settings.browser.cjs`.
  * NOLYS_SHOTS=dossier : une capture par page des Réglages. */
@@ -11,8 +12,8 @@ const pageShots = process.env.NOLYS_SHOTS;
 (async () => {
     const browser = await chromium.launch({ headless: true, channel: 'msedge', args: ['--mute-audio'] });
     try {
-        // Même taille CSS que la fenêtre native de l'Island (720 × 600).
-        const context = await browser.newContext({ viewport: { width: 720, height: 600 } });
+        // Même taille CSS que la fenêtre native de l'Island (voir island-viewport.cjs).
+        const context = await browser.newContext({ viewport: nativeViewport });
         const calls = [];
         const errors = [];
         let layout = { x: 0, y: 0, scale: 1, displayId: 'primary' };
@@ -82,8 +83,8 @@ const pageShots = process.env.NOLYS_SHOTS;
         assert.equal(await heading(), 'Général');
         assert.ok(await page.evaluate(() => window.island.el.classList.contains('island-mode-settings')));
         const box = await page.evaluate(() => { const r = window.island.el.getBoundingClientRect(); return { left: r.left, right: r.right, bottom: r.bottom, width: r.width, height: r.height }; });
-        assert.ok(box.left >= 0 && box.right <= 720 && box.bottom <= 600, `la capsule tient dans la fenêtre : ${JSON.stringify(box)}`);
-        // Plus grande forme de la capsule (680 × 524, bordure comprise), dans la fenêtre de 720 × 600.
+        assert.ok(box.left >= 0 && box.right <= nativeViewport.width && box.bottom <= nativeViewport.height, `la capsule tient dans la fenêtre : ${JSON.stringify(box)}`);
+        // Plus grande forme de la capsule (680 × 524, bordure comprise), dans la fenêtre native.
         assert.ok(Math.abs(box.width - 682) <= 2 && Math.abs(box.height - 526) <= 2, `taille de la capsule : ${box.width} × ${box.height}`);
         // Isolation : rien des Réglages ne déborde sur la page de l'Island.
         assert.equal(await page.evaluate(() => document.documentElement.style.getPropertyValue('--accent')), '');
@@ -108,6 +109,7 @@ const pageShots = process.env.NOLYS_SHOTS;
         assert.equal(labels.length, 11);
         assert.ok(labels.some(label => label.trim() === 'Menus'));
         const overflows = [];
+        const checkedSelects = [];
         for (const [index, label] of labels.entries()) {
             await page.locator('.nav-item').nth(index).click();
             await page.waitForTimeout(80);
@@ -119,8 +121,46 @@ const pageShots = process.env.NOLYS_SHOTS;
             });
             if (overflow.px > 0) overflows.push(`${label} : ${overflow.px} px (${overflow.wide.join(', ')})`);
             if (pageShots) await shot(path.join(pageShots, `reglages-${String(index).padStart(2, '0')}.png`));
+            // Tous les sélecteurs partagés, y compris les listes longues du
+            // Centre de contrôle et les périphériques du retour micro.
+            await page.locator('.page').evaluate(async el => {
+                await Promise.all(el.getAnimations().map(animation => animation.finished.catch(() => {})));
+            });
+            const triggers = page.locator('.select-trigger');
+            for (let selectIndex = 0; selectIndex < await triggers.count(); selectIndex++) {
+                const trigger = triggers.nth(selectIndex);
+                await trigger.scrollIntoViewIfNeeded();
+                const scroll = await page.locator('.page').evaluate(el => el.scrollTop);
+                await trigger.click();
+                await page.getByRole('listbox').waitFor();
+                const check = async () => page.getByRole('listbox').evaluate(menu => {
+                    const rect = menu.getBoundingClientRect();
+                    const bounds = menu.closest('.page').getBoundingClientRect();
+                    const active = menu.getRootNode().activeElement?.getBoundingClientRect();
+                    return {
+                        inside: rect.top >= bounds.top + 13 && rect.bottom <= bounds.bottom - 29
+                            && rect.left >= bounds.left && rect.right <= bounds.right,
+                        focusedVisible: active && active.top >= rect.top && active.bottom <= rect.bottom,
+                        rect: [rect.left, rect.top, rect.right, rect.bottom],
+                        page: [bounds.left, bounds.top, bounds.right, bounds.bottom],
+                    };
+                });
+                for (const key of ['End', 'Home']) {
+                    await page.keyboard.press(key);
+                    await page.waitForTimeout(40);
+                    const bounds = await check();
+                    assert.ok(bounds.inside && bounds.focusedVisible, `${label.trim()} / sélecteur ${selectIndex + 1} / ${key} : ${JSON.stringify(bounds)}`);
+                    assert.equal(await page.locator('.page').evaluate(el => el.scrollTop), scroll, 'la navigation reste dans la liste');
+                }
+                checkedSelects.push(`${label.trim()} ${selectIndex + 1}`);
+                await page.keyboard.press('Escape');
+                assert.equal(await page.getByRole('listbox').count(), 0);
+                assert.ok(await isOpen(), 'fermer une liste laisse les Réglages ouverts');
+            }
         }
         assert.deepEqual(overflows, [], 'pas de défilement horizontal');
+        assert.ok(checkedSelects.length >= 8, `sélecteurs vérifiés : ${checkedSelects.join(', ')}`);
+        console.log(`OK — placement et clavier des ${checkedSelects.length} sélecteurs : ${checkedSelects.join(', ')}`);
 
         // Taille fixe : une page courte (Fond d'écran) ou longue garde la même capsule.
         const settingsHeight = () => page.evaluate(() => window.island.el.getBoundingClientRect().height);

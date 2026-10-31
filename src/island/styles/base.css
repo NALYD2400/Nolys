@@ -5,6 +5,8 @@
 }
 
 :root {
+    /* Marge du halo maximal, synchronisée avec island/layout.rs. */
+    --island-top-offset: 192px;
     /* Police « monospace » d'origine (Electron utilisait Courier New, WebView2 prendrait Consolas). */
     --font-mono: 'Courier New', monospace;
 }
@@ -12,7 +14,7 @@
 /* --- Dynamic Island --- */
 #dynamic-island-container {
     position: fixed;
-    top: 50px;
+    top: var(--island-top-offset);
     left: 0;
     width: 100%;
     display: flex;
@@ -536,7 +538,7 @@ body.motion-vivid .inner-action-btn:hover {
     border-radius: calc(var(--shell-radius) * var(--corner-k));
 }
 
-/* Grande forme de la capsule, toujours dans la fenêtre de l'Island (720 × 600)
+/* Grande forme de la capsule, toujours dans la fenêtre de l'Island (1080 × 960)
  * pour garder le même ressort que les autres modes. */
 .island-mode-library {
     width: 560px;
@@ -545,9 +547,8 @@ body.motion-vivid .inner-action-btn:hover {
     cursor: default;
 }
 
-/* Réglages (views/settings.js) : la plus grande forme de la capsule. Les marges qui restent
- * dans la fenêtre de 720 × 600 (20 px de côté, 26 px dessous) laissent le halo s'estomper
- * avant le bord ; plus grande, il serait coupé net. */
+/* Réglages (views/settings.js) : la fenêtre réserve aussi les marges du halo,
+ * y compris à son intensité maximale et pendant sa respiration. */
 .island-mode-settings {
     width: 680px;
     height: 524px;

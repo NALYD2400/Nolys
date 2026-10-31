@@ -1,5 +1,20 @@
 # Historique
 
+## 2.6.2 — 31 octobre 2026
+
+- Réglages : les menus déroulants restent dans la zone visible de la page, s’ouvrent vers le haut si nécessaire et font défiler leurs options sans déplacer la page. Navigation clavier et fermeture par Échap vérifiées sur les neuf sélecteurs.
+- Island : le halo dispose de marges suffisantes sans être coupé. La position enregistrée de la capsule est conservée lors de la migration et des changements de taille ; les vues ouvertes s’adaptent aux limites de l’écran.
+- Replay : réglages réorganisés, miniature ponctuelle de la source choisie, vignettes des clips, menus contenus dans la capsule et lecteur ajusté à la vidéo. Le flux audio et les commandes de capture ont été fiabilisés.
+- Centre de contrôle : commandes Windows et audio plus fiables, navigation clavier, états indisponibles explicites et confirmation avant de quitter.
+- Fluidité : listes de bibliothèque bornées, mises à jour Replay ciblées et travail des visualiseurs masqués réduit. La préférence système de réduction des mouvements est respectée.
+- Sauvegardes, récupération et erreurs : préférences exportées plus complètes, reprise après échec de sauvegarde, conservation des originaux lors des réparations et meilleure remontée des erreurs audio.
+- Dépendances : retrait du SDK inutilisé et mises à jour de sécurité ; commandes de vérification et CI Windows documentées.
+
+## 2.6.1 — 30 octobre 2026
+
+- Correction de la taille des pochettes dans la capsule pendant la lecture.
+- Rétablissement des styles des vues dans l’application installée.
+
 ## 2.6.0 — 20 octobre 2026
 
 ### Réglages

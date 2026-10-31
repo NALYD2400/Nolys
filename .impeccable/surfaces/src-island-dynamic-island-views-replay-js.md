@@ -15,13 +15,19 @@ THESIS: sauvegarder ce qui vient de se passer en une action, puis retrouver la v
 
 OWN-WORLD: extension de la Bibliothèque et de Fichiers : capsule, thème utilisateur, typographie Inter existante, en-tête commun, boutons et focus du panneau partagé. Aucun changement d’identité visuelle.
 
-STORY: choisir un écran ou une fenêtre de jeu, activer le replay, lire sa durée disponible, sauvegarder. REC utilise le même flux encodé. Les paramètres détaillés restent dans un onglet, les clips dans un autre.
+STORY: choisir un écran ou une fenêtre de jeu, activer le replay, lire sa durée disponible, sauvegarder. REC utilise le même flux encodé. Réglages expose d’abord la qualité, la durée, le son du PC, le microphone et le dossier. Les paramètres techniques se déplient dans « Réglages avancés », le moteur et le stockage dans « Dépannage ». Le bouton Enregistrer reste hors de la zone défilante ; aucun réglage n’est retiré.
 
-FIRST VIEWPORT: titre sans sous-titre ; onglets Capture / Réglages / Clips ; source, état et durée disponible au centre ; action principale Sauvegarder / Activer, commande REC et arrêt par icône nommée. Aucun bandeau de succès ni barre de tampon, à la demande de l’utilisateur. Mémoire et encodeur réellement utilisés dans Réglages → Moteur vidéo et compatibilité ; raccourci dans l’infobulle de Sauvegarder. Clips donne accès à Lire, Afficher et Supprimer ; Lire agrandit la capsule et affiche une vidéo intégrée avec retour à la liste.
+FIRST VIEWPORT: titre sans sous-titre ; onglets Capture / Réglages / Clips ; source, état et durée disponible au centre ; action principale Sauvegarder / Activer, commande REC et arrêt par icône nommée. Aucun bandeau de succès ni barre de tampon, à la demande de l’utilisateur. Mémoire et encodeur réellement utilisés dans Réglages → Dépannage ; raccourci dans l’infobulle de Sauvegarder. Clips donne accès à Lire, Afficher et Supprimer ; Lire agrandit la capsule et affiche une vidéo intégrée avec retour à la liste.
 
 FORM: extension locale du panneau partagé ; chemin code-led, pas de nouvelle composition globale ni de comp générée. seed: none (extension locale sans tirage).
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+
+## Miniature de la source
+
+Sous le sélecteur, une image fixe 16:9 occupe la largeur du panneau. L’état et les commandes sont superposés dans l’image, avec le compteur et la durée au centre. Un dégradé sombre conserve leur lisibilité. Aucun libellé « Image fixe » n’est affiché ; la marge du bas suit celle des côtés. Elle est reprise à l’ouverture de Capture, au changement de source ou par Actualiser. Pendant une capture, la dernière image est conservée sans nouvelle demande de miniature.
+
+Une seule demande native d’image est autorisée à la fois, même après fermeture et réouverture du panneau. Les réponses d’anciennes sélections sont ignorées. L’image reste en mémoire, sans cache sur disque, sans vérification audio et sans démarrage du replay. Une erreur d’aperçu est affichée localement et n’empêche pas d’activer la capture.
 
 ## Contrat du moteur
 

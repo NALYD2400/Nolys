@@ -1,5 +1,5 @@
 import { replay, initReplay } from './store.js';
-import { activeCapture, duration, size, queryClips } from './model.js';
+import { activeCapture, duration, size, queryClips, presets } from './model.js';
 import { escapeHtml as e } from '../island/dynamic-island/helpers/format.js';
 import { createPanel } from '../library/panel.js';
 import { readHotkeys } from '../shared/hotkeys.js';
@@ -7,25 +7,37 @@ import { native } from '../shared/ipc.js';
 import styles from './styles.css?inline';
 import { createThumbnails } from './thumbnails.js';
 import { createReplaySelects } from './selects.js';
+import { createSourcePreview } from './source-preview.js';
 
 let sheet;
 const icon = name => `<i class="ph-bold ph-${name}" aria-hidden="true"></i>`;
 const button = (action, label, glyph, extra = '') => `<button type="button" class="pill-btn${extra === 'primary' ? ' is-accent' : ''}" data-action="${action}"${action === 'dismiss' ? ' aria-label="Fermer le message"' : ''}>${icon(glyph)}<span>${label}</span></button>`;
 const iconButton = (action, label, glyph) => `<button type="button" class="mini-btn${action === 'delete' ? ' is-danger' : ''}" data-action="${action}" aria-label="${label}" title="${label}">${icon(glyph)}</button>`;
 const labels = { idle: 'Prêt à capturer', starting: 'Préparation de la capture…', buffering: 'Replay actif', stopping: 'Finalisation en cours…', error: 'Capture interrompue' };
+const qualityPreset = config => Object.entries(presets).find(([, values]) => ['height', 'fps', 'bitrateMbps', 'preset'].every(key => config[key] === values[key]))?.[0];
 
 export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), onRender = () => {}, onPlaybackChange = () => {} }) {
     const panel = createPanel(host, `<div class="lib replay-panel" tabindex="-1" aria-label="Replay et enregistrement Nolys"><header class="lib-header"><button type="button" class="round-btn" data-action="back" title="Menu" aria-label="Revenir au menu">${icon('caret-left')}</button><div class="lib-heading"><span>Replay & REC</span></div><button type="button" class="round-btn" data-action="folder" title="Dossier des vidéos" aria-label="Ouvrir le dossier des vidéos">${icon('folder-open')}</button><button type="button" class="round-btn" data-action="close" title="Fermer" aria-label="Fermer Replay">${icon('x')}</button></header><nav class="lib-chips replay-tabs" role="tablist" aria-label="Replay et enregistrement">${[['capture', 'Capture'], ['settings', 'Réglages'], ['clips', 'Clips']].map(([id, label]) => `<button type="button" class="chip" id="replay-tab-${id}" role="tab" data-tab="${id}" aria-controls="replay-content">${label}</button>`).join('')}</nav><div id="replay-feedback" role="status" aria-live="polite"></div><div class="lib-list replay-body" id="list"><section id="replay-content" role="tabpanel"></section></div><div class="lib-toast" id="toast" role="status" hidden></div><div class="lib-menu" id="menu" role="menu" hidden></div></div>`);
     if (!sheet) { sheet = new CSSStyleSheet(); sheet.replaceSync(styles); }
     panel.root.adoptedStyleSheets = [...panel.root.adoptedStyleSheets, sheet];
     const { root, $, on } = panel;
+    // Le bouton reste à portée pendant le défilement des options avancées.
+    const settingsFooter = document.createElement('div');
+    settingsFooter.className = 'replay-settings-save'; settingsFooter.hidden = true;
+    settingsFooter.innerHTML = `${button('save-settings', 'Enregistrer les réglages', 'check', 'primary')}<span id="replay-dirty" role="status" aria-live="polite"></span>`;
+    $('#list').after(settingsFooter);
     const thumbnails = createThumbnails(root, on);
     const selects = createReplaySelects(root, on);
+    const sourcePreview = createSourcePreview(root, {
+        invoke: config => native.invoke('replay_preflight', { kind: 'preview', config }),
+        onStateChange: () => { telemetry(); selects.sync(); },
+    });
     let destroyed = false, signature = '', rendering = false, shownTab = null;
     let selectedClip = null, mediaSource = '', loadingClip = null, playbackRequest = 0, clipListScroll = 0;
     let renameId = null, renameDraft = '';
     const query = { search: '', kind: '', sort: 'newest', page: 0 };
     const selection = new Set();
+    const openSettingsSections = new Set();
     let pendingDelete = [], recoveryFiles = [], cacheUsage = null;
     let clipsReference = null, clipsGeneration = 0, clipPage = null;
     const pageClips = () => {
@@ -84,16 +96,68 @@ export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), 
         const { draft: c, sources } = replay.state;
         const sourceOptions = [['', 'Écran principal'], ...sources.map(source => [source.id, `${source.kind === 'monitor' ? '' : 'Fenêtre / jeu · '}${source.label}`])];
         if (c.sourceId && !sources.some(source => source.id === c.sourceId)) sourceOptions.push([c.sourceId, 'Source indisponible · choisissez à nouveau']);
-        return `<div class="replay-source">${select('sourceId', 'Source à capturer', sourceOptions)}<button type="button" class="round-btn" data-action="refresh" aria-label="Actualiser les écrans, fenêtres et appareils" title="Actualiser">${icon('arrows-clockwise')}</button></div>
-            <div class="replay-session">
-                <div class="replay-session-top"><span class="replay-signal" aria-hidden="true"></span><strong id="replay-phase"></strong><span id="replay-rec-time"></span></div>
-                <div class="replay-timing"><strong id="replay-buffer-time">00:00</strong><p id="replay-buffer-description"></p></div>
-            </div>
-            <div class="replay-actions">${button('primary', 'Activer le replay', 'arrow-counter-clockwise', 'primary')}${button('record', 'Enregistrer', 'record')}<button type="button" class="round-btn" data-action="stop" aria-label="Arrêter la capture" title="Arrêter la capture">${icon('stop')}</button></div>`;
+        return `<div class="replay-source">${select('sourceId', 'Source à capturer', sourceOptions)}<button type="button" class="round-btn" data-action="refresh" aria-label="Actualiser les sources et la miniature" title="Actualiser les sources et la miniature">${icon('arrows-clockwise')}</button></div>
+            <figure class="replay-source-preview">
+                <div class="replay-source-preview-frame">
+                    <img id="replay-source-image" alt="Miniature de la source sélectionnée" hidden>
+                    <span id="replay-source-preview-status" role="status">Préparation de la miniature…</span>
+                    <div class="replay-session">
+                        <div class="replay-session-top"><span class="replay-signal" aria-hidden="true"></span><strong id="replay-phase"></strong><span id="replay-rec-time"></span></div>
+                    </div>
+                    <div class="replay-timing"><strong id="replay-buffer-time">00:00</strong><p id="replay-buffer-description"></p></div>
+                    <div class="replay-actions">${button('primary', 'Activer le replay', 'arrow-counter-clockwise', 'primary')}${button('record', 'Enregistrer', 'record')}<button type="button" class="round-btn" data-action="stop" aria-label="Arrêter la capture" title="Arrêter la capture">${icon('stop')}</button></div>
+                </div>
+            </figure>`;
     }
     function settings() {
         const { draft: c, inputs, outputs } = replay.state;
-        return `<p class="replay-hint">${activeCapture(replay.state.snapshot) ? 'Arrêtez la capture pour modifier ces réglages.' : 'Choisissez un profil, puis ajustez chaque réglage.'}</p><div class="replay-presets" aria-label="Profils de capture">${[['economy', 'Économe', '720p · 30 FPS'], ['balanced', 'Équilibré', '1080p · 60 FPS'], ['quality', 'Qualité', '1440p · 60 FPS']].map(([id, label, detail]) => `<button type="button" data-preset="${id}"><strong>${label}</strong><small>${detail}</small></button>`).join('')}</div><fieldset class="replay-settings"><legend>Vidéo</legend>${select('capture', 'Méthode de capture', [['auto', 'Automatique · DXGI / WGC'], ['desktop', 'Écran · duplication DXGI'], ['wgc', 'Écran ou fenêtre · WGC']])}${select('encoder', 'Encodeur', [['auto', 'GPU automatique · CPU exclu'], ['amd', 'AMD AMF'], ['nvidia', 'NVIDIA NVENC'], ['intel', 'Intel Quick Sync'], ['software', 'CPU · logiciel']])}${select('codec', 'Format vidéo', [['h264', 'H.264 · compatibilité'], ['hevc', 'HEVC · fichier plus compact']])}${select('height', 'Résolution maximale', [[0, 'Taille de la source'], [720, '720p'], [1080, '1080p'], [1440, '1440p'], [2160, '2160p']], 'Proportions conservées, sans agrandissement.')}${select('fps', 'Images par seconde', [15, 24, 30, 60, 90, 120, 144, 165, 240].map(n => [n, `${n} FPS`]), 'Les FPS réellement atteints dépendent de la source et du GPU.')}${number('bitrateMbps', 'Débit vidéo · Mb/s', 2, 150)}${select('preset', 'Priorité de l’encodeur', [['speed', 'Performances'], ['balanced', 'Équilibrée'], ['quality', 'Qualité']])}${check('cursor', 'Inclure le pointeur')}</fieldset><fieldset class="replay-settings"><legend>Replay</legend>${number('seconds', 'Durée à conserver · secondes', 5, 600)}${number('memoryMb', 'Tampon maximal · Mio', 64, 2048, 'Un export peut épingler un second tampon. Les surfaces GPU s’ajoutent à ce budget.')}<p class="replay-hint">Environ ${size(c.bitrateMbps * 1_000_000 / 8 * c.seconds)} de vidéo à ce débit. La limite mémoire peut raccourcir la durée disponible.</p></fieldset><fieldset class="replay-settings"><legend>Audio</legend>${check('systemAudio', 'Enregistrer le son du PC')}${select('outputDevice', 'Sortie à capturer', devices(outputs))}${number('systemVolume', 'Volume du PC · %', 0, 200)}${check('microphone', 'Enregistrer le microphone', 'Le micro est ouvert uniquement pendant une capture activée.')}${select('inputDevice', 'Microphone', devices(inputs))}${number('micVolume', 'Volume du micro · %', 0, 200)}${select('audioKbps', 'Qualité audio', [[96, '96 kb/s'], [128, '128 kb/s'], [192, '192 kb/s'], [256, '256 kb/s'], [320, '320 kb/s']])}${check('separateAudio', 'Pistes PC et micro séparées', 'Certains lecteurs ne jouent qu’une piste à la fois. Désactivez pour entendre les deux en même temps.')}</fieldset><fieldset class="replay-settings"><legend>Sauvegarde</legend><div class="replay-path"><span>${e(c.destination)}</span>${button('pick-folder', 'Choisir', 'folder')}</div><p class="replay-hint">MP4 local. Les originaux et les vidéos existantes ne sont pas remplacés.</p></fieldset><fieldset class="replay-settings"><legend>Stockage et récupération</legend><p class="replay-hint">Consultez le cache des aperçus et recherchez les fragments à récupérer dans l’onglet Clips.</p>${button('maintenance', 'Actualiser le stockage', 'arrows-clockwise')}${cacheUsage ? `<p class="replay-hint">Cache des aperçus : ${size(cacheUsage.bytes)} / ${size(cacheUsage.limitBytes)} · ${cacheUsage.files} image(s).</p>` : ''}</fieldset><details class="replay-engine"><summary>Moteur vidéo et compatibilité</summary><p class="replay-hint">Service Rust · capture et encodage par FFmpeg. Les jeux sont capturés via leur fenêtre ou leur écran. Plein écran exclusif et contenus protégés dépendent de Windows et du pilote.</p><div class="replay-path"><span>${e(c.enginePath || replay.state.snapshot?.enginePath || 'FFmpeg introuvable')}</span>${button('pick-engine', 'Choisir FFmpeg', 'gear')}</div><dl class="replay-diagnostics"><div><dt>Capture en cours</dt><dd id="replay-pipeline"></dd></div><div><dt>Tampon utilisé</dt><dd id="replay-memory"></dd></div></dl><p class="replay-hint">Aucun repli CPU automatique.</p></details><div class="replay-settings-save">${button('save-settings', 'Enregistrer les réglages', 'check', 'class="pill-btn is-accent"')}<span id="replay-dirty"></span></div>`;
+        const selected = qualityPreset(c);
+        return `<p id="replay-settings-lock" class="replay-hint" ${activeCapture(replay.state.snapshot) ? '' : 'hidden'}>Arrêtez la capture pour modifier ces réglages.</p>
+            <fieldset class="replay-settings replay-quality"><legend>Qualité vidéo<span id="replay-quality-current"></span></legend>
+                <div class="replay-presets" role="group" aria-label="Profils de capture">${[['economy', 'Économe', '720p · 30 FPS'], ['balanced', 'Équilibré', '1080p · 60 FPS'], ['quality', 'Qualité', '1440p · 60 FPS']].map(([id, label, detail]) => `<button type="button" data-preset="${id}" aria-pressed="${selected === id}"><strong>${label}</strong><small>${detail}</small></button>`).join('')}</div>
+            </fieldset>
+            ${number('seconds', 'Durée du replay · secondes', 5, 600)}
+            <div class="replay-audio-toggles">${check('systemAudio', 'Son du PC')}${check('microphone', 'Microphone')}</div>
+            <fieldset class="replay-settings replay-destination"><legend>Dossier de sauvegarde</legend>
+                <div class="replay-path"><span title="${e(c.destination)}">${e(c.destination)}</span>${button('pick-folder', 'Choisir', 'folder')}</div>
+            </fieldset>
+            <details class="replay-options" data-settings-section="advanced" ${openSettingsSections.has('advanced') ? 'open' : ''}><summary>Réglages avancés</summary>
+                <fieldset class="replay-settings"><legend>Vidéo</legend>
+                    ${select('height', 'Résolution maximale', [[0, 'Taille de la source'], [720, '720p'], [1080, '1080p'], [1440, '1440p'], [2160, '2160p']], 'Proportions conservées, sans agrandissement.')}
+                    ${select('fps', 'Images par seconde', [15, 24, 30, 60, 90, 120, 144, 165, 240].map(n => [n, `${n} FPS`]), 'La cadence réelle dépend de la source et du GPU.')}
+                    ${select('capture', 'Méthode de capture', [['auto', 'Automatique · DXGI / WGC'], ['desktop', 'Écran · duplication DXGI'], ['wgc', 'Écran ou fenêtre · WGC']])}
+                    ${select('encoder', 'Encodeur', [['auto', 'GPU automatique · CPU exclu'], ['amd', 'AMD AMF'], ['nvidia', 'NVIDIA NVENC'], ['intel', 'Intel Quick Sync'], ['software', 'CPU · logiciel']])}
+                    ${select('codec', 'Format vidéo', [['h264', 'H.264 · compatibilité'], ['hevc', 'HEVC · fichier plus compact']])}
+                    ${number('bitrateMbps', 'Débit vidéo · Mb/s', 2, 150)}
+                    ${select('preset', 'Priorité de l’encodeur', [['speed', 'Performances'], ['balanced', 'Équilibrée'], ['quality', 'Qualité']])}
+                    ${check('cursor', 'Inclure le pointeur')}
+                </fieldset>
+                <fieldset class="replay-settings"><legend>Audio</legend>
+                    ${select('outputDevice', 'Sortie à capturer', devices(outputs))}
+                    ${number('systemVolume', 'Volume du PC · %', 0, 200)}
+                    ${select('inputDevice', 'Entrée du microphone', devices(inputs))}
+                    ${number('micVolume', 'Volume du micro · %', 0, 200)}
+                    ${select('audioKbps', 'Qualité audio', [[96, '96 kb/s'], [128, '128 kb/s'], [192, '192 kb/s'], [256, '256 kb/s'], [320, '320 kb/s']])}
+                    ${check('separateAudio', 'Pistes PC et micro séparées', 'Certains lecteurs ne jouent qu’une piste à la fois. Désactivez pour entendre les deux en même temps.')}
+                    <p class="replay-hint">Le microphone est ouvert uniquement pendant une capture activée.</p>
+                </fieldset>
+                <fieldset class="replay-settings"><legend>Mémoire du replay</legend>
+                    ${number('memoryMb', 'Tampon maximal · Mio', 64, 2048, 'Un export peut retenir un second tampon. Les surfaces GPU s’ajoutent à ce budget.')}
+                    <p class="replay-hint" id="replay-size-estimate"></p>
+                </fieldset>
+            </details>
+            <details class="replay-options" data-settings-section="diagnostics" ${openSettingsSections.has('diagnostics') ? 'open' : ''}><summary>Dépannage</summary>
+                <fieldset class="replay-settings"><legend>Moteur vidéo</legend>
+                    <div class="replay-path"><span>${e(c.enginePath || replay.state.snapshot?.enginePath || 'FFmpeg introuvable')}</span>${button('pick-engine', 'Choisir FFmpeg', 'gear')}</div>
+                    <dl class="replay-diagnostics"><div><dt>Capture en cours</dt><dd id="replay-pipeline"></dd></div><div><dt>Tampon utilisé</dt><dd id="replay-memory"></dd></div></dl>
+                    <p class="replay-hint">Les contenus protégés et le plein écran exclusif dépendent de Windows et du pilote. Aucun repli CPU automatique.</p>
+                </fieldset>
+                <fieldset class="replay-settings"><legend>Stockage et récupération</legend>
+                    <p class="replay-hint">Les fragments à récupérer sont dans l’onglet Clips.</p>
+                    ${button('maintenance', 'Actualiser le stockage', 'arrows-clockwise')}
+                    ${cacheUsage ? `<p class="replay-hint">Cache des aperçus : ${size(cacheUsage.bytes)} / ${size(cacheUsage.limitBytes)} · ${cacheUsage.files} image(s).</p>` : ''}
+                </fieldset>
+            </details>`;
     }
     function clips() {
         const present = new Set((replay.state.snapshot?.clips || []).map(c => c.id));
@@ -116,6 +180,13 @@ export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), 
         root.querySelectorAll('[data-setting], [data-preset], [data-action="pick-engine"], [data-action="pick-folder"]').forEach(el => { el.disabled = locked; });
         const saved = $('[data-action="save-settings"]'); if (saved) saved.disabled = locked || !dirty;
         text('#replay-dirty', dirty ? 'Modifications non enregistrées' : 'Réglages enregistrés');
+        const lockHint = $('#replay-settings-lock'); if (lockHint) lockHint.hidden = !active;
+        if (tab === 'settings' && replay.state.draft) {
+            const config = replay.state.draft, selected = qualityPreset(config);
+            root.querySelectorAll('[data-preset]').forEach(el => el.setAttribute('aria-pressed', String(el.dataset.preset === selected)));
+            text('#replay-quality-current', selected ? '' : `Personnalisé · ${config.height ? `${config.height}p` : 'Taille de la source'} · ${config.fps} FPS`);
+            text('#replay-size-estimate', `Environ ${size(config.bitrateMbps * 1_000_000 / 8 * config.seconds)} de vidéo. Le budget mémoire peut limiter la durée disponible.`);
+        }
         const problem = error || s.error;
         const feedback = problem ? `<div class="replay-error" role="alert"><span>${e(problem)}</span>${button('dismiss', 'Fermer le message', 'x')}</div>` : '';
         if ($('#replay-feedback').innerHTML !== feedback) $('#replay-feedback').innerHTML = feedback;
@@ -134,13 +205,13 @@ export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), 
         const primary = $('[data-action="primary"]');
         const primaryLabel = icon(s.exporting ? 'circle-notch' : active ? 'floppy-disk' : 'arrow-counter-clockwise') + `<span>${s.exporting ? 'Sauvegarde…' : active ? 'Sauvegarder' : 'Activer le replay'}</span>`;
         if (primary.innerHTML !== primaryLabel) primary.innerHTML = primaryLabel;
-        primary.classList.add('is-accent'); primary.disabled = busy || preparing || s.exporting || (active && s.bufferedSeconds < 0.25) || !s.engineAvailable;
+        primary.classList.add('is-accent'); primary.disabled = busy || sourcePreview.pending || preparing || s.exporting || (active && s.bufferedSeconds < 0.25) || !s.engineAvailable;
         const rec = $('[data-action="record"]');
         const recordLabel = icon(s.recording ? 'stop' : 'record') + `<span>${s.recording ? 'Terminer REC' : 'Enregistrer'}</span>`;
         if (rec.innerHTML !== recordLabel) rec.innerHTML = recordLabel;
-        rec.classList.toggle('is-recording', s.recording); rec.disabled = busy || preparing || !s.engineAvailable;
+        rec.classList.toggle('is-recording', s.recording); rec.disabled = busy || sourcePreview.pending || preparing || !s.engineAvailable;
         const stop = $('[data-action="stop"]'); stop.hidden = !active; stop.disabled = busy || s.phase === 'stopping';
-        $('[data-action="refresh"]').disabled = busy || active;
+        $('[data-action="refresh"]').disabled = busy || active || sourcePreview.pending;
         const shortcut = readHotkeys().saveReplay;
         primary.title = active && shortcut?.enabled !== false && shortcut?.accelerator ? `Sauvegarder le replay · ${shortcut.accelerator}` : active ? 'Sauvegarder les dernières secondes' : 'Activer le tampon de replay';
     }
@@ -154,6 +225,8 @@ export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), 
         const preserveEditor = renameId && $('#replay-rename-name');
         $('.replay-panel').classList.toggle('is-playing', Boolean(selectedClip));
         $('.replay-panel').classList.toggle('is-clips', tab === 'clips' && !selectedClip);
+        $('.replay-panel').classList.toggle('is-capture', tab === 'capture' && !selectedClip);
+        settingsFooter.hidden = tab !== 'settings' || Boolean(selectedClip);
         $('.replay-tabs').hidden = Boolean(selectedClip);
         text('.lib-heading > span', selectedClip?.name || 'Replay & REC');
         $('.lib-heading').title = selectedClip?.name || '';
@@ -167,11 +240,19 @@ export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), 
             if (shownTab && shownTab !== tab) panel.tabIn($('#replay-content'));
             shownTab = tab;
             root.querySelectorAll('[role="tab"]').forEach(el => { const selected = el.dataset.tab === tab; el.setAttribute('aria-selected', selected); el.tabIndex = selected ? 0 : -1; el.classList.toggle('is-active', selected); });
-            $('#list').scrollTop = scroll; thumbnails.refresh(); onRender();
+            $('#list').scrollTop = selectedClip ? 0 : scroll; thumbnails.refresh(); onRender();
         }
         selects.refresh(); telemetry(); selects.sync(); rendering = false;
+        sourcePreview.sync({ config: draft, visible: tab === 'capture' && !selectedClip && Boolean($('#replay-source-image')), active: activeCapture(snapshot), busy: replay.state.busy, enabled: Boolean(draft && snapshot?.engineAvailable) });
     }
     const unsubscribe = replay.subscribe(() => { if (!signature || !$('#replay-content [data-setting]') && replay.state.tab === 'capture') render(true); else render(); });
+    on(root, 'toggle', event => {
+        const section = event.target;
+        if (!section.isConnected || !section.matches?.('[data-settings-section]')) return;
+        const key = section.dataset.settingsSection;
+        section.open ? openSettingsSections.add(key) : openSettingsSections.delete(key);
+        if (!section.open) selects.close();
+    }, { capture: true });
     on(root, 'input', event => {
         if (event.target.id === 'replay-rename-name') renameDraft = event.target.value;
         if (event.target.id === 'replay-search') {
@@ -201,7 +282,7 @@ export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), 
         event.stopPropagation();
         const tab = event.target.closest('[data-tab]');
         if (tab) { if (replay.state.busy) return; renameId = null; ++playbackRequest; loadingClip = null; replay.state.tab = tab.dataset.tab; render(true); $('#list').scrollTop = 0; if (['clips', 'settings'].includes(tab.dataset.tab)) await maintenance(); return; }
-        const preset = event.target.closest('[data-preset]'); if (preset) { replay.preset(preset.dataset.preset); render(true); return; }
+        const preset = event.target.closest('[data-preset]'); if (preset) { const key = preset.dataset.preset; replay.preset(key); render(true); root.querySelector(`[data-preset="${key}"]`)?.focus({ preventScroll: true }); return; }
         const target = event.target.closest('[data-action]'); if (!target || target.disabled) return;
         const action = target.dataset.action;
         if (action === 'close') return onClose();
@@ -239,7 +320,7 @@ export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), 
         if (action === 'primary') await replay.action(activeCapture(replay.state.snapshot) ? 'save' : 'start');
         else if (action === 'record') await replay.action(replay.state.snapshot?.recording ? 'record-stop' : 'record');
         else if (action === 'stop') await replay.action('stop');
-        else if (action === 'refresh') { await replay.loadSources(); render(true); }
+        else if (action === 'refresh') { await replay.loadSources(); render(true); sourcePreview.refresh(); }
         else if (action === 'save-settings') await replay.save();
         else if (action === 'pick-folder' || action === 'pick-engine') { await replay.pick(action === 'pick-folder' ? 'folder' : 'engine'); render(true); }
         else if (action === 'folder') await replay.reveal();
@@ -261,5 +342,5 @@ export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), 
     on(window, 'resize', () => { if (selectedClip) onPlaybackChange(true); });
     ready.then(async () => { if (destroyed) return; await initReplay(); if (destroyed) return; render(true); panel.startIntro(); panel.focus(); await replay.loadSources(); if (!destroyed) render(true); });
     render();
-    return { get busy() { return replay.state.busy; }, notify: text => panel.toast(text), destroy() { destroyed = true; ++playbackRequest; selectedClip = null; stopVideo(); onPlaybackChange(false); thumbnails.destroy(); selects.destroy(); unsubscribe(); panel.destroy(); } };
+    return { get busy() { return replay.state.busy; }, notify: text => panel.toast(text), destroy() { destroyed = true; ++playbackRequest; selectedClip = null; sourcePreview.destroy(); stopVideo(); onPlaybackChange(false); thumbnails.destroy(); selects.destroy(); unsubscribe(); panel.destroy(); } };
 }

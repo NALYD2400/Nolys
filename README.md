@@ -4,7 +4,7 @@
 
 **Votre musique. Votre bureau. À portée de clic.**
 
-Nolys est le nouveau nom de Liquid Dynamic Island. La version **2.6.1** corrige les pochettes agrandies et les styles manquants dans l’application installée. Elle conserve les améliorations de fluidité, les coins façon Liquid Glass et les réglages partagés entre toutes les versions. [Télécharger la dernière version Windows](https://github.com/NALYD2400/Nolys/releases/latest).
+Nolys est le nouveau nom de Liquid Dynamic Island. La version **2.6.2** corrige le placement des menus déroulants et le halo de l’Island, améliore Replay et fiabilise les commandes du centre de contrôle. Elle conserve les améliorations de fluidité, les coins façon Liquid Glass et les réglages partagés entre toutes les versions. [Télécharger la dernière version Windows](https://github.com/NALYD2400/Nolys/releases/latest).
 
 Widget « Dynamic Island » pour Windows : musique (Spotify, navigateurs…), mixeur audio par application, centre de contrôle, notifications, synchronisation du fond d'écran.
 

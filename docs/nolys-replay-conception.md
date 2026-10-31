@@ -10,11 +10,17 @@ OWN-WORLD: extension de la Bibliothèque et de Fichiers : capsule, thème utilis
 
 STORY: choisir un écran ou une fenêtre de jeu, activer le replay, lire sa durée disponible, sauvegarder. REC utilise le même flux encodé. Les paramètres détaillés restent dans un onglet, les clips dans un autre.
 
-FIRST VIEWPORT: titre, onglets Capture / Réglages / Clips, source puis durée disponible. Sauvegarder / Activer reste l’action principale ; REC et arrêt restent accessibles. Le bandeau de succès et la barre de tampon sont retirés à la demande de l’utilisateur ; les erreurs restent visibles. Les diagnostics de mémoire et d’encodage vivent dans Réglages → Moteur vidéo et compatibilité ; le raccourci apparaît dans l’infobulle de Sauvegarder.
+FIRST VIEWPORT: titre, onglets Capture / Réglages / Clips, source puis durée disponible. Sauvegarder / Activer reste l’action principale ; REC et arrêt restent accessibles. Le bandeau de succès et la barre de tampon sont retirés à la demande de l’utilisateur ; les erreurs restent visibles. Les diagnostics de mémoire et d’encodage vivent dans Réglages → Dépannage ; le raccourci apparaît dans l’infobulle de Sauvegarder.
 
 FORM: extension locale du panneau partagé ; chemin code-led, pas de nouvelle composition globale ni de comp générée. seed: none (extension locale sans tirage).
 
 FINISH: revue et documentation locales dans `docs/nolys-replay-design-review.md`. Cette extension conserve le système visuel existant ; elle ne crée ni ne réécrit `DESIGN.md` ou `.impeccable/design.json`. Les captures de validation portent la provenance de leurs fixtures UI.
+
+## Miniature de la source
+
+Sous le sélecteur, une image fixe 16:9 occupe la largeur du panneau. L’état et les commandes sont superposés dans l’image, avec le compteur et la durée au centre. Un dégradé sombre conserve leur lisibilité. Aucun libellé « Image fixe » n’est affiché ; la marge du bas suit celle des côtés. Elle est reprise à l’ouverture de Capture, au changement de source ou par Actualiser. Pendant une capture, la dernière image est conservée sans nouvelle demande de miniature.
+
+Une seule demande native d’image est autorisée à la fois, même après fermeture et réouverture du panneau. Les réponses d’anciennes sélections sont ignorées. L’image reste en mémoire, sans cache sur disque, sans vérification audio et sans démarrage du replay. Une erreur d’aperçu est affichée localement et n’empêche pas d’activer la capture.
 
 ## Contrat du moteur
 

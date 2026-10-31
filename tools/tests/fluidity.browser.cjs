@@ -1,3 +1,4 @@
+const nativeViewport = require('./island-viewport.cjs');
 // Real frontend, simulated Windows: no device, capture or personal-file changes.
 const { chromium } = require(process.env.NOLYS_PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
@@ -5,7 +6,7 @@ const assert = require('node:assert/strict');
 (async () => {
     const browser = await chromium.launch({ headless: true, channel: 'msedge', args: ['--mute-audio'] });
     try {
-        const context = await browser.newContext({ viewport: { width: 900, height: 700 }, reducedMotion: 'reduce' });
+        const context = await browser.newContext({ viewport: nativeViewport, reducedMotion: 'reduce' });
         const calls = {}, errors = [];
         let volume = null, refuseVolume = false;
         const config = {sourceId:'',capture:'auto',encoder:'auto',codec:'h264',preset:'speed',height:1080,fps:60,bitrateMbps:16,seconds:60,memoryMb:256,cursor:true,systemAudio:true,microphone:false,outputDevice:'',inputDevice:'',systemVolume:100,micVolume:100,audioKbps:192,separateAudio:false,destination:'C:/Fixture',enginePath:''};

@@ -8,11 +8,14 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Monitor};
 
-/// Taille de base de la fenêtre transparente (avant mise à l'échelle). 720 de large : les
-/// Réglages (680 px) y tiennent avec la place du halo. La fenêtre laisse passer les clics hors
-/// de la pilule (hit_test), sa largeur ne gêne donc pas le bureau.
-pub const BASE_WIDTH: f64 = 720.0;
-pub const BASE_HEIGHT: f64 = 600.0;
+/// Fenêtre transparente, avec au moins 192 px autour des plus grandes capsules.
+/// Le halo maximal respire jusqu'à 125 px de flou (50 × 2,5) ; son étendue
+/// de rendu atteint environ 188 px. Les marges restent traversantes (hit_test).
+pub const BASE_WIDTH: f64 = 1080.0;
+pub const BASE_HEIGHT: f64 = 960.0;
+/// Doit correspondre à --island-top-offset dans styles/base.css.
+pub const PILL_TOP_OFFSET: f64 = 192.0;
+const LEGACY_TOP_OFFSET: f64 = 50.0;
 /// Largeur des versions précédentes : leurs positions enregistrées sont celles d'une fenêtre
 /// de 620 px (voir `adapt_to_width`).
 const LEGACY_WIDTH: f64 = 620.0;
@@ -99,7 +102,7 @@ pub fn default_layout(app: &AppHandle) -> Layout {
     let area = monitor.as_ref().map(work_area).unwrap_or_else(fallback_area);
     Layout {
         x: (area.x + (area.width - BASE_WIDTH) / 2.0).round(),
-        y: area.y - 30.0,
+        y: area.y + 20.0 - PILL_TOP_OFFSET,
         scale: 1.0,
         display_id: monitor.as_ref().map(monitor_id).unwrap_or_else(|| "primary".into()),
     }
@@ -108,7 +111,7 @@ pub fn default_layout(app: &AppHandle) -> Layout {
 pub fn centered_on(app: &AppHandle, layout: &Layout) -> Layout {
     let area = target_monitor(app, &layout.display_id).as_ref().map(work_area).unwrap_or_else(fallback_area);
     let width = (BASE_WIDTH * layout.scale).round();
-    Layout { x: (area.x + (area.width - width) / 2.0).round(), y: area.y - 30.0, ..layout.clone() }
+    Layout { x: (area.x + (area.width - width) / 2.0).round(), y: area.y + 20.0 - PILL_TOP_OFFSET * layout.scale, ..layout.clone() }
 }
 
 /// Fusionne un patch dans une configuration existante.
@@ -121,13 +124,11 @@ pub fn merge(base: &Layout, patch: &LayoutPatch) -> Layout {
     }
 }
 
-/// Garde la fenêtre dans la zone de travail de son écran (40 px de marge en haut).
-/// Décalage du haut de la pilule dans la fenêtre, en pixels CSS (`top: 50px` de l'interface).
-const PILL_TOP_OFFSET: f64 = 50.0;
 /// Demi-largeur visible minimale de la pilule repliée (120 px) et hauteur qui doit rester à l'écran.
 const PILL_MIN_VISIBLE_WIDTH: f64 = 60.0;
 const PILL_MIN_VISIBLE_HEIGHT: f64 = 40.0;
 
+/// Garde au moins une partie de la pilule visible, sans limiter ses marges transparentes.
 pub fn clamp(app: &AppHandle, layout: &Layout) -> Layout {
     let monitor = target_monitor(app, &layout.display_id);
     let area = monitor.as_ref().map(work_area).unwrap_or_else(fallback_area);
@@ -164,15 +165,16 @@ pub fn expanded_placement(base: &Layout, area: WorkArea, bounds: super::hit_test
         .min(((area.height - margin * 2.0) / bounds.height).max(0.1));
     // Garde le centre de la pilule lors d'une réduction automatique de l'échelle.
     let x = base.x + BASE_WIDTH * (base.scale - scale) / 2.0;
+    let y = base.y + PILL_TOP_OFFSET * (base.scale - scale);
     let min_x = area.x + margin - bounds.x * scale;
     let max_x = area.x + area.width - margin - (bounds.x + bounds.width) * scale;
     let min_y = area.y + margin - bounds.y * scale;
     let max_y = area.y + area.height - margin - (bounds.y + bounds.height) * scale;
-    Layout { x: x.clamp(min_x, max_x.max(min_x)), y: base.y.clamp(min_y, max_y.max(min_y)), scale, ..base.clone() }
+    Layout { x: x.clamp(min_x, max_x.max(min_x)), y: y.clamp(min_y, max_y.max(min_y)), scale, ..base.clone() }
 }
 
 pub fn save_checked(data_dir: &Path, layout: &Layout) -> Result<(), String> {
-    let json = serde_json::to_vec_pretty(&SavedLayout { layout, window_width: BASE_WIDTH }).map_err(|e| e.to_string())?;
+    let json = serde_json::to_vec_pretty(&SavedLayout { layout, window_width: BASE_WIDTH, pill_top_offset: PILL_TOP_OFFSET }).map_err(|e| e.to_string())?;
     let path = config_path(data_dir);
     let temporary = path.with_extension("json.tmp");
     std::fs::write(&temporary, json).map_err(|e| e.to_string())?;
@@ -190,6 +192,14 @@ pub fn adapt_to_width(layout: Layout, saved_width: f64) -> Layout {
     Layout { x: (layout.x - shift).round(), ..layout }
 }
 
+/// Les marges transparentes peuvent grandir sans déplacer la capsule à l'écran.
+fn adapt_to_top_offset(layout: Layout, saved_offset: f64) -> Layout {
+    if !saved_offset.is_finite() || saved_offset < 0.0 || saved_offset == PILL_TOP_OFFSET {
+        return layout;
+    }
+    Layout { y: layout.y - (PILL_TOP_OFFSET - saved_offset) * clamp_scale(layout.scale), ..layout }
+}
+
 pub fn load(app: &AppHandle, data_dir: &Path) -> Layout {
     let saved = std::fs::read_to_string(config_path(data_dir))
         .ok()
@@ -201,8 +211,11 @@ pub fn load(app: &AppHandle, data_dir: &Path) -> Layout {
                 Some(_) => value.get("windowWidth").and_then(serde_json::Value::as_f64).unwrap_or(LEGACY_WIDTH),
                 None => BASE_WIDTH,
             };
+            let top = if value.get("y").is_some() {
+                value.get("pillTopOffset").and_then(serde_json::Value::as_f64).unwrap_or(LEGACY_TOP_OFFSET)
+            } else { PILL_TOP_OFFSET };
             let patch = serde_json::from_value::<LayoutPatch>(value).ok()?;
-            Some(adapt_to_width(merge(&default_layout(app), &patch), width))
+            Some(adapt_to_top_offset(adapt_to_width(merge(&default_layout(app), &patch), width), top))
         });
     clamp(app, &saved.unwrap_or_else(|| default_layout(app)))
 }
@@ -214,6 +227,7 @@ struct SavedLayout<'a> {
     #[serde(flatten)]
     layout: &'a Layout,
     window_width: f64,
+    pill_top_offset: f64,
 }
 
 pub fn save(data_dir: &Path, layout: &Layout) {
@@ -239,7 +253,7 @@ mod tests {
                     for (x,y) in [(area.x-300., area.y-50.), (area.x+area.width-360., area.y+area.height-80.)] {
                         let base = Layout {x,y,scale,display_id:"test".into()};
                         let original = base.clone();
-                        let bounds = super::super::hit_test::CssRect {x:(BASE_WIDTH-width)/2., y:50.,width,height};
+                        let bounds = super::super::hit_test::CssRect {x:(BASE_WIDTH-width)/2., y:PILL_TOP_OFFSET,width,height};
                         let placed = expanded_placement(&base, area, bounds);
                         assert!(placed.x+bounds.x*placed.scale >= area.x+7.99);
                         assert!(placed.y+bounds.y*placed.scale >= area.y+7.99);
@@ -271,11 +285,26 @@ mod tests {
 
     #[test]
     fn le_fichier_garde_le_meme_format_plus_la_largeur() {
-        let json = serde_json::to_value(SavedLayout { layout: &at(12.0, 1.0), window_width: BASE_WIDTH }).unwrap();
+        let json = serde_json::to_value(SavedLayout { layout: &at(12.0, 1.0), window_width: BASE_WIDTH, pill_top_offset: PILL_TOP_OFFSET }).unwrap();
         assert_eq!(json["x"], 12.0);
         assert_eq!(json["displayId"], "primary");
         assert_eq!(json["windowWidth"], BASE_WIDTH);
+        assert_eq!(json["pillTopOffset"], PILL_TOP_OFFSET);
         // Relu comme avant par LayoutPatch (champ en trop ignoré).
         assert!(serde_json::from_value::<LayoutPatch>(json).is_ok());
+    }
+
+    #[test]
+    fn larger_shadow_margins_preserve_saved_capsule_position_at_every_scale() {
+        for scale in [0.65, 1.0, 1.5] {
+            for width in [LEGACY_WIDTH, 720.0, BASE_WIDTH] {
+                let top = if width == BASE_WIDTH { PILL_TOP_OFFSET } else { LEGACY_TOP_OFFSET };
+                let original = at(650.0, scale);
+                let moved = adapt_to_top_offset(adapt_to_width(original.clone(), width), top);
+                assert!((moved.x + BASE_WIDTH * scale / 2.0 - (original.x + width * scale / 2.0)).abs() < 0.51);
+                assert!((moved.y + PILL_TOP_OFFSET * scale - (original.y + top * scale)).abs() < 0.01);
+                assert_eq!(adapt_to_top_offset(moved.clone(), PILL_TOP_OFFSET), moved);
+            }
+        }
     }
 }

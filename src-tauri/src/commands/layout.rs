@@ -47,6 +47,9 @@ pub fn set_layout_config(app: AppHandle, layout: Option<layout::LayoutPatch>) {
     if patch.x.is_none() && next.scale != current.scale {
         next.x = (current.x + layout::BASE_WIDTH * (current.scale - next.scale) / 2.0).round();
     }
+    if patch.y.is_none() && next.scale != current.scale {
+        next.y = (current.y + layout::PILL_TOP_OFFSET * (current.scale - next.scale)).round();
+    }
     island::update_layout(&app, next);
 }
 

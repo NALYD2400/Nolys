@@ -1,3 +1,4 @@
+const nativeViewport = require('./island-viewport.cjs');
 // Real UI, simulated native bridge: validates discovery and preserved file actions.
 const { chromium } = require(process.env.NOLYS_PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
@@ -7,7 +8,7 @@ const path = require('node:path');
 (async () => {
     const browser = await chromium.launch({ headless: true, channel: 'msedge', args: ['--mute-audio'] });
     try {
-        const context = await browser.newContext({ viewport: { width: 720, height: 600 } });
+        const context = await browser.newContext({ viewport: nativeViewport });
         const input = { id: 'input-1', name: 'Portrait.png', extension: 'png', kind: 'image', size: 30000, directory: false };
         const calls = [], errors = [];
         let snapshot = { sequence: 0, jobs: [], destination: 'C:\\Videos\\Nolys\\Exports', error: null };
@@ -98,7 +99,7 @@ const path = require('node:path');
         assert.equal(await preview.evaluate(el => { const image = el.getBoundingClientRect(), panel = el.closest('.lib').getBoundingClientRect(); return image.left >= panel.left && image.right <= panel.right && image.bottom <= panel.bottom; }), true);
         await page.getByRole('button', { name: 'Revenir aux fichiers', exact: true }).click(); await settled();
         assert.equal(await page.getByRole('button', { name: 'Aperçu de Portrait.png', exact: true }).evaluate(el => el.getRootNode().activeElement === el), true);
-        await page.setViewportSize({ width: 720, height: 600 });
+        await page.setViewportSize(nativeViewport);
         failPreview = true;
         await page.getByRole('button', { name: 'Aperçu de Portrait.png', exact: true }).click();
         await page.getByRole('alert').waitFor(); assert.equal(await preview.count(), 0);
@@ -155,7 +156,7 @@ const path = require('node:path');
         await page.locator('#files-selection-list summary').click();
         await page.getByLabel('Format de sortie', { exact: true }).selectOption('png');
         assert.equal(await page.locator('#files-selection-list').getAttribute('open'), '');
-        await page.setViewportSize({ width: 640, height: 600 }); await shot('files-clean-compact.png');
+        await page.setViewportSize({ width: 640, height: nativeViewport.height }); await shot('files-clean-compact.png');
         assert.equal(await page.locator('.files-panel').evaluate(el => el.scrollWidth > el.clientWidth + 1), false);
         selected = [{ ...input, kind: 'pdf', extension: 'pdf', name: 'Document.pdf' }]; snapshot = { ...snapshot, inputs: selected };
         await page.evaluate(inputs => window.__dispatch('files-selection', { inputs }), selected); await settled();

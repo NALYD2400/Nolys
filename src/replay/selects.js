@@ -1,8 +1,10 @@
 /** Menus dans la capsule : les listes natives Windows suivent la plus longue fenêtre. */
 export function createReplaySelects(root, on) {
     const panel = root.querySelector('.replay-panel');
+    const list = root.querySelector('#list');
     const controls = new Map();
     let opened = null, active = 0, search = '', searchAt = 0;
+    let anchorScrollTop = 0;
     const menu = document.createElement('div');
     menu.className = 'replay-select-menu'; menu.hidden = true; menu.setAttribute('role', 'listbox');
     panel.append(menu);
@@ -38,7 +40,7 @@ export function createReplaySelects(root, on) {
     function open(control, first) {
         if (control.select.disabled) return;
         if (opened === control) { close(true); return; }
-        close(); opened = control; search = '';
+        close(); opened = control; search = ''; anchorScrollTop = list.scrollTop;
         const options = [...control.select.options].filter(option => !option.disabled);
         if (!options.length) { opened = null; return; }
         menu.id = `${control.trigger.id}-list`; menu.setAttribute('aria-labelledby', control.trigger.id);
@@ -117,7 +119,9 @@ export function createReplaySelects(root, on) {
     });
     on(document, 'pointerdown', event => { if (opened && !event.composedPath().includes(menu) && !event.composedPath().includes(opened.trigger)) close(); }, {capture: true});
     on(root, 'focusin', event => { if (opened && !menu.contains(event.target) && event.target !== opened.trigger) close(); });
-    on(root.querySelector('#list'), 'scroll', () => close());
+    // Le clic peut suivre un scroll de mise au point dont l'événement est encore
+    // en attente. Seul un mouvement après le placement invalide l'ancrage du menu.
+    on(list, 'scroll', () => { if (list.scrollTop !== anchorScrollTop) close(); });
     on(window, 'resize', () => close(true));
     on(window, 'blur', () => close());
     return {refresh, sync, close, destroy: () => { close(); menu.remove(); controls.clear(); }};

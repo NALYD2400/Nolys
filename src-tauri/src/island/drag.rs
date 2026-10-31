@@ -49,13 +49,15 @@ pub fn nudge(app: &AppHandle, dx: i32, dy: i32) {
     persist(app);
 }
 
-/// Place la fenêtre à la position physique donnée. L'écran sous le centre de la fenêtre
+/// Place la fenêtre à la position physique donnée. L'écran sous la pilule
 /// devient l'écran cible : on peut passer sur un autre écran, avec les limites de celui-ci.
 fn place(app: &AppHandle, handle: &tauri::WebviewWindow, x: i32, y: i32) {
     let state = app.state::<AppState>();
     let current = state.layout.lock().clone();
     let size = handle.outer_size().map(|s| (s.width as i32, s.height as i32)).unwrap_or((0, 0));
-    let centre = (x + size.0 / 2, y + size.1 / 2);
+    // Le centre de la grande marge transparente peut déjà être sur un autre écran.
+    // On suit le centre de la pilule repliée, celui que l'utilisateur fait glisser.
+    let centre = (x + size.0 / 2, y + (size.1 as f64 * (layout::PILL_TOP_OFFSET + 17.5) / layout::BASE_HEIGHT).round() as i32);
     let monitor = handle.available_monitors().ok().and_then(|list| list.into_iter().find(|m| contains(m, centre)));
     let (display_id, scale) = match &monitor {
         Some(m) => (layout::monitor_id(m), m.scale_factor()),

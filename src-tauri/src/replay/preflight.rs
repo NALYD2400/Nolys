@@ -148,3 +148,26 @@ impl Store {
         Err(last)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "requires a Windows capture source and bundled FFmpeg; opt in with NOLYS_PREVIEW_TEST_SOURCE"]
+    fn chosen_source_preview_is_a_bounded_still_without_changing_capture_state() {
+        let source = std::env::var("NOLYS_PREVIEW_TEST_SOURCE").expect("Choose primary or an explicit source ID");
+        let directory = tempfile::tempdir().unwrap();
+        let store = Store::new(directory.path().into(), directory.path().into(), std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+        let before = serde_json::to_value(store.snapshot()).unwrap();
+        let config = Config { source_id: if source == "primary" { String::new() } else { source }, system_audio: false, microphone: false, ..Config::default() };
+        let data = store.preview(config).expect("The chosen source must produce a still image");
+        let bytes = base64::engine::general_purpose::STANDARD.decode(data.strip_prefix("data:image/jpeg;base64,").unwrap()).unwrap();
+        let image = image::load_from_memory(&bytes).unwrap();
+        assert!(image.width() > 0 && image.width() <= 480);
+        assert!(image.height() > 0 && image.height() <= 270);
+        assert!(bytes.len() <= 512 * 1024);
+        assert_eq!(serde_json::to_value(store.snapshot()).unwrap(), before);
+        eprintln!("Native still decoded: {} × {}; capture state unchanged.", image.width(), image.height());
+    }
+}

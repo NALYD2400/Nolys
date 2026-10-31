@@ -1,3 +1,4 @@
+const nativeViewport = require('./island-viewport.cjs');
 // Keyboard and unavailable measurements in the actual UI; all native effects are mocked.
 const { chromium } = require(process.env.NOLYS_PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
@@ -5,7 +6,7 @@ const assert = require('node:assert/strict');
 (async () => {
     const browser = await chromium.launch({ headless: true, channel: 'msedge', args: ['--mute-audio'] });
     try {
-        const context = await browser.newContext({ viewport: { width: 800, height: 720 } });
+        const context = await browser.newContext({ viewport: nativeViewport });
         const calls = [], errors = [];
         let stats = null, volume = 0, wifi = false;
         let mic = { config: { enabled: false, inputId: '', outputId: '', volume: 60, balance: 0, denoise: true,

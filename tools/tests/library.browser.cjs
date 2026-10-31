@@ -1,3 +1,4 @@
+const nativeViewport = require('./island-viewport.cjs');
 /* Parcours navigateur : vraie Island, vraie Bibliothèque et HTMLAudio, pont natif simulé.
  * Lancer `npm run dev:ui`, puis `node tools/tests/library.browser.cjs`. */
 const { chromium } = require(process.env.NOLYS_PLAYWRIGHT_MODULE || 'playwright');
@@ -19,8 +20,8 @@ function wavFixture() {
 (async () => {
     const browser = await chromium.launch({ headless: true, channel: 'msedge', args: ['--mute-audio', '--autoplay-policy=no-user-gesture-required'] });
     try {
-        // Même taille CSS que la fenêtre native de l'Island (720 × 600).
-        const context = await browser.newContext({ viewport: { width: 720, height: 600 } });
+        // Même taille CSS que la fenêtre native de l'Island (voir island-viewport.cjs).
+        const context = await browser.newContext({ viewport: nativeViewport });
         const library = { tracks: [], playlists: [] };
         let playerActive = false;
         // Autre lecteur (Spotify) vu par le cœur natif, et commandes média qui lui sont envoyées.

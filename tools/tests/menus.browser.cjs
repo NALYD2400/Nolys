@@ -1,3 +1,4 @@
+const nativeViewport = require('./island-viewport.cjs');
 /* Vraie interface, pont Tauri simulé : les appels natifs sont observés sans ouvrir d'application. */
 const { chromium } = require(process.env.NOLYS_PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
@@ -7,7 +8,7 @@ const fs = require('node:fs');
 (async () => {
     const browser = await chromium.launch({ headless: true, channel: 'msedge', args: ['--mute-audio'] });
     try {
-        const context = await browser.newContext({ viewport: { width: 720, height: 600 } });
+        const context = await browser.newContext({ viewport: nativeViewport });
         const calls = [];
         const errors = [];
         await context.exposeBinding('__invoke', async ({ page }, command, args = {}) => {
@@ -72,6 +73,38 @@ const fs = require('node:fs');
         await page.getByRole('switch', { name: 'Afficher Fichiers', exact: true }).click();
         await page.getByRole('button', { name: 'Descendre Centre de contrôle', exact: true }).click();
         await page.waitForTimeout(100);
+        // Destination en bas de page : la fenêtre transparente est plus grande
+        // que la capsule ; seule la zone de page doit servir au placement.
+        await page.locator('.select-trigger').scrollIntoViewIfNeeded();
+        const pageScroll = await page.locator('.page').evaluate(el => el.scrollTop);
+        await page.locator('.select-trigger').click();
+        const destinationBounds = async () => page.locator('.select-menu').evaluate(menu => {
+            const bounds = menu.closest('.page').getBoundingClientRect();
+            const rect = menu.getBoundingClientRect();
+            const trigger = menu.parentElement.querySelector('.select-trigger').getBoundingClientRect();
+            return {
+                inside: rect.top >= bounds.top + 13 && rect.bottom <= bounds.bottom - 29
+                    && rect.left >= bounds.left && rect.right <= bounds.right,
+                above: rect.bottom < trigger.top,
+                scrollable: menu.scrollHeight > menu.clientHeight,
+                rect: [rect.left, rect.top, rect.right, rect.bottom],
+                page: [bounds.left, bounds.top, bounds.right, bounds.bottom],
+            };
+        });
+        const destination = await destinationBounds();
+        assert.ok(destination.inside && destination.above && destination.scrollable, `destination visible au-dessus : ${JSON.stringify(destination)}`);
+        assert.equal(await page.locator('.page').evaluate(el => el.scrollTop), pageScroll, 'ouvrir la liste ne déplace pas la page');
+        await screenshot('menus-destination.png');
+        await page.keyboard.press('End');
+        await page.waitForFunction(() => {
+            const root = window.island._settingsHost.shadowRoot;
+            return root.activeElement === [...root.querySelectorAll('.select-menu [role="option"]')].at(-1);
+        });
+        assert.equal(await page.locator('.page').evaluate(el => el.scrollTop), pageScroll, 'le clavier fait défiler uniquement les options');
+        assert.ok((await destinationBounds()).inside);
+        await page.keyboard.press('Escape');
+        assert.equal(await page.getByRole('listbox').count(), 0);
+        assert.equal(await page.locator('.select-trigger').evaluate(el => el.getRootNode().activeElement === el), true);
         await page.locator('.select-trigger').click();
         await page.getByRole('option', { name: 'Application, dossier ou lien…', exact: true }).click();
         await page.getByLabel('Nom du bouton', { exact: true }).fill('Mon dossier');
@@ -139,7 +172,7 @@ const fs = require('node:fs');
         await page.evaluate(() => { window.island.returnToMusicIdle(); window.island.showContextMenu(710, 590); });
         await page.waitForTimeout(300);
         const contextBox = await page.locator('#island-context-menu').boundingBox();
-        assert.ok(contextBox.x >= 0 && contextBox.y >= 0 && contextBox.x + contextBox.width <= 720 && contextBox.y + contextBox.height <= 600);
+        assert.ok(contextBox.x >= 0 && contextBox.y >= 0 && contextBox.x + contextBox.width <= nativeViewport.width && contextBox.y + contextBox.height <= nativeViewport.height);
         assert.ok(await page.locator('.context-menu-entries').evaluate(el => el.scrollHeight > el.clientHeight));
         await page.getByRole('menuitem', { name: 'Réglages', exact: true }).scrollIntoViewIfNeeded();
         await page.getByRole('menuitem', { name: 'Réglages', exact: true }).click();

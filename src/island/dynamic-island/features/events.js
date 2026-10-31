@@ -450,14 +450,14 @@ export const eventMethods = {
 
         // Placement : on mesure le vrai menu et on le garde dans la fenêtre ;
         // l'animation part du coin le plus proche du curseur.
-        const margin = 8;
+        const margin = parseFloat(getComputedStyle(menu).getPropertyValue('--menu-shadow-margin')) || 80;
         // Dimensions de mise en page : l'animation d'ouverture applique encore une échelle.
         const width = menu.offsetWidth;
         const height = menu.offsetHeight;
         const openLeft = x + width + margin > window.innerWidth;
         const openUp = y + height + margin > window.innerHeight;
-        menu.style.left = `${Math.max(margin, openLeft ? x - width : x)}px`;
-        menu.style.top = `${Math.max(margin, openUp ? y - height : y)}px`;
+        menu.style.left = `${Math.max(margin, Math.min(window.innerWidth - width - margin, openLeft ? x - width : x))}px`;
+        menu.style.top = `${Math.max(margin, Math.min(window.innerHeight - height - margin, openUp ? y - height : y))}px`;
         menu.style.transformOrigin = `${openLeft ? 'right' : 'left'} ${openUp ? 'bottom' : 'top'}`;
 
         const runAction = (action) => {

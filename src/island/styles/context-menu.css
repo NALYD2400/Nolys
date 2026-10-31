@@ -6,6 +6,7 @@
  * Il suit le thème de la pilule : matière (classe context-menu-glass / metal / holo)
  * et couleur d'accent (--menu-accent), posées à l'ouverture par showContextMenu. */
 .context-menu {
+    --menu-shadow-margin: 80px;
     --menu-accent: #D49460;
     --menu-accent-rgb: 212, 148, 96;
     --menu-accent-text: color-mix(in srgb, var(--menu-accent) 70%, #fff);
@@ -14,8 +15,8 @@
     z-index: 999999 !important;
     isolation: isolate;
     min-width: 196px;
-    max-width: calc(100vw - 16px);
-    max-height: calc(100vh - 16px);
+    max-width: calc(100vw - 2 * var(--menu-shadow-margin));
+    max-height: calc(100vh - 2 * var(--menu-shadow-margin));
     padding: 5px;
     box-sizing: border-box;
     display: flex;
