@@ -35,7 +35,6 @@ const { spawnSync } = require('node:child_process');
             if (command === 'replay_thumbnail') return 'http://localhost:1420/__replay_thumbnail.jpg';
             if (command === 'replay_cache') return { bytes: 1024, files: 1, limitBytes: 128 * 1024 ** 2 };
             if (command === 'replay_recovery_list') return [];
-            if (command === 'replay_preflight') return args.kind === 'preview' ? `data:image/jpeg;base64,${preview.stdout.toString('base64')}` : { system: { available: true, peak: 0, muted: false }, microphone: null };
             if (command === 'replay_reindex' || command === 'replay_relocate') return structuredClone(state);
             if (command === 'replay_rename') {
                 if (rejectRename) { rejectRename = false; throw new Error('Un fichier porte déjà ce nom.'); }
@@ -104,13 +103,8 @@ const { spawnSync } = require('node:child_process');
         assert.equal(await page.locator('#replay-sourceId-trigger').getAttribute('aria-expanded'),'false');
         assert.equal(await page.evaluate(()=>window.island.isExpanded),true,'Échap ferme uniquement le menu');
         await page.locator('#replay-sourceId-trigger').click(); await page.keyboard.press('Home'); await page.keyboard.press('Enter');
-        assert.equal(calls.some(call => call.command === 'replay_preflight'), false, 'no preview or audio check before explicit request');
-        await page.locator('.replay-preflight summary').click();
-        await page.getByRole('button', { name: 'Aperçu de la source', exact: true }).click();
-        await page.locator('.replay-source-preview').waitFor();
-        await page.getByRole('button', { name: 'Vérifier les appareils audio', exact: true }).click();
-        await page.getByText(/Un niveau nul peut simplement indiquer le silence/).waitFor();
-        assert.equal(state.phase, 'idle', 'one-shot checks must not start REC');
+        assert.equal(await page.locator('.replay-preflight').count(), 0);
+        assert.equal(calls.some(call => call.command === 'replay_preflight'), false, 'capture must not run preflight checks');
         await page.screenshot({ path: path.join(shots, 'replay-idle-desktop.png') });
         await page.getByRole('tab', { name: 'Clips', exact: true }).click(); await settled();
         assert.equal(await page.getByRole('tab', { name: 'Clips', exact: true }).getAttribute('aria-selected'), 'true');

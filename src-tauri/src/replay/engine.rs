@@ -20,6 +20,14 @@ use std::{
     time::{Duration, Instant},
 };
 
+fn capture_failure(message: &str, diagnostics: &std::collections::VecDeque<String>) -> String {
+    crate::logger::log(&format!(
+        "[Replay] {message}\n{}",
+        diagnostics.iter().cloned().collect::<Vec<_>>().join("\n")
+    ));
+    message.into()
+}
+
 fn capture_args(config: &Config, plan: &plan::Plan, feeds: &[Feed], origin: f64) -> Vec<String> {
     let mut args = vec![
         "-hide_banner".into(),
@@ -379,29 +387,12 @@ pub fn run(
         let _ = job.join();
     }
     if let Some(error) = failure {
-        return Err(format!(
-            "{error} {}",
-            log.lock()
-                .iter()
-                .cloned()
-                .collect::<Vec<_>>()
-                .join(" ")
-                .chars()
-                .take(1800)
-                .collect::<String>()
-        ));
+        return Err(capture_failure(&error, &log.lock()));
     }
     if !stopping || !status.is_ok_and(|s| s.success()) {
-        return Err(format!(
-            "Capture interrompue. {}",
-            log.lock()
-                .iter()
-                .cloned()
-                .collect::<Vec<_>>()
-                .join(" ")
-                .chars()
-                .take(1800)
-                .collect::<String>()
+        return Err(capture_failure(
+            "La capture vidéo s’est interrompue. Relancez la capture.",
+            &log.lock(),
         ));
     }
     Ok(())
@@ -410,6 +401,16 @@ pub fn run(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn capture_errors_keep_engine_diagnostics_out_of_the_user_message() {
+        let diagnostics = std::collections::VecDeque::from([
+            "[D3D11VA] Using device AMD Radeon".into(),
+            "Input #0, lavfi, from ddagrab".into(),
+        ]);
+        let message = "La capture s’est arrêtée car le traitement du son est bloqué. Relancez la capture.";
+        assert_eq!(capture_failure(message, &diagnostics), message);
+    }
     /// Explicit opt-in: this test captures the desktop and (optionally) system sound.
     #[test]
     #[ignore = "captures the real Windows desktop; run explicitly"]

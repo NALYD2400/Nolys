@@ -28,6 +28,37 @@ use windows::{
     },
 };
 
+// Each timestamped 10 ms PCM packet is smaller than 3900 bytes.
+// Absorb short encoder/scheduler stalls without dropping audio or changing timestamps.
+const MAX_PENDING_BYTES: usize = 3900 * 300;
+const AUDIO_STALLED: &str =
+    "La capture s’est arrêtée car le traitement du son est bloqué. Relancez la capture.";
+
+fn flush_pending(
+    pending: &mut Vec<u8>,
+    mut write: impl FnMut(&[u8]) -> Result<usize, String>,
+) -> Result<(), String> {
+    let mut offset = 0;
+    while offset < pending.len() {
+        let end = (offset + 65_536).min(pending.len());
+        let written = write(&pending[offset..end])?;
+        if written == 0 {
+            break; // A full nonblocking byte pipe is temporary backpressure.
+        }
+        offset += written;
+    }
+    // Reclaim consumed bytes even when the pipe only accepted part of the queue.
+    pending.drain(..offset);
+    if pending.len() > MAX_PENDING_BYTES {
+        crate::logger::log(&format!(
+            "[Replay audio] Backlog exceeded: {} bytes",
+            pending.len()
+        ));
+        return Err(AUDIO_STALLED.into());
+    }
+    Ok(())
+}
+
 pub struct Feed {
     pub path: String,
     stop: Arc<AtomicBool>,
@@ -118,6 +149,15 @@ unsafe fn qpc_100ns() -> Result<i64, String> {
 }
 
 impl Audio {
+    unsafe fn flush(&self, pending: &mut Vec<u8>) -> Result<(), String> {
+        flush_pending(pending, |bytes| {
+            let mut written = 0;
+            WriteFile(self.pipe.0, Some(bytes), Some(&mut written), None)
+                .map_err(|e| format!("Flux audio fermé : {e}"))?;
+            Ok(written as usize)
+        })
+    }
+
     unsafe fn new(system: bool, id: &str, path: &str) -> Result<Self, String> {
         let enumerator: IMMDeviceEnumerator =
             CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).map_err(|e| e.to_string())?;
@@ -213,7 +253,6 @@ impl Audio {
         let mut samples = VecDeque::<f32>::new();
         let mut base = 0i64;
         let mut pending = super::audio_container::header();
-        let mut offset = 0;
         while !stop.load(Ordering::Acquire) {
             while self
                 .capture
@@ -267,31 +306,84 @@ impl Audio {
                     &pcm,
                 ));
                 base += 480;
-            }
-            if pending.len() - offset > 384_000 {
-                return Err(format!("Le moteur vidéo ne consomme plus le son ({} octets en attente après {:.2} s). Capture arrêtée pour éviter un décalage.",pending.len()-offset,clock.elapsed().as_secs_f64()));
-            }
-            if offset < pending.len() {
-                let mut written = 0;
-                match WriteFile(
-                    self.pipe.0,
-                    Some(&pending[offset..]),
-                    Some(&mut written),
-                    None,
-                ) {
-                    Ok(()) => offset += written as usize,
-                    Err(e) => return Err(format!("Flux audio fermé : {e}")),
-                }
-                if offset == pending.len() {
-                    pending.clear();
-                    offset = 0;
+                // Try delivery before declaring a stall, also while catching up after
+                // a scheduling pause. Bound allocation to the limit plus one packet.
+                if pending.len() > MAX_PENDING_BYTES {
+                    self.flush(&mut pending)?;
                 }
             }
+            self.flush(&mut pending)?;
             if samples.len() > 96_000 {
                 return Err("La file audio a dépassé sa limite.".into());
             }
             std::thread::sleep(Duration::from_millis(3));
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn partial_writes_and_temporary_stalls_preserve_every_byte() {
+        let original: Vec<u8> = (0..386_100).map(|n| (n % 251) as u8).collect();
+        let mut pending = original.clone();
+        let mut delivered = Vec::new();
+        flush_pending(&mut pending, |_| Ok(0)).unwrap();
+        assert_eq!(pending, original);
+
+        flush_pending(&mut pending, |bytes| {
+            if !delivered.is_empty() {
+                return Ok(0);
+            }
+            let count = bytes.len().min(8192);
+            delivered.extend_from_slice(&bytes[..count]);
+            Ok(count)
+        })
+        .unwrap();
+        assert_eq!(pending, original[8192..]);
+
+        pending.extend_from_slice(b"next audio packet");
+        flush_pending(&mut pending, |bytes| {
+            let count = bytes.len().min(4096);
+            delivered.extend_from_slice(&bytes[..count]);
+            Ok(count)
+        })
+        .unwrap();
+        assert!(pending.is_empty());
+        assert_eq!(
+            delivered,
+            [original.as_slice(), b"next audio packet"].concat()
+        );
+    }
+
+    #[test]
+    fn full_queue_is_drained_before_enforcing_the_limit() {
+        let mut pending = vec![0; MAX_PENDING_BYTES + 3900];
+        flush_pending(&mut pending, |bytes| Ok(bytes.len())).unwrap();
+        assert!(pending.is_empty());
+    }
+
+    #[test]
+    fn persistent_backpressure_stops_at_a_bounded_queue() {
+        let mut pending = vec![0; MAX_PENDING_BYTES];
+        flush_pending(&mut pending, |_| Ok(0)).unwrap();
+        pending.extend_from_slice(&[0; 3900]);
+        assert_eq!(
+            flush_pending(&mut pending, |_| Ok(0)),
+            Err(AUDIO_STALLED.into())
+        );
+        assert_eq!(pending.len(), MAX_PENDING_BYTES + 3900);
+    }
+
+    #[test]
+    fn closed_pipe_is_reported_immediately() {
+        let mut pending = vec![0; 3900];
+        assert_eq!(
+            flush_pending(&mut pending, |_| Err("closed".into())),
+            Err("closed".into())
+        );
     }
 }
