@@ -63,9 +63,28 @@ pub struct Snapshot {
     pub error: Option<String>,
     pub notice: Option<String>,
     pub clips: Vec<Clip>,
+    pub clips_revision: u64,
     pub engine_available: bool,
     pub engine_path: String,
     pub recovery_files: usize,
+}
+
+impl Snapshot {
+    /// Frequent status events must never clone or serialize the clip catalogue.
+    pub fn telemetry(&self) -> serde_json::Value {
+        serde_json::json!({
+            "phase": self.phase, "bufferedSeconds": self.buffered_seconds,
+            "bufferBytes": self.buffer_bytes, "recording": self.recording,
+            "recordingSeconds": self.recording_seconds, "exporting": self.exporting,
+            "encoder": self.encoder, "pipeline": self.pipeline,
+            "width": self.width, "height": self.height,
+            "encodedFps": self.encoded_fps, "droppedFrames": self.dropped_frames,
+            "duplicatedFrames": self.duplicated_frames, "error": self.error,
+            "notice": self.notice, "clipsRevision": self.clips_revision,
+            "engineAvailable": self.engine_available, "enginePath": self.engine_path,
+            "recoveryFiles": self.recovery_files
+        })
+    }
 }
 
 pub(crate) struct Shared {
@@ -83,13 +102,14 @@ impl Shared {
     pub fn notify(&self) {
         if let Some(app) = self.app.lock().as_ref() {
             let s = self.state.lock();
-            let _=app.emit_to(crate::island::LABEL,"replay-status",serde_json::json!({"phase":s.phase,"recording":s.recording,"recordingSeconds":s.recording_seconds,"bufferedSeconds":s.buffered_seconds,"exporting":s.exporting,"error":s.error,"notice":s.notice}));
+            let _ = app.emit_to(crate::island::LABEL, "replay-status", s.telemetry());
         }
     }
     pub fn add_clip(&self, clip: Clip) {
         let mut state = self.state.lock();
         state.notice = Some(format!("{} enregistré", clip.name));
         state.clips.insert(0, clip);
+        state.clips_revision += 1;
         if self.history_valid.load(Ordering::Acquire) {
             if let Err(e) = write_json(&self.root.join("replay-clips.json"), &state.clips) {
                 state.error = Some(format!(
@@ -145,7 +165,7 @@ impl Store {
                     .count()
             })
             .unwrap_or(0);
-        let state=Snapshot{phase:"idle".into(),config,buffered_seconds:0.0,buffer_bytes:0,recording:false,recording_seconds:0.0,exporting:false,encoder:String::new(),pipeline:String::new(),width:0,height:0,encoded_fps:0.0,dropped_frames:0,duplicated_frames:0,error:config_error.or_else(||if history_valid{None}else{Some("L’historique Replay est illisible. Le fichier est conservé ; les vidéos restent dans leur dossier.".into())}),notice:None,clips,engine_available:engine.is_some(),engine_path:engine.map(|p|p.to_string_lossy().into()).unwrap_or_default(),recovery_files};
+        let state=Snapshot{phase:"idle".into(),config,buffered_seconds:0.0,buffer_bytes:0,recording:false,recording_seconds:0.0,exporting:false,encoder:String::new(),pipeline:String::new(),width:0,height:0,encoded_fps:0.0,dropped_frames:0,duplicated_frames:0,error:config_error.or_else(||if history_valid{None}else{Some("L’historique Replay est illisible. Le fichier est conservé ; les vidéos restent dans leur dossier.".into())}),notice:None,clips,clips_revision:0,engine_available:engine.is_some(),engine_path:engine.map(|p|p.to_string_lossy().into()).unwrap_or_default(),recovery_files};
         Self {
             shared: Arc::new(Shared {
                 state: Mutex::new(state),
@@ -327,6 +347,7 @@ impl Store {
         }
         let mut state = self.shared.state.lock();
         state.clips.retain(|c| c.id != id);
+        state.clips_revision += 1;
         state.notice = None;
         if self.shared.history_valid.load(Ordering::Acquire) {
             if let Err(e) = write_json(&self.shared.root.join("replay-clips.json"), &state.clips) {
@@ -351,11 +372,12 @@ impl Store {
         if let Err(error) = write_json(&self.shared.root.join("replay-clips.json"), &clips) {
             if rename::move_file(&destination, &source).is_err() {
                 state.clips = clips;
+                state.clips_revision += 1;
                 state.error = Some("Le fichier a été renommé, mais son historique n’a pas pu être enregistré.".into());
             }
             return Err(format!("Le renommage n’a pas pu être enregistré : {error}"));
         }
-        state.clips = clips; state.notice = None;
+        state.clips = clips; state.clips_revision += 1; state.notice = None;
         Ok(())
     }
 }
@@ -402,6 +424,25 @@ mod clip_tests {
                 kind: "replay".into(), created_at: 0, seconds: 5.0, bytes: 15 });
         }
         store
+    }
+    #[test]
+    fn telemetry_stays_small_with_a_large_catalogue_and_revision_follows_mutations() {
+        let root = tempfile::tempdir().unwrap();
+        let store = fixture(root.path());
+        let revision = store.snapshot().clips_revision;
+        store.rename_clip("one", "Renamed").unwrap();
+        assert!(store.snapshot().clips_revision > revision);
+        let before_delete = store.snapshot().clips_revision;
+        store.delete_clip("two", |_| Ok(())).unwrap();
+        assert!(store.snapshot().clips_revision > before_delete);
+        let mut state = store.shared.state.lock();
+        let clip = state.clips[0].clone();
+        state.clips.extend(std::iter::repeat_n(clip, 10_000));
+        let telemetry = state.telemetry();
+        assert!(telemetry.get("clips").is_none());
+        assert!(telemetry.get("config").is_none());
+        assert_eq!(telemetry["clipsRevision"], state.clips_revision);
+        assert!(serde_json::to_vec(&telemetry).unwrap().len() < 2_000);
     }
     #[test]
     fn renaming_preserves_bytes_id_and_history_after_restart() {

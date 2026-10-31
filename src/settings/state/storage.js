@@ -25,7 +25,7 @@ const number = (key, fallback) => {
 
 export function loadSettings() {
     const glow = readJson('liquid_island_config', {});
-    const motion = read('liquid_motion_level', 'fluid');
+    const motion = read('liquid_motion_level', 'system');
     const shortcuts = readJson('liquid_control_shortcuts', DEFAULT_SHORTCUTS);
 
     return sanitizeSettings({
@@ -44,7 +44,7 @@ export function loadSettings() {
         activeProfile: read('liquid_active_profile', 'custom'),
 
         // Apparence
-        motion: ['sober', 'fluid', 'vivid'].includes(motion) ? motion : 'fluid',
+        motion: ['system', 'sober', 'fluid', 'vivid'].includes(motion) ? motion : 'system',
         opacity: glow.opacity ?? 92,
         blur: glow.blur ?? 30,
         materialStyle: glow.materialStyle || 'glass',

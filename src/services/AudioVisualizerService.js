@@ -137,11 +137,14 @@ class AudioVisualizerService {
 
         if (!nextActive) {
             this._cancelFrame();
+            cancelAnimationFrame(this._ampFrame);
+            this._ampFrame = null;
             this._isLoopActive = false;
             return;
         }
 
         if (this.isRunning) {
+            this._meterLastPoll = 0;
             this._startLoopIfNeeded();
         }
     }

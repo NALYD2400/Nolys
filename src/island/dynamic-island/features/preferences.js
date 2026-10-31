@@ -171,11 +171,16 @@ export const preferenceMethods = {
     },
 
     getMotionLevel() {
-        const saved = localStorage.getItem('liquid_motion_level') || 'fluid';
-        return MOTION_LEVELS.includes(saved) ? saved : 'fluid';
+        const saved = localStorage.getItem('liquid_motion_level') || 'system';
+        if (MOTION_LEVELS.includes(saved) && saved !== 'system') return saved;
+        return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'sober' : 'fluid';
     },
 
     syncMotionPreference() {
+        if (!this._motionMediaQuery && globalThis.matchMedia) {
+            this._motionMediaQuery = matchMedia('(prefers-reduced-motion: reduce)');
+            this._motionMediaQuery.addEventListener('change', () => this.syncMotionPreference());
+        }
         const level = this.getMotionLevel();
         document.body.classList.remove('motion-sober', 'motion-fluid', 'motion-vivid');
         document.body.classList.add(`motion-${level}`);

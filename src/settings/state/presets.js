@@ -33,6 +33,7 @@ export const DEFAULT_SHORTCUTS = [
 ];
 
 export const MOTION_OPTIONS = [
+    { value: 'system', label: 'Windows' },
     { value: 'sober', label: 'Sobre' },
     { value: 'fluid', label: 'Fluide' },
     { value: 'vivid', label: 'Vivante' },

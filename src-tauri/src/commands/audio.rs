@@ -13,15 +13,15 @@ pub async fn get_audio_meter() -> AudioPeak {
 }
 
 #[tauri::command]
-pub async fn get_system_volume() -> f32 {
-    blocking(audio::master_volume, 70.0).await
+pub async fn get_system_volume() -> Option<f32> {
+    blocking(audio::master_volume, None).await
 }
 
 #[tauri::command]
-pub async fn set_system_volume(volume: Value) -> bool {
-    let Some(volume) = clamp_int(&volume, 0, 100) else { return false };
-    blocking(move || audio::set_master_volume(volume as f32), ()).await;
-    true
+pub async fn set_system_volume(volume: Value) -> Result<bool, String> {
+    let Some(volume) = clamp_int(&volume, 0, 100) else { return Err("Volume invalide.".into()) };
+    if blocking(move || audio::set_master_volume(volume as f32), false).await { Ok(true) }
+    else { Err("La sortie audio est indisponible ou le volume a été refusé par Windows.".into()) }
 }
 
 #[tauri::command]
@@ -43,17 +43,17 @@ pub struct SessionMute {
 }
 
 #[tauri::command]
-pub async fn set_session_volume(payload: SessionVolume) -> bool {
+pub async fn set_session_volume(payload: SessionVolume) -> Result<bool, String> {
     let (Some(pid), Some(volume)) = (clamp_int(&payload.pid, 1, i32::MAX as i64), clamp_int(&payload.volume, 0, 100)) else {
-        return false;
+        return Err("Session ou volume invalide.".into());
     };
-    blocking(move || audio::set_session_volume(pid as u32, volume as f32), ()).await;
-    true
+    if blocking(move || audio::set_session_volume(pid as u32, volume as f32), false).await { Ok(true) }
+    else { Err("Cette session audio est indisponible ou le volume a été refusé par Windows.".into()) }
 }
 
 #[tauri::command]
-pub async fn set_session_muted(payload: SessionMute) -> bool {
-    let Some(pid) = clamp_int(&payload.pid, 1, i32::MAX as i64) else { return false };
+pub async fn set_session_muted(payload: SessionMute) -> Result<bool, String> {
+    let Some(pid) = clamp_int(&payload.pid, 1, i32::MAX as i64) else { return Err("Session audio invalide.".into()) };
     let muted = match payload.muted {
         Value::Bool(b) => b,
         Value::Null => false,
@@ -61,8 +61,8 @@ pub async fn set_session_muted(payload: SessionMute) -> bool {
         Value::String(s) => !s.is_empty(),
         _ => true,
     };
-    blocking(move || audio::set_session_muted(pid as u32, muted), ()).await;
-    true
+    if blocking(move || audio::set_session_muted(pid as u32, muted), false).await { Ok(true) }
+    else { Err("Cette session audio est indisponible ou Windows a refusé la commande.".into()) }
 }
 
 #[tauri::command]

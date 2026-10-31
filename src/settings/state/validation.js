@@ -13,7 +13,7 @@ const flags = { persistent: true, gameDetection: true, notifications: true, soun
 const numbers = { opacity: [10, 100, 92], blur: [0, 80, 30], glowDensity: [0, 60, 20], glowBlend: [0, 100, 65],
     visualizerSensitivity: [.1, 10, 2.5], vizBars: [3, 9, 5], pillMaxWidth: [120, 500, 240], playerCoverBg: [0, 100, 50],
     wallpaperDarken: [0, 50, 20], wallpaperDelay: [0, 10000, 800] };
-const enums = { motion: ['sober', 'fluid', 'vivid'], materialStyle: ['glass', 'metal', 'holo'], grainEffect: ['none', 'light', 'medium'],
+const enums = { motion: ['system', 'sober', 'fluid', 'vivid'], materialStyle: ['glass', 'metal', 'holo'], grainEffect: ['none', 'light', 'medium'],
     glowColorMode: ['mix', 'cover', 'fixed'], vizColorMode: ['cover', 'cyberpunk', 'solid', 'gradient'], vizStyle: ['capsules', 'bars', 'dots', 'wave'],
     pillCoverShape: ['round', 'rounded', 'square'], visualizerMode: ['real', 'simulation'], wallpaperSyncStyle: ['blur', 'sharp', 'cinematic'],
     wallpaperBlurIntensity: ['light', 'moderate', 'strong'], widgetType: ['launchpad', 'stats', 'machine', 'weather', 'mixer'],
@@ -34,7 +34,7 @@ export function sanitizeSettings(value) {
     const result = { ...source };
     for (const [key, fallback] of Object.entries(flags)) result[key] = typeof source[key] === 'boolean' ? source[key] : fallback;
     for (const [key, [min, max, fallback]] of Object.entries(numbers)) result[key] = typeof source[key] === 'number' && Number.isFinite(source[key]) ? Math.max(min, Math.min(max, source[key])) : fallback;
-    const enumDefaults = { motion: 'fluid', wallpaperBlurIntensity: 'moderate' };
+    const enumDefaults = { motion: 'system', wallpaperBlurIntensity: 'moderate' };
     for (const [key, choices] of Object.entries(enums)) result[key] = choices.includes(source[key]) ? source[key] : enumDefaults[key] || choices[0];
     for (const key of ['glowColor', 'vizColorSolid', 'vizColorGradA', 'vizColorGradB']) result[key] = /^#[\da-f]{6}$/i.test(source[key]) ? source[key] : key === 'vizColorGradB' ? '#EDBC89' : '#D49460';
     result.hotkeys = sanitizeHotkeys(source.hotkeys);

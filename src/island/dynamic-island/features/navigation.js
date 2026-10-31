@@ -20,7 +20,7 @@ export const navigationMethods = {
 
         try {
             // 1. Wait for the content to fully fade out (opacity 0)
-            await new Promise(r => setTimeout(r, 90));
+            await new Promise(r => setTimeout(r, 60));
 
             if (transitionToken !== this._transitionToken) return;
 
@@ -60,10 +60,10 @@ export const navigationMethods = {
         }
     },
 
-    /** Un tiers du ressort de la capsule (base.css : 0,26 s sobre, 0,6 s normal, 0,72 s vif). */
+    /** Le contenu arrive au premier quart du ressort, sans attendre la fin de l'ouverture. */
     morphLeadTime() {
-        const seconds = parseFloat(globalThis.getComputedStyle?.(this.el).transitionDuration) || 0.6;
-        return Math.round(Math.min(260, Math.max(80, seconds * 1000 / 3)));
+        const seconds = parseFloat(globalThis.getComputedStyle?.(this.el).transitionDuration) || 0.42;
+        return Math.round(Math.min(140, Math.max(50, seconds * 1000 / 4)));
     },
 
     toggleExpand() {

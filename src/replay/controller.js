@@ -27,7 +27,19 @@ export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), 
     const query = { search: '', kind: '', sort: 'newest', page: 0 };
     const selection = new Set();
     let pendingDelete = [], recoveryFiles = [], cacheUsage = null;
-    const pageClips = () => queryClips(replay.state.snapshot?.clips || [], query);
+    let clipsReference = null, clipsGeneration = 0, clipPage = null;
+    const pageClips = () => {
+        const clips = replay.state.snapshot?.clips;
+        const key = JSON.stringify(query);
+        if (!clipPage || clipPage.clips !== clips || clipPage.key !== key) {
+            clipPage = { clips, key, result: queryClips(clips || [], query) };
+        }
+        return clipPage.result;
+    };
+    const text = (selector, value) => {
+        const element = $(selector);
+        if (element && element.textContent !== value) element.textContent = value;
+    };
     async function maintenance() {
         const [files, usage] = await Promise.all([replay.inspect('replay_recovery_list'), replay.inspect('replay_cache', { clear: false })]);
         if (destroyed) return;
@@ -103,26 +115,30 @@ export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), 
         if ($('[data-action="next-page"]')) $('[data-action="next-page"]').disabled = query.page >= pageClips().pages - 1;
         root.querySelectorAll('[data-setting], [data-preset], [data-action="pick-engine"], [data-action="pick-folder"]').forEach(el => { el.disabled = locked; });
         const saved = $('[data-action="save-settings"]'); if (saved) saved.disabled = locked || !dirty;
-        if ($('#replay-dirty')) $('#replay-dirty').textContent = dirty ? 'Modifications non enregistrées' : 'Réglages enregistrés';
+        text('#replay-dirty', dirty ? 'Modifications non enregistrées' : 'Réglages enregistrés');
         const problem = error || s.error;
         const feedback = problem ? `<div class="replay-error" role="alert"><span>${e(problem)}</span>${button('dismiss', 'Fermer le message', 'x')}</div>` : '';
         if ($('#replay-feedback').innerHTML !== feedback) $('#replay-feedback').innerHTML = feedback;
         root.querySelectorAll('.replay-clips [data-action]:not([data-action="cancel-rename"])').forEach(el => { el.disabled = busy || Boolean(loadingClip) || Boolean(renameId); });
         root.querySelectorAll('.replay-rename input, .replay-rename button').forEach(el => { el.disabled = busy; });
-        if ($('#replay-memory')) $('#replay-memory').textContent = `${size(s.bufferBytes)} / ${replay.state.draft.memoryMb} Mio`;
-        if ($('#replay-pipeline')) $('#replay-pipeline').textContent = active && s.encoder ? `${s.width} × ${s.height} · ${s.encoder} · ${s.pipeline}` : !s.engineAvailable ? 'Moteur vidéo introuvable' : 'Aucune capture en cours';
+        text('#replay-memory', `${size(s.bufferBytes)} / ${replay.state.draft.memoryMb} Mio`);
+        text('#replay-pipeline', active && s.encoder ? `${s.width} × ${s.height} · ${s.encoder} · ${s.pipeline}` : !s.engineAvailable ? 'Moteur vidéo introuvable' : 'Aucune capture en cours');
         if (tab !== 'capture' || selectedClip) return;
         const preparing = s.phase === 'starting' || s.phase === 'stopping';
         $('.replay-session').dataset.phase = s.phase;
         $('.replay-session').classList.toggle('is-recording', s.recording);
-        $('#replay-phase').textContent = labels[s.phase] || s.phase;
-        $('#replay-rec-time').textContent = s.recording ? `REC ${duration(s.recordingSeconds)}` : '';
-        $('#replay-buffer-time').textContent = duration(s.bufferedSeconds);
-        $('#replay-buffer-description').textContent = !s.engineAvailable ? 'Moteur vidéo manquant · ouvrez Réglages' : s.phase === 'starting' ? 'Préparation de la source et des appareils' : s.phase === 'stopping' ? 'Finalisation des vidéos' : `Disponibles sur ${duration(replay.state.draft.seconds)}`;
+        text('#replay-phase', labels[s.phase] || s.phase);
+        text('#replay-rec-time', s.recording ? `REC ${duration(s.recordingSeconds)}` : '');
+        text('#replay-buffer-time', duration(s.bufferedSeconds));
+        text('#replay-buffer-description', !s.engineAvailable ? 'Moteur vidéo manquant · ouvrez Réglages' : s.phase === 'starting' ? 'Préparation de la source et des appareils' : s.phase === 'stopping' ? 'Finalisation des vidéos' : `Disponibles sur ${duration(replay.state.draft.seconds)}`);
         const primary = $('[data-action="primary"]');
-        primary.innerHTML = icon(s.exporting ? 'circle-notch' : active ? 'floppy-disk' : 'arrow-counter-clockwise') + `<span>${s.exporting ? 'Sauvegarde…' : active ? 'Sauvegarder' : 'Activer le replay'}</span>`;
+        const primaryLabel = icon(s.exporting ? 'circle-notch' : active ? 'floppy-disk' : 'arrow-counter-clockwise') + `<span>${s.exporting ? 'Sauvegarde…' : active ? 'Sauvegarder' : 'Activer le replay'}</span>`;
+        if (primary.innerHTML !== primaryLabel) primary.innerHTML = primaryLabel;
         primary.classList.add('is-accent'); primary.disabled = busy || preparing || s.exporting || (active && s.bufferedSeconds < 0.25) || !s.engineAvailable;
-        const rec = $('[data-action="record"]'); rec.innerHTML = icon(s.recording ? 'stop' : 'record') + `<span>${s.recording ? 'Terminer REC' : 'Enregistrer'}</span>`; rec.classList.toggle('is-recording', s.recording); rec.disabled = busy || preparing || !s.engineAvailable;
+        const rec = $('[data-action="record"]');
+        const recordLabel = icon(s.recording ? 'stop' : 'record') + `<span>${s.recording ? 'Terminer REC' : 'Enregistrer'}</span>`;
+        if (rec.innerHTML !== recordLabel) rec.innerHTML = recordLabel;
+        rec.classList.toggle('is-recording', s.recording); rec.disabled = busy || preparing || !s.engineAvailable;
         const stop = $('[data-action="stop"]'); stop.hidden = !active; stop.disabled = busy || s.phase === 'stopping';
         $('[data-action="refresh"]').disabled = busy || active;
         const shortcut = readHotkeys().saveReplay;
@@ -132,13 +148,14 @@ export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), 
         if (destroyed || rendering) return;
         rendering = true;
         const { tab, draft, snapshot } = replay.state;
-        const next = `${tab}:${selectedClip?.id || loadingClip || ''}:${tab === 'clips' ? JSON.stringify(snapshot?.clips) + snapshot?.recoveryFiles : ''}`;
+        if (snapshot?.clips !== clipsReference) { clipsReference = snapshot?.clips; ++clipsGeneration; }
+        const next = `${tab}:${selectedClip?.id || loadingClip || ''}:${tab === 'clips' ? `${clipsGeneration}:${snapshot?.recoveryFiles}` : ''}`;
         const preserveVideo = selectedClip && $('#replay-video')?.dataset.clip === selectedClip.id;
         const preserveEditor = renameId && $('#replay-rename-name');
         $('.replay-panel').classList.toggle('is-playing', Boolean(selectedClip));
         $('.replay-panel').classList.toggle('is-clips', tab === 'clips' && !selectedClip);
         $('.replay-tabs').hidden = Boolean(selectedClip);
-        $('.lib-heading > span').textContent = selectedClip?.name || 'Replay & REC';
+        text('.lib-heading > span', selectedClip?.name || 'Replay & REC');
         $('.lib-heading').title = selectedClip?.name || '';
         $('[data-action="back"]').setAttribute('aria-label', selectedClip ? 'Revenir aux clips' : 'Revenir au menu');
         $('[data-action="back"]').title = selectedClip ? 'Revenir aux clips' : 'Menu';

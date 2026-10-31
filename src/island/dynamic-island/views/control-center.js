@@ -313,6 +313,7 @@ export const controlCenterView = {
             };
 
             const onMouseDown = (e) => {
+                if (sliderEl.getAttribute('aria-disabled') === 'true') return;
                 e.stopPropagation();
                 e.preventDefault();
                 isDragging = true;
@@ -357,10 +358,14 @@ export const controlCenterView = {
             volSlider.setAttribute('aria-valuenow', val);
             volSlider.setAttribute('aria-valuetext', `${val} %`);
             if (ipcRenderer) {
-                ipcRenderer.invoke('set-system-volume', val);
+                ipcRenderer.invoke('set-system-volume', val).catch(() => {
+                    this.updateSystemVolumeSlider(volSlider, null);
+                    this.showIslandFeedback('Volume indisponible', 'ph-warning');
+                });
             }
         });
         volSlider?.addEventListener('keydown', event => {
+            if (volSlider.getAttribute('aria-disabled') === 'true') return;
             if (!['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft', 'PageUp', 'PageDown', 'Home', 'End'].includes(event.key)) return;
             event.preventDefault(); event.stopPropagation();
             sysVol = volSlider.hasAttribute('aria-valuenow') ? Number(volSlider.getAttribute('aria-valuenow')) : null;
@@ -369,7 +374,10 @@ export const controlCenterView = {
             sysVol = event.key === 'Home' ? 0 : event.key === 'End' ? 100 : Math.max(0, Math.min(100, sysVol + direction * (event.key.startsWith('Page') ? 10 : 5)));
             volSlider.style.setProperty('--slider-val-pct', `${sysVol}%`);
             volSlider.setAttribute('aria-valuenow', sysVol); volSlider.setAttribute('aria-valuetext', `${sysVol} %`);
-            ipcRenderer.invoke('set-system-volume', sysVol).catch(() => {});
+            ipcRenderer.invoke('set-system-volume', sysVol).catch(() => {
+                this.updateSystemVolumeSlider(volSlider, null);
+                this.showIslandFeedback('Volume indisponible', 'ph-warning');
+            });
         });
 
         // Bind Quick Tiles Toggle Handlers
@@ -566,6 +574,7 @@ export const controlCenterView = {
             // System Volume
             try {
                 const fetchedVol = await ipcRenderer.invoke('get-system-volume');
+                this.updateSystemVolumeSlider(volSlider, fetchedVol);
                 if (Number.isFinite(fetchedVol) && fetchedVol >= 0 && fetchedVol <= 100) {
                     sysVol = fetchedVol;
                     if (volSlider) {
@@ -573,7 +582,7 @@ export const controlCenterView = {
                         volSlider.setAttribute('aria-valuenow', sysVol); volSlider.setAttribute('aria-valuetext', `${Math.round(sysVol)} %`);
                     }
                 }
-            } catch (e) { }
+            } catch (e) { this.updateSystemVolumeSlider(volSlider, null); }
 
             // Wi-Fi Status
             try {

@@ -46,7 +46,7 @@ function islandFor(t, mode = 'music', isExpanded = false) {
     return island;
 }
 
-// Avance aussi les étapes asynchrones de la vraie animation (90 + 200 + 40 ms).
+// Avance aussi les étapes asynchrones de la vraie animation.
 async function advance(t, duration) {
     for (let elapsed = 0; elapsed < duration; elapsed += 10) {
         t.mock.timers.tick(Math.min(10, duration - elapsed));
@@ -132,7 +132,8 @@ test('une nouvelle alerte pendant la fermeture ne se fait pas effacer', async t 
 test('un clic au début de la fermeture permet encore de lire le détail', async t => {
     const island = islandFor(t);
     island.showNotification('Nolys', 'Message');
-    await advance(t, 4320);
+    for (let elapsed = 0; elapsed < 5000 && !island._notificationDismissRequest; elapsed += 10) await advance(t, 10);
+    assert.ok(island._notificationDismissRequest, 'la fermeture automatique vient de commencer');
     island.expandNotification();
     await advance(t, 8500);
     assert.equal(island.mode, 'notification');

@@ -4,11 +4,28 @@ import { escapeHtml } from '../helpers/format.js';
 import { getMusicSearchProvider, isHistoryTrack } from '../helpers/music-search.js';
 
 export const volumeMethods = {
+    updateSystemVolumeSlider(slider, value) {
+        if (!slider) return;
+        const available = typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100;
+        slider.setAttribute('aria-disabled', String(!available));
+        if (available) {
+            slider.style.setProperty('--slider-val-pct', `${Math.round(value)}%`);
+            slider.setAttribute('aria-valuenow', value);
+            slider.setAttribute('aria-valuetext', `${Math.round(value)} %`);
+            slider.removeAttribute('title');
+        } else {
+            slider.removeAttribute('aria-valuenow');
+            slider.style.setProperty('--slider-val-pct', '0%');
+            slider.setAttribute('aria-valuetext', 'Volume indisponible');
+            slider.title = 'Sortie audio indisponible';
+        }
+    },
+
     adjustVolume(delta) {
         if (!Number.isFinite(delta)) return Promise.resolve();
         this._volumeAdjustment = (this._volumeAdjustment || Promise.resolve()).catch(() => {}).then(async () => {
             const current = await ipcRenderer.invoke('get-system-volume');
-            if (typeof current !== 'number' || !Number.isFinite(current)) return;
+            if (typeof current !== 'number' || !Number.isFinite(current)) throw new Error('Volume indisponible');
             const next = Math.min(100, Math.max(0, current + delta));
             if (await ipcRenderer.invoke('set-system-volume', next) === false) throw new Error('Volume refusé');
             this.showVolumeIndicator(next);
@@ -262,7 +279,10 @@ export const volumeMethods = {
         if (!ipcRenderer) return;
 
         for (const pid of pids) {
-            ipcRenderer.invoke('set-session-volume', { pid, volume: targetVolume }).catch(() => {});
+            ipcRenderer.invoke('set-session-volume', { pid, volume: targetVolume }).catch(() => {
+                this.showIslandFeedback('Volume indisponible', 'ph-warning');
+                this.updateAudioSessions();
+            });
         }
     },
 

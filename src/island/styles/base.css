@@ -378,7 +378,7 @@ body.layout-edit-mode #layout-edit-toolbar.is-settling {
 
 #dynamic-island.animating .island-content {
     opacity: 0;
-    transition: opacity 0.1s ease-in-out;
+    transition: opacity 0.06s ease-in-out;
 }
 
 .island-idle {

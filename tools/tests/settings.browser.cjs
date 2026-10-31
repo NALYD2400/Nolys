@@ -181,7 +181,7 @@ const pageShots = process.env.NOLYS_SHOTS;
         await upload({...backup,settings:{...backup.settings,motion:'sober'}});
         await page.waitForFunction(()=>localStorage.getItem('liquid_motion_level')==='sober');
         await page.locator('.row').filter({hasText:'Annuler le dernier import'}).getByRole('button',{name:'Restaurer',exact:true}).click();
-        await page.waitForFunction(expected=>localStorage.getItem('liquid_motion_level')===expected,before);
+        await page.waitForFunction(expected=>(localStorage.getItem('liquid_motion_level') ?? 'system')===(expected ?? 'system'),before);
         assert.deepEqual(nativePreferences,previousNative);
 
         // Sélecteur de fichier ouvert (Importer) : la perte de focus ne replie pas l'Island.

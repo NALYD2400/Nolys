@@ -41,7 +41,7 @@ export default function Appearance({ store }) {
                     onChange={(blur) => update({ blur: Math.round(blur) })}
                 />
                 <Segmented label="Grain" value={settings.grainEffect} options={GRAIN_OPTIONS} onChange={(grainEffect) => update({ grainEffect })} />
-                <Segmented label="Animations" value={settings.motion} options={MOTION_OPTIONS} onChange={(motion) => update({ motion })} />
+                <Segmented label="Animations" description="Windows suit les effets d’animation du système." value={settings.motion} options={MOTION_OPTIONS} onChange={(motion) => update({ motion })} />
                 <Segmented
                     label="Images par seconde"
                     description="Plafond des animations continues qui se redessinent à chaque image (matières animées, effets lumineux…). Plus haut : plus fluide sur un écran rapide, mais plus de processeur. « Écran » suit sa fréquence."

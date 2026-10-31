@@ -218,6 +218,9 @@ button:disabled, [aria-disabled="true"] { cursor: default; }
 
 /* ------------------------------------------------------------------ Liste */
 
+.lib-pagination { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 10px 0; flex: none; }
+.lib-pagination > span { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+
 .lib-list {
     flex: 1 1 auto;
     min-height: 0;
@@ -524,13 +527,8 @@ button:disabled, [aria-disabled="true"] { cursor: default; }
 @keyframes lib-eq { to { transform: scaleY(1); } }
 @keyframes lib-spin { to { transform: rotate(360deg); } }
 
-:host-context(body.motion-sober) *, :host-context(body.motion-sober) *::before {
+:host-context(body.motion-sober) :is(.lib-header, .lib-chips, .lib-section, .lib-player, .row, .lib-sheet-card, [role="tabpanel"]) {
     animation-duration: 0.16s !important;
     animation-delay: 0s !important;
 }
-:host-context(body.motion-sober) .cover-state.is-playing i { animation-duration: 0.9s !important; }
-
-@media (prefers-reduced-motion: reduce) {
-    *, *::before { animation: none !important; transition: none !important; }
-    .cover-state i { transform: scaleY(0.7); }
-}
+:host-context(body.motion-sober) .cover-state i { animation: none !important; transform: scaleY(0.7); }

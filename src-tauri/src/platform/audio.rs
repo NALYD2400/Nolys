@@ -75,20 +75,16 @@ fn device_id(device: &IMMDevice) -> Option<String> {
 
 // ---------------------------------------------------------------- Volume maître
 
-pub fn master_volume() -> f32 {
+pub fn master_volume() -> Option<f32> {
     default_output()
         .and_then(|device| activate::<IAudioEndpointVolume>(&device))
         .and_then(|volume| unsafe { volume.GetMasterVolumeLevelScalar().ok() })
         .map(|level| level * 100.0)
-        .unwrap_or(70.0)
 }
 
-pub fn set_master_volume(percent: f32) {
-    if let Some(volume) = default_output().and_then(|device| activate::<IAudioEndpointVolume>(&device)) {
-        unsafe {
-            let _ = volume.SetMasterVolumeLevelScalar((percent / 100.0).clamp(0.0, 1.0), &GUID::zeroed());
-        }
-    }
+pub fn set_master_volume(percent: f32) -> bool {
+    let Some(volume) = default_output().and_then(|device| activate::<IAudioEndpointVolume>(&device)) else { return false };
+    unsafe { volume.SetMasterVolumeLevelScalar((percent / 100.0).clamp(0.0, 1.0), &GUID::zeroed()).is_ok() }
 }
 
 // ---------------------------------------------------------------- Crête (visualiseur)
@@ -263,25 +259,26 @@ fn scan_sessions(role: ERole, result: &mut Vec<AudioSession>) {
     });
 }
 
-pub fn set_session_volume(target_pid: u32, percent: f32) {
+pub fn set_session_volume(target_pid: u32, percent: f32) -> bool {
     with_session(target_pid, |volume| unsafe {
-        let _ = volume.SetMasterVolume((percent / 100.0).clamp(0.0, 1.0), &GUID::zeroed());
-        let _ = volume.SetMute(percent <= 0.0, &GUID::zeroed());
-    });
+        volume.SetMasterVolume((percent / 100.0).clamp(0.0, 1.0), &GUID::zeroed()).is_ok()
+            && volume.SetMute(percent <= 0.0, &GUID::zeroed()).is_ok()
+    })
 }
 
-pub fn set_session_muted(target_pid: u32, muted: bool) {
+pub fn set_session_muted(target_pid: u32, muted: bool) -> bool {
     with_session(target_pid, |volume| unsafe {
-        let _ = volume.SetMute(muted, &GUID::zeroed());
-    });
+        volume.SetMute(muted, &GUID::zeroed()).is_ok()
+    })
 }
 
-fn with_session(target_pid: u32, apply: impl Fn(&ISimpleAudioVolume)) {
+fn with_session(target_pid: u32, apply: impl Fn(&ISimpleAudioVolume) -> bool) -> bool {
     let mut done = false;
+    let mut applied = false;
     for role in [eConsole, eMultimedia] {
         for_each_session(role, |control, volume| {
             if unsafe { control.GetProcessId() }.ok() == Some(target_pid) {
-                apply(volume);
+                applied = apply(volume);
                 done = true;
                 return false;
             }
@@ -291,6 +288,7 @@ fn with_session(target_pid: u32, apply: impl Fn(&ISimpleAudioVolume)) {
             break;
         }
     }
+    applied
 }
 
 // ---------------------------------------------------------------- Périphériques

@@ -64,7 +64,8 @@ export function createReplaySelects(root, on) {
     function sync() {
         for (const [select, control] of controls) {
             if (!select.isConnected) { if (opened === control) close(); controls.delete(select); continue; }
-            control.text.textContent = select.selectedOptions[0]?.textContent || 'Choisir';
+            const label = select.selectedOptions[0]?.textContent || 'Choisir';
+            if (control.text.textContent !== label) control.text.textContent = label;
             control.trigger.title = control.text.textContent;
             control.trigger.disabled = select.disabled;
             if (select.disabled && opened === control) close(true);

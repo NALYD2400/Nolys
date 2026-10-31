@@ -1,6 +1,6 @@
 import { native } from '../shared/ipc.js';
 import { escapeHtml as e } from '../island/dynamic-island/helpers/format.js';
-import { time, tracksFor, moveTrack } from './model.js';
+import { time, tracksFor, trackPage, moveTrack } from './model.js';
 import { shellMarkup, chipsMarkup, sectionMarkup, emptyMarkup, rowMarkup, selectionMarkup, menuItem, cover, VIEW_NAMES } from './view.js';
 import { createPanel, setIcon, warmPanel } from './panel.js';
 
@@ -55,8 +55,8 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
     const { root, $, on, toast, openMenu, closeMenu } = panel;
 
     const state = {
-        view: 'all', query: '', sort: 'title', ...savedState,
-        limit: PAGE, selecting: false, selection: new Set(), busy: false, loadError: '',
+        view: 'all', query: '', sort: 'title', page: 0, ...savedState,
+        selecting: false, selection: new Set(), busy: false, loadError: '',
     };
     let library = null;
     let queueKey = '';
@@ -105,6 +105,7 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
         const focusedAction = root.activeElement?.dataset?.action;
         const scroll = list.scrollTop;
         if (!tracks.length) {
+            $('#pagination').hidden = true;
             list.innerHTML = emptyMarkup({ query: state.query.trim(), playlist: playlist(), view: state.view });
             panel.keepFocus();
             return;
@@ -112,10 +113,18 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
         const { trackId, isPlaying } = playback();
         // Les lignes attendent que la capsule ait fini de s'agrandir (voir `ready`).
         if (waiting) return;
-        const count = state.limit;
-        list.innerHTML = tracks.slice(0, count).map((track, index) => rowMarkup(track, {
+        // A search, page or selection change interrupts the opening cascade.
+        // New rows must be readable immediately, even during the first 900 ms.
+        host.removeAttribute('data-intro');
+        const page = trackPage(tracks, state.page, PAGE);
+        state.page = page.page;
+        list.innerHTML = page.tracks.map((track, index) => rowMarkup(track, {
             index, current: track.id === trackId, playing: isPlaying, selecting: state.selecting, selected: state.selection.has(track.id),
-        })).join('') + (tracks.length > count ? `<button type="button" class="pill-btn more" data-action="more">Afficher ${Math.min(PAGE, tracks.length - state.limit)} titres de plus</button>` : '');
+        })).join('');
+        const pagination = $('#pagination');
+        pagination.hidden = page.pages <= 1;
+        const controls = page.pages > 1 ? `<button type="button" class="pill-btn" data-action="previous-page" ${page.page === 0 ? 'disabled' : ''}>Précédent</button><span role="status" aria-live="polite" aria-atomic="true">Page ${page.page + 1} / ${page.pages}</span><button type="button" class="pill-btn" data-action="next-page" ${page.page === page.pages - 1 ? 'disabled' : ''}>Suivant</button>` : '';
+        if (pagination.innerHTML !== controls) pagination.innerHTML = controls;
         list.scrollTop = scroll;
         if (focusedKey) list.querySelector(`[data-track="${CSS.escape(focusedKey)}"] [data-action="${CSS.escape(focusedAction || 'play')}"]`)?.focus({ preventScroll: true });
         panel.keepFocus();
@@ -126,7 +135,7 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
         bar.hidden = !state.selecting;
         $('#player').hidden = state.selecting;
         if (!state.selecting) return;
-        const ids = tracks.slice(0, state.limit).map(t => t.id);
+        const ids = trackPage(tracks, state.page, PAGE).tracks.map(t => t.id);
         bar.innerHTML = selectionMarkup(state.selection.size, ids.length > 0 && ids.every(id => state.selection.has(id)));
     }
 
@@ -358,7 +367,7 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
 
     function setView(view) {
         state.view = view;
-        state.limit = PAGE;
+        state.page = 0;
         state.query = '';
         $('#search').value = '';
         syncClearButton();
@@ -421,7 +430,7 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
                 break;
             }
             case 'sort': openMenu(button, Object.entries(SORTS).map(([value, label]) => menuItem('set-sort', label, { title: 'text-aa', artist: 'user', album: 'vinyl-record', recent: 'clock' }[value], { value, checked: state.sort === value })).join('')); break;
-            case 'set-sort': state.sort = button.dataset.value; state.limit = PAGE; closeMenu(); render(); break;
+            case 'set-sort': state.sort = button.dataset.value; state.page = 0; closeMenu(); render(); break;
             case 'play-all': {
                 const ids = playableIds(visibleTracks());
                 if (ids.length) await player.control({ type: 'play', id: player.shuffle ? ids[Math.floor(Math.random() * ids.length)] : ids[0], queue: ids });
@@ -430,7 +439,7 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
             case 'select-mode': state.selecting = !state.selecting; state.selection.clear(); render(); break;
             case 'toggle-select': state.selection.has(id) ? state.selection.delete(id) : state.selection.add(id); renderList(); renderSelection(); break;
             case 'select-all': {
-                const ids = visibleTracks().slice(0, state.limit).map(t => t.id);
+                const ids = trackPage(visibleTracks(), state.page, PAGE).tracks.map(t => t.id);
                 const all = ids.every(trackId => state.selection.has(trackId));
                 ids.forEach(trackId => (all ? state.selection.delete(trackId) : state.selection.add(trackId)));
                 renderList(); renderSelection(); break;
@@ -438,7 +447,15 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
             case 'cancel-select': exitSelection(); break;
             case 'add-selected': addToPlaylist([...state.selection]); break;
             case 'remove-selected': await removeTracks([...state.selection]); break;
-            case 'more': state.limit += PAGE; renderList(); break;
+            case 'previous-page':
+            case 'next-page': {
+                state.page += action === 'next-page' ? 1 : -1;
+                renderList(); renderSelection(); $('#list').scrollTop = 0;
+                const preferred = $(`[data-action="${action}"]:not(:disabled)`)
+                    || $(`[data-action="${action === 'next-page' ? 'previous-page' : 'next-page'}"]:not(:disabled)`);
+                preferred?.focus({ preventScroll: true });
+                break;
+            }
             case 'play': await play(id); break;
             case 'favorite': {
                 const track = player.library.tracks.find(t => t.id === id);
@@ -493,7 +510,7 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
 
     on($('#search'), 'input', event => {
         state.query = event.target.value;
-        state.limit = PAGE;
+        state.page = 0;
         syncClearButton();
         render();
     });
@@ -558,7 +575,7 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
 
     return {
         /** Ce qui survit à une fermeture : vue, recherche et tri. */
-        get savedState() { return { view: state.view, query: state.query, sort: state.sort }; },
+        get savedState() { return { view: state.view, query: state.query, sort: state.sort, page: state.page }; },
         /** Un sélecteur Windows est ouvert : l’Island ne doit pas se replier. */
         get busy() { return state.busy || importJob.phase === 'pick'; },
         notify: message => toast(message),

@@ -25,10 +25,14 @@ export function createReplayStore(invoke) {
     const state = { snapshot: null, draft: null, sources: [], inputs: [], outputs: [], dirty: false, busy: false, error: '', tab: 'capture' };
     const listeners = new Set();
     let generation = 0;
+    let statusRefresh = null, latestStatus = null;
     const emit = () => listeners.forEach(listener => listener(state));
     const fail = error => { state.error = String(error?.message || error); emit(); };
     function accept(snapshot) {
         if (!snapshot) return;
+        if (Number.isSafeInteger(snapshot.clipsRevision) && snapshot.clipsRevision === state.snapshot?.clipsRevision) {
+            snapshot = { ...snapshot, clips: state.snapshot.clips };
+        }
         state.snapshot = snapshot;
         if (!state.dirty) state.draft = structuredClone(snapshot.config);
         emit();
@@ -37,6 +41,34 @@ export function createReplayStore(invoke) {
         const request = ++generation;
         try { const snapshot = await invoke('replay_snapshot'); if (request === generation) accept(snapshot); }
         catch (error) { if (request === generation) fail(error); }
+    }
+    function status(payload) {
+        latestStatus = payload;
+        const current = state.snapshot;
+        const revision = payload?.clipsRevision;
+        if (current && Number.isSafeInteger(revision) && Number.isSafeInteger(current.clipsRevision)) {
+            if (revision < current.clipsRevision) return;
+            if (revision === current.clipsRevision) {
+                ++generation;
+                // Config and clips retain their identity; draft edits remain untouched.
+                const next = { ...current };
+                for (const key of ['phase', 'bufferedSeconds', 'bufferBytes', 'recording', 'recordingSeconds', 'exporting', 'encoder', 'pipeline', 'width', 'height', 'encodedFps', 'droppedFrames', 'duplicatedFrames', 'error', 'notice', 'engineAvailable', 'enginePath', 'recoveryFiles']) {
+                    if (Object.hasOwn(payload, key)) next[key] = payload[key];
+                }
+                state.snapshot = next;
+                emit();
+                return;
+            }
+        }
+        // A new catalogue needs one full read, even if several status events arrive.
+        if (!statusRefresh) {
+            const requested = latestStatus;
+            statusRefresh = refresh().finally(() => {
+                statusRefresh = null;
+                if (latestStatus !== requested && latestStatus?.clipsRevision !== state.snapshot?.clipsRevision) status(latestStatus);
+            });
+        }
+        return statusRefresh;
     }
     async function loadSources() {
         try {
@@ -58,7 +90,7 @@ export function createReplayStore(invoke) {
     }
     return {
         restore(snapshot) { ++generation; state.dirty = false; state.error = ''; accept(snapshot); },
-        state, refresh, loadSources, fail,
+        state, refresh, status, loadSources, fail,
         subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
         update(key, value) {
             if (!state.draft || activeCapture(state.snapshot) || state.busy) return;

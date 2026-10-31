@@ -162,12 +162,8 @@ export const loopMethods = {
                     try {
                         
                         ipcRenderer.invoke('get-system-volume').then(currentVol => {
-                            if (Number.isFinite(currentVol) && currentVol >= 0 && currentVol <= 100) {
-                                volSlider.style.setProperty('--slider-val-pct', `${Math.round(currentVol)}%`);
-                                volSlider.setAttribute('aria-valuenow', currentVol);
-                                volSlider.setAttribute('aria-valuetext', `${Math.round(currentVol)} %`);
-                            }
-                        }).catch(() => {});
+                            this.updateSystemVolumeSlider(volSlider, currentVol);
+                        }).catch(() => this.updateSystemVolumeSlider(volSlider, null));
                     } catch(e){}
                 }
             }

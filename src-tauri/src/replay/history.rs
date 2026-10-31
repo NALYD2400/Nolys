@@ -103,6 +103,7 @@ impl Store {
         write_json(&self.shared.root.join("replay-clips.json"), &clips)?;
         self.shared.history_valid.store(true, Ordering::Release);
         state.clips = clips;
+        state.clips_revision += 1;
         state.error = None;
         state.notice = Some(format!(
             "{added} vidéo(s) ajoutée(s). Les vidéos déjà indexées ont été conservées."
@@ -140,6 +141,7 @@ impl Store {
         clips[index].path = path;
         write_json(&self.shared.root.join("replay-clips.json"), &clips)?;
         state.clips = clips;
+        state.clips_revision += 1;
         state.notice = Some("Emplacement du clip retrouvé.".into());
         Ok(())
     }

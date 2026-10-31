@@ -6,18 +6,19 @@ const {volumeMethods}=await import('../../src/island/dynamic-island/features/vol
 
 test('wheel adjustment preserves zero and serializes rapid volume changes', async () => {
     let value=0;
-    const writes=[], shown=[];
+    const writes=[], shown=[], errors=[];
     invoke=async (command,args) => {
         await new Promise(resolve=>setTimeout(resolve,2));
         if(command==='get_system_volume') return value;
         assert.equal(command,'set_system_volume');
         writes.push(args.volume); value=args.volume; return true;
     };
-    const host={...volumeMethods,showVolumeIndicator:v=>shown.push(v)};
+    const host={...volumeMethods,showVolumeIndicator:v=>shown.push(v),showIslandFeedback:message=>errors.push(message)};
     await Promise.all([host.adjustVolume(5),host.adjustVolume(5),host.adjustVolume(-20),host.adjustVolume(-5)]);
     assert.deepEqual(writes,[5,10,0,0]); assert.deepEqual(shown,writes);
     invoke=async()=>null;
     await host.adjustVolume(5); assert.equal(writes.length,4,'an unknown volume never becomes a fabricated50%');
+    assert.deepEqual(errors,['Volume indisponible']);
 });
 
 test('a refused or failed write is reported without blocking subsequent wheel requests', async () => {

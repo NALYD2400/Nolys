@@ -31,6 +31,7 @@ export const shellMarkup = `
     </div>
     <section class="lib-recovery" id="library-recovery" aria-label="Récupération de la bibliothèque" hidden></section>
     <div class="lib-list" id="list"></div>
+    <nav class="lib-pagination" id="pagination" aria-label="Pages des titres" hidden></nav>
     <footer class="lib-player" id="player" aria-label="Lecture">
         <div class="player-track">
             <span class="cover" id="p-cover">${icon('music-note', 'ph-fill')}</span>
@@ -114,7 +115,7 @@ export function rowMarkup(track, { current, playing, selecting, selected, index 
 export function selectionMarkup(count, allSelected) {
     return `<button type="button" class="mini-btn" data-action="cancel-select" aria-label="Terminer la sélection">${icon('x', 'ph-bold')}</button>
         <span class="selection-count">${count ? plural(count, 'titre') + ` choisi${count > 1 ? 's' : ''}` : 'Touchez des titres'}</span>
-        <button type="button" class="pill-btn" data-action="select-all">${icon(allSelected ? 'minus-square' : 'check-square', 'ph-bold')}<span>${allSelected ? 'Aucun' : 'Tout'}</span></button>
+        <button type="button" class="pill-btn" data-action="select-all" aria-label="${allSelected ? 'Désélectionner' : 'Sélectionner'} tous les titres de cette page">${icon(allSelected ? 'minus-square' : 'check-square', 'ph-bold')}<span>${allSelected ? 'Aucun' : 'Tout'}</span></button>
         <button type="button" class="pill-btn" data-action="add-selected" ${count ? '' : 'disabled'}>${icon('playlist', 'ph-bold')}<span>Ajouter à…</span></button>
         <button type="button" class="pill-btn is-danger" data-action="remove-selected" ${count ? '' : 'disabled'}>${icon('minus-circle', 'ph-bold')}<span>Retirer</span></button>`;
 }

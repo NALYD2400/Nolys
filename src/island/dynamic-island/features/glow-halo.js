@@ -109,6 +109,7 @@ export const glowHaloMethods = {
         this._windowHidden = hidden;
         document.body.classList.toggle('island-window-hidden', hidden);
         this.updateGlowBreath();
+        this.syncVisualizerActivity();
     },
 
     /** Durée d'une respiration, ou 0 si le halo ne doit pas respirer. */

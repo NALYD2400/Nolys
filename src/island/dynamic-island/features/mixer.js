@@ -60,14 +60,20 @@ export const mixerMethods = {
         }
 
         if (ipcRenderer) {
-            if (wasMuted && clickPct > 0) ipcRenderer.invoke('set-session-muted', { pid, muted: false });
+            if (wasMuted && clickPct > 0) ipcRenderer.invoke('set-session-muted', { pid, muted: false }).catch(() => {
+                this.showIslandFeedback('Session audio indisponible', 'ph-warning');
+                this.updateAudioSessions();
+            });
             // L'affichage suit chaque mouvement, mais Windows reçoit au plus un volume toutes les
             // 40 ms (le dernier) : sur un écran rapide, des centaines d'appels par seconde saccadaient.
             this._mixerSend = { pid, volume: clickPct, timer: this._mixerSend?.timer };
             this._mixerSend.timer ??= setTimeout(() => {
                 const { pid: target, volume } = this._mixerSend;
                 this._mixerSend.timer = null;
-                ipcRenderer.invoke('set-session-volume', { pid: target, volume });
+                ipcRenderer.invoke('set-session-volume', { pid: target, volume }).catch(() => {
+                    this.showIslandFeedback('Volume indisponible', 'ph-warning');
+                    this.updateAudioSessions();
+                });
             }, 40);
         }
     },
@@ -131,6 +137,7 @@ export const mixerMethods = {
             }
         } catch (e) {
             console.error('Error toggling session mute:', e);
+            this.showIslandFeedback('Session audio indisponible', 'ph-warning');
             this.updateAudioSessions();
         }
     },

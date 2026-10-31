@@ -40,7 +40,7 @@ export const visualizerMethods = {
         const ecoMode = localStorage.getItem('liquid_eco_mode') === 'true';
         visualizerService.setEcoMode(ecoMode);
 
-        const hasVisibleCanvas = Boolean(!ecoMode && canvas && canvas.isConnected && canvas.width > 0 && canvas.height > 0);
+        const hasVisibleCanvas = Boolean(!ecoMode && !this._windowHidden && canvas && canvas.isConnected && canvas.width > 0 && canvas.height > 0);
         if (hasVisibleCanvas && !this._vizUnsub) {
             this._startVisualizer();
             return;

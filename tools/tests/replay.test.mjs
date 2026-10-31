@@ -4,6 +4,34 @@ import { createReplayStore, activeCapture, duration, presets, queryClips } from 
 const snapshot = (phase = 'idle') => ({ phase, config: { fps: 60, sourceId: '', microphone: false, destination: 'C:\\Videos' }, clips: [] });
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
 
+test('frequent telemetry keeps the clip catalogue and unsaved settings without native reads', async () => {
+    let reads = 0;
+    const clips = Array.from({length:3000}, (_,i)=>({id:`c${i}`}));
+    const store = createReplayStore(async()=>{ reads++; return {...snapshot(), clips, clipsRevision:4}; });
+    await store.refresh(); store.update('fps',120);
+    for(let i=0;i<100;i++) store.status({clipsRevision:4,phase:'buffering',bufferedSeconds:i});
+    assert.equal(reads,1); assert.equal(store.state.snapshot.clips,clips);
+    assert.equal(store.state.snapshot.bufferedSeconds,99); assert.equal(store.state.draft.fps,120);
+    store.status({clipsRevision:3,phase:'idle'});
+    assert.equal(store.state.snapshot.phase,'buffering','an older catalogue event cannot undo newer state');
+});
+
+test('a catalogue change coalesces reads and an event during the read is not lost', async () => {
+    const pending = deferred(); let reads = 0;
+    const store = createReplayStore(async()=>{
+        if(++reads===1) return {...snapshot(),clipsRevision:0};
+        if(reads===2) return pending.promise;
+        return {...snapshot('buffering'),clipsRevision:2,clips:[{id:'latest'}]};
+    });
+    await store.refresh();
+    const first=store.status({clipsRevision:1});
+    store.status({clipsRevision:1}); store.status({clipsRevision:2});
+    assert.equal(reads,2);
+    pending.resolve({...snapshot(),clipsRevision:1,clips:[{id:'older'}]});
+    await first; await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(reads,3); assert.equal(store.state.snapshot.clips[0].id,'latest');
+});
+
 test('clip discovery remains searchable beyond 200 with deterministic sort and bounded pages', () => {
     const clips = Array.from({ length: 260 }, (_, i) => ({ id: `${i}`, name: `Partie ${i}.mp4`, path: `C:/Vidéos/${i}.mp4`, kind: i % 2 ? 'recording' : 'replay', createdAt: i, bytes: 260 - i }));
     const last = queryClips(clips, { sort: 'oldest', page: 999 });

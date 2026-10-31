@@ -26,7 +26,7 @@ test('invalid imported settings cannot alter files and older compatible backups 
 });
 test('bounded settings preserve zero, valid choices and native defaults', () => {
     const defaults = sanitizeSettings({});
-    assert.equal(defaults.motion,'fluid'); assert.equal(defaults.wallpaperBlurIntensity,'moderate');
+    assert.equal(defaults.motion,'system'); assert.equal(defaults.wallpaperBlurIntensity,'moderate');
     const value=sanitizeSettings({opacity:Infinity,blur:-10,wallpaperDelay:0,pillCoverShape:'rounded',vizColorMode:'cyberpunk',shortcuts:[null],weatherCity:42});
     assert.equal(value.opacity,92); assert.equal(value.blur,0); assert.equal(value.wallpaperDelay,0);
     assert.equal(value.pillCoverShape,'rounded'); assert.equal(value.vizColorMode,'cyberpunk');

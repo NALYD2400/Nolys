@@ -1,8 +1,9 @@
 /** Constantes partagées (niveaux d’animation, raccourcis par défaut). */
 
-export const MOTION_LEVELS = ['sober', 'fluid', 'vivid'];
+export const MOTION_LEVELS = ['system', 'sober', 'fluid', 'vivid'];
 
 export const MOTION_LABELS = {
+    system: 'Windows',
     sober: 'Sobre',
     fluid: 'Fluide',
     vivid: 'Vivante'
