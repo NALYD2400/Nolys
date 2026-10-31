@@ -61,6 +61,7 @@ export default function App({ host, initialPage, pageRequest, onBack, onClose })
     const store = useSettings();
     const [persistence, setPersistence] = useState(getSettingsPersistence);
     const [actionError, setActionError] = useState('');
+    const [resetting, setResetting] = useState(false);
     useEffect(() => subscribeSettingsPersistence(setPersistence), []);
     const cover = useCoverTheme(store.settings.coverSync);
     const [pageId, setPageId] = useState(() => {
@@ -72,6 +73,19 @@ export default function App({ host, initialPage, pageRequest, onBack, onClose })
     // Page défilée : l'en-tête prend son voile (sinon il reste transparent).
     const [scrolled, setScrolled] = useState(false);
     const pageRef = useRef(null);
+
+    async function resetCurrentPage() {
+        if (resetting || !window.confirm(`Réinitialiser les réglages de la page « ${page.label} » ? Une sauvegarde de récupération sera conservée.`)) return;
+        setResetting(true);
+        setActionError('');
+        try {
+            await store.resetPage(page.id);
+        } catch (error) {
+            setActionError(String(error?.message || error));
+        } finally {
+            setResetting(false);
+        }
+    }
 
     useEffect(() => localStorage.setItem('liquid_settings_page', pageId), [pageId]);
     // Page demandée de l'extérieur (retour du mode placement) alors que la vue est ouverte.
@@ -143,6 +157,19 @@ export default function App({ host, initialPage, pageRequest, onBack, onClose })
                     <h1>{page.label}</h1>
                     <div className="header-actions">
                         {persistence.status === 'error' && <button type="button" className="round-btn" title="Réglages non enregistrés : réessayer" aria-label="Réessayer l’enregistrement des réglages" onClick={retrySettingsPersistence}><Icon name="ph-warning" /></button>}
+                        {page.id !== 'about' && (
+                            <button
+                                type="button"
+                                className="round-btn"
+                                aria-label="Réinitialiser cette page"
+                                title={`Réinitialiser les réglages : ${page.label}`}
+                                disabled={resetting}
+                                aria-busy={resetting}
+                                onClick={resetCurrentPage}
+                            >
+                                <Icon name="ph-arrow-counter-clockwise" />
+                            </button>
+                        )}
                         {/* Boutons en CSS et pas en verre du SDK : leur lentille est peinte dans le fond,
                             que le voile de l'en-tête recouvre dès que la page défile. */}
                         <button type="button" className="round-btn" aria-label="Menu" title="Menu" onClick={onBack}>
@@ -157,7 +184,6 @@ export default function App({ host, initialPage, pageRequest, onBack, onClose })
                     {persistence.status === 'error' && <p className="hotkey-error" role="alert">Les réglages n’ont pas pu être enregistrés. <button type="button" className="button" onClick={retrySettingsPersistence}>Réessayer</button></p>}
                     <page.Page store={store} />
                     {actionError && <p className="card-footer" role="alert">{actionError}</p>}
-                    {page.id !== 'about' && <div className="card-footer"><button type="button" className="button" onClick={async () => { if (window.confirm(`Réinitialiser les réglages de la page « ${page.label} » ? Une sauvegarde de récupération sera conservée.`)) { try { await store.resetPage(page.id); setActionError(''); } catch (error) { setActionError(String(error?.message || error)); } } }}>Réinitialiser cette page</button></div>}
                 </div>
                 {/* Les surfaces en verre sont peintes dans le fond de la scène : ce voile
                     les efface aussi avant l'arrondi inférieur, au-delà de la zone défilante. */}

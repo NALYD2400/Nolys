@@ -234,6 +234,7 @@ button {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
     padding: 16px 16px 8px 20px;
 }
 
@@ -299,7 +300,7 @@ button {
     text-overflow: ellipsis;
 }
 
-/* Boutons ronds de l'en-tête (menu, fermer), comme ceux de la Bibliothèque. */
+/* Actions de la page, menu et fermeture : même traitement que la Bibliothèque. */
 .header-actions {
     display: flex;
     gap: 6px;
@@ -323,14 +324,19 @@ button {
     transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 
-.round-btn:hover {
+.round-btn:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.14);
     color: var(--text);
     transform: translateY(-1px);
 }
 
-.round-btn:active {
+.round-btn:active:not(:disabled) {
     transform: scale(0.92);
+}
+
+.round-btn:disabled {
+    opacity: 0.45;
+    cursor: wait;
 }
 
 .round-btn:focus-visible {
