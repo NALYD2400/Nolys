@@ -26,10 +26,10 @@ export const SHORTCUT_GROUPS = [
 ];
 
 export const DEFAULT_SHORTCUTS = [
-    { name: 'Explorer', preset: 'explorer', icon: 'ph ph-folder', cmd: 'explorer.exe' },
-    { name: 'Settings', preset: 'settings', icon: 'ph ph-gear', cmd: 'ms-settings:' },
-    { name: 'TaskMgr', preset: 'taskmgr', icon: 'ph ph-cpu', cmd: 'taskmgr.exe' },
-    { name: 'Calc', preset: 'calc', icon: 'ph ph-calculator', cmd: 'calc.exe' },
+    { name: 'Explorateur', preset: 'explorer', icon: 'ph ph-folder', cmd: 'explorer.exe' },
+    { name: 'Paramètres', preset: 'settings', icon: 'ph ph-gear', cmd: 'ms-settings:' },
+    { name: 'Gestionnaire', preset: 'taskmgr', icon: 'ph ph-cpu', cmd: 'taskmgr.exe' },
+    { name: 'Calculatrice', preset: 'calc', icon: 'ph ph-calculator', cmd: 'calc.exe' },
 ];
 
 export const MOTION_OPTIONS = [
@@ -157,7 +157,7 @@ export const WALLPAPER_BLUR_OPTIONS = [
 export const WIDGET_OPTIONS = [
     { value: 'launchpad', label: 'Raccourcis', icon: 'ph-rocket-launch' },
     { value: 'stats', label: 'Performance', icon: 'ph-chart-line' },
-    { value: 'machine', label: 'Batterie', icon: 'ph-battery-high' },
+    { value: 'machine', label: 'Batterie et disque', icon: 'ph-battery-high' },
     { value: 'weather', label: 'Météo', icon: 'ph-cloud-sun' },
     { value: 'mixer', label: 'Mélangeur', icon: 'ph-sliders-horizontal' },
 ];

@@ -25,14 +25,18 @@ export const mixerMethods = {
         const clickX = e.clientX - rect.left;
         const width = rect.width;
         const clickPct = Math.max(0, Math.min(100, Math.round((clickX / width) * 100)));
-        
-        const pid = this.scrubbingPid;
-        
-        // Update slider visually in real-time
-        this.activeMixerSlider.value = clickPct;
+        this.setMixerVolume(this.activeMixerSlider, clickPct);
+    },
+
+    setMixerVolume(slider, percent) {
+        if (!slider?.isConnected || !Number.isFinite(percent)) return;
+        const pid = Number(slider.dataset.pid);
+        const clickPct = Math.max(0, Math.min(100, Math.round(percent)));
+        slider.value = clickPct;
+        slider.setAttribute('aria-valuetext', `${clickPct} %`);
         
         // Find row to update percentage badge in real-time
-        const row = this.activeMixerSlider.closest('.mixer-session-row, .ic-mixer-row');
+        const row = slider.closest('.mixer-session-row, .ic-mixer-row');
         if (row) {
             const badge = row.querySelector('.mixer-app-vol-badge, .ic-mixer-vol');
             if (badge) badge.innerText = `${clickPct}%`;
@@ -52,28 +56,27 @@ export const mixerMethods = {
         }
         
         // Update local session state immediately so next tick doesn't snap it back
-        const session = this.audioSessions.find(s => s.pid === pid);
-        const wasMuted = Boolean(session?.muted);
-        if (session) {
+        const group = this.getGroupedSessions(this.audioSessions || []).find(s => s.pid === pid || s.pids?.includes(pid));
+        const pids = group?.pids || [pid];
+        for (const session of this.audioSessions.filter(s => pids.includes(s.pid))) {
             session.volume = clickPct;
             session.muted = (clickPct === 0);
         }
 
         if (ipcRenderer) {
-            if (wasMuted && clickPct > 0) ipcRenderer.invoke('set-session-muted', { pid, muted: false }).catch(() => {
-                this.showIslandFeedback('Session audio indisponible', 'ph-warning');
-                this.updateAudioSessions();
-            });
             // L'affichage suit chaque mouvement, mais Windows reçoit au plus un volume toutes les
             // 40 ms (le dernier) : sur un écran rapide, des centaines d'appels par seconde saccadaient.
-            this._mixerSend = { pid, volume: clickPct, timer: this._mixerSend?.timer };
-            this._mixerSend.timer ??= setTimeout(() => {
-                const { pid: target, volume } = this._mixerSend;
-                this._mixerSend.timer = null;
-                ipcRenderer.invoke('set-session-volume', { pid: target, volume }).catch(() => {
+            this._mixerVolumes ??= new Map();
+            for (const target of pids) this._mixerVolumes.set(target, clickPct);
+            this._mixerVolumeTimer ??= setTimeout(async () => {
+                this._mixerVolumeTimer = null;
+                const changes = [...this._mixerVolumes]; this._mixerVolumes.clear();
+                try {
+                    await Promise.all(changes.map(([target, volume]) => ipcRenderer.invoke('set-session-volume', {pid:target,volume})));
+                } catch {
                     this.showIslandFeedback('Volume indisponible', 'ph-warning');
                     this.updateAudioSessions();
-                });
+                }
             }, 40);
         }
     },
@@ -592,6 +595,18 @@ export const mixerMethods = {
         const card = this.content.querySelector('.ic-mixer-card');
         if (!card) return;
         
+        const identity = sessions.slice(0,3).map(s=>s.pid).join(',');
+        if (card.dataset.sessions !== identity) {
+            card.dataset.sessions = identity;
+            card.innerHTML = sessions.slice(0,3).map(s => {
+                const name = escapeHtml(sessionName(s.name));
+                const icon = s.icon || getMixerIcon(s.name,s.title);
+                return `<div class="ic-mixer-row" data-session="${s.pid}"><div class="ic-mixer-app-icon" title="${name}">${icon ? `<img src="${escapeHtml(icon)}" alt="" data-fallback="next"><i class="ph ph-music-note" hidden></i>` : '<i class="ph ph-music-note" aria-hidden="true"></i>'}</div><label class="ic-mixer-slider-wrapper"><span class="ic-mixer-name">${name}</span><input type="range" class="ic-mixer-slider" data-pid="${s.pid}" min="0" max="100" aria-label="Volume de ${name}"></label><span class="ic-mixer-vol"></span><button type="button" class="ic-mixer-mute" data-pid="${s.pid}"><i></i></button></div>`;
+            }).join('') || '<p class="ic-mixer-empty">Aucun flux audio détecté</p>';
+        }
+        card.classList.remove('has-error');
+        const all = card.closest('.ic-widget')?.querySelector('.ic-mixer-open span');
+        if (all) all.textContent = sessions.length ? `Tous les flux (${sessions.length})` : 'Ouvrir le mélangeur';
         const rows = card.querySelectorAll('.ic-mixer-row');
         sessions.slice(0, 3).forEach((s, idx) => {
             const row = rows[idx];
@@ -605,15 +620,30 @@ export const mixerMethods = {
             const activeVol = isMuted ? 0 : Math.round(s.volume);
             
             if (slider && !this.isScrubbingMixer) {
-                slider.value = activeVol;
+                slider.value = Math.round(s.volume);
             }
             if (volText) {
                 volText.innerText = `${activeVol}%`;
             }
             if (muteIcon) {
-                muteIcon.className = `ic-mixer-mute ${isMuted ? 'muted' : ''}`;
-                muteIcon.innerHTML = `<i class="ph ${getMuteIcon(isMuted, activeVol)}"></i>`;
+                muteIcon.classList.toggle('muted',isMuted);
+                muteIcon.setAttribute('aria-pressed',String(isMuted));
+                const action = isMuted ? 'Réactiver le son' : 'Couper le son';
+                muteIcon.setAttribute('aria-label',`${action} de ${sessionName(s.name)}`);
+                muteIcon.title = action;
+                const glyph = `ph ${getMuteIcon(isMuted,activeVol)}`;
+                if (muteIcon.firstElementChild.className !== glyph) muteIcon.firstElementChild.className = glyph;
             }
         });
+    },
+
+    compactMixerUnavailable() {
+        const card = this.content.querySelector('.ic-mixer-card');
+        if (!card) return;
+        // Les sondages suivants conservent le bouton et son focus pendant la panne.
+        if (card.classList.contains('has-error') && card.querySelector('.ic-mixer-all')) return;
+        delete card.dataset.sessions;
+        card.classList.add('has-error');
+        card.innerHTML = '<p class="ic-mixer-empty" role="status">Audio indisponible</p><button type="button" class="ic-mixer-all" data-island-action="updateAudioSessions">Réessayer</button>';
     },
 };

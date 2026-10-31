@@ -15,19 +15,22 @@
 .ic-control-stack {
     display: flex;
     flex-direction: column;
-    width: 270px;
+    flex: 1;
+    width: auto;
     gap: 10px;
-    height: 100%;
+    height: auto;
+    align-self: flex-start;
     min-width: 0;
-    justify-content: space-between;
+    justify-content: flex-start;
 }
 
 .ic-toggles-grid {
     width: 100%; /* Spans the full left column width */
-    height: 110px;
+    height: 122px;
+    flex-shrink: 0;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: repeat(3, 32px);
+    grid-template-rows: repeat(3, 36px);
     gap: 7px;
     box-sizing: border-box;
 }
@@ -44,9 +47,9 @@
     padding: 0 12px;
     gap: 10px;
     cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s, opacity 0.2s;
     box-sizing: border-box;
-    height: 32px;
+    height: 36px;
     user-select: none;
     min-width: 0;
     overflow: hidden;
@@ -66,7 +69,7 @@
 }
 
 .ic-tile-label {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
     opacity: 0.8;
     white-space: nowrap;
@@ -76,9 +79,9 @@
 }
 
 .ic-tile-status {
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 500;
-    opacity: 0.6;
+    opacity: 0.82;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -104,9 +107,9 @@
 
 /* Apple-style colors for active tiles */
 .ic-tile.active {
-    background: #007aff; /* Apple Blue */
-    border-color: #007aff;
-    box-shadow: 0 2px 8px rgba(0, 122, 255, 0.4);
+    background: rgba(var(--neon-primary-rgb, 212, 148, 96), 0.22);
+    border-color: rgba(var(--neon-primary-rgb, 212, 148, 96), 0.55);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .ic-tile.active i, .ic-tile.active .ic-tile-label {
@@ -115,21 +118,21 @@
 }
 
 #ic-eco.active {
-    background: #34c759; /* Apple Green */
-    border-color: #34c759;
-    box-shadow: 0 2px 8px rgba(52, 199, 89, 0.4);
+    background: #205b40;
+    border-color: #44805f;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 #ic-focus.active {
-    background: #5856d6; /* Apple Purple */
-    border-color: #5856d6;
-    box-shadow: 0 2px 8px rgba(88, 86, 214, 0.4);
+    background: #403c78;
+    border-color: #6863a3;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 #ic-dnd.active {
-    background: #af52de; /* Apple Indigo Purple */
-    border-color: #af52de;
-    box-shadow: 0 2px 8px rgba(175, 82, 222, 0.4);
+    background: #673752;
+    border-color: #95617e;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 /* #ic-night.active removed */
@@ -146,6 +149,7 @@
 .ic-vertical-slider {
     flex: 1;
     height: 100%;
+    box-sizing: border-box;
     background: rgba(255, 255, 255, 0.12);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: calc(20px * var(--corner-k, 1));

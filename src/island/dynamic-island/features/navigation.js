@@ -271,6 +271,8 @@ export const navigationMethods = {
         this._micDragging = false;
 
         // Clear any active real-time system stats update interval
+        this._controlCleanup?.();
+        this._controlCleanup = null;
         if (this.statsInterval) {
             clearInterval(this.statsInterval);
             this.statsInterval = null;

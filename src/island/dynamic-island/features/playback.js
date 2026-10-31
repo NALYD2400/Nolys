@@ -186,6 +186,8 @@ export const playbackMethods = {
             if (npTitle) npTitle.innerText = data.title || "Sans titre";
             if (npArtist) npArtist.innerText = data.artist || "Artiste inconnu";
             if (npPlayBtn) {
+                const label = data.isPlaying ? 'Pause' : 'Lecture';
+                npPlayBtn.setAttribute('aria-label', label); npPlayBtn.title = label;
                 npPlayBtn.setAttribute('data-island-action', 'media');
                 npPlayBtn.setAttribute('data-arg', 'toggle');
                 npPlayBtn.innerHTML = `<i class="ph-fill ph-${data.isPlaying ? 'pause' : 'play'}"></i>`;

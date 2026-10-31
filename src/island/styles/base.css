@@ -525,8 +525,8 @@ body.motion-vivid .inner-action-btn:hover {
 }
 
 .island-mode-control {
-    width: 392px;
-    height: 370px;
+    width: 410px;
+    height: var(--control-height, 392px);
     border-radius: calc(var(--shell-radius) * var(--corner-k));
 }
 

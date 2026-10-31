@@ -82,11 +82,14 @@ export const micMonitorMethods = {
      * un ancien réglage actif.
      */
     async setMicMonitor(patch) {
+        const initial = this.micStatus ? structuredClone(this.micStatus) : null;
         if (this.micStatus) this.micStatus.config = { ...this.micConfig, ...patch };
         this.refreshMicView();
         this._micPending = { ...this._micPending, ...patch };
         if (this._micSending) return;
         this._micSending = true;
+        this.syncMicTile?.();
+        let confirmed = initial;
         try {
             while (this._micPending) {
                 // État pas encore reçu : on part des réglages enregistrés, pas des valeurs par défaut.
@@ -97,13 +100,26 @@ export const micMonitorMethods = {
                 this._micPending = null;
                 try {
                     const status = await ipcRenderer.invoke('set-mic-monitor', config);
+                    if (!status?.config) throw new Error('État du retour micro indisponible');
+                    confirmed = structuredClone(status);
                     if (!this._micPending) this.applyMicStatus(status);
                 } catch (e) {
                     console.warn('[MicMonitor] Échec de l’envoi des réglages.', e);
+                    const native = await ipcRenderer.invoke('get-mic-monitor').catch(() => null);
+                    if (native?.config) confirmed = native;
+                    if (confirmed) {
+                        this.applyMicStatus(structuredClone(confirmed));
+                        if (this._micPending) {
+                            this.micStatus.config = { ...this.micConfig, ...this._micPending };
+                            this.refreshMicView();
+                        }
+                    }
+                    this.showIslandFeedback?.('Retour micro indisponible', 'ph-warning');
                 }
             }
         } finally {
             this._micSending = false;
+            this.syncMicTile?.();
         }
     },
 

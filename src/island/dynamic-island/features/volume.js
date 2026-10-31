@@ -8,6 +8,8 @@ export const volumeMethods = {
         if (!slider) return;
         const available = typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100;
         slider.setAttribute('aria-disabled', String(!available));
+        const visibleValue = slider.querySelector('.ic-volume-value');
+        if (visibleValue) visibleValue.textContent = available ? `${Math.round(value)} %` : '—';
         if (available) {
             slider.style.setProperty('--slider-val-pct', `${Math.round(value)}%`);
             slider.setAttribute('aria-valuenow', value);
@@ -287,12 +289,14 @@ export const volumeMethods = {
     },
 
     async updateAudioSessions() {
+        if (this._audioSessionsReading) return;
+        this._audioSessionsReading = true;
         try {
             
             if (!ipcRenderer) return;
 
             const sessions = await ipcRenderer.invoke('get-audio-sessions');
-            if (sessions) {
+            if (Array.isArray(sessions)) {
                 this.audioSessions = sessions;
                 const grouped = this.getGroupedSessions(sessions);
                 
@@ -306,9 +310,12 @@ export const volumeMethods = {
                         this.updateCompactMixerUI(grouped);
                     }
                 }
-            }
+            } else if (this.isExpanded && this.mode === 'control') this.compactMixerUnavailable();
         } catch (e) {
             console.error('Error fetching sessions:', e);
+            if (this.isExpanded && this.mode === 'control') this.compactMixerUnavailable();
+        } finally {
+            this._audioSessionsReading = false;
         }
     },
 

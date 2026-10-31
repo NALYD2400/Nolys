@@ -21,7 +21,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 
 use super::registry;
 
-// ---------------------------------------------------------------- Ne pas déranger
+// Global Windows notification switch. This is not Windows 11 Do Not Disturb.
 
 const NOTIFICATIONS_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings";
 const TOASTS_VALUE: &str = "NOC_GLOBAL_SETTING_TOASTS_ENABLED";
@@ -34,7 +34,8 @@ pub fn dnd_control(action: &str) -> String {
         },
         "on" | "off" => {
             let toasts_enabled = if action == "on" { 0 } else { 1 };
-            if registry::write_dword(NOTIFICATIONS_KEY, TOASTS_VALUE, toasts_enabled) { "ok".into() } else { "failed".into() }
+            if registry::write_dword(NOTIFICATIONS_KEY, TOASTS_VALUE, toasts_enabled)
+                && registry::read_dword(NOTIFICATIONS_KEY, TOASTS_VALUE) == Some(toasts_enabled) { "ok".into() } else { "failed".into() }
         }
         _ => "error".into(),
     }

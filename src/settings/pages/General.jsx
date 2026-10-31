@@ -19,7 +19,7 @@ function Profiles({ store }) {
     return (
         <Card
             title="Profil"
-            footer="Un profil règle d’un coup l’apparence, les modules, le volume et Ne pas déranger."
+            footer="Un profil règle d’un coup l’apparence, les modules, le volume et les alertes Windows."
         >
             <div className="profiles">
                 {Object.entries(QUICK_PROFILES).map(([key, profile]) => (

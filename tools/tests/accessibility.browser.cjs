@@ -52,6 +52,7 @@ const assert = require('node:assert/strict');
         assert.equal(await page.locator('#ic-stat-val-cpu').innerText(), '—');
         assert.equal(await page.locator('#ic-stat-val-ram').innerText(), '—');
         await page.locator('#ic-wifi').focus(); await page.keyboard.press('Enter');
+        await page.waitForFunction(() => document.querySelector('#ic-wifi')?.getAttribute('aria-pressed') === 'true');
         assert.equal(await page.locator('#ic-wifi').getAttribute('aria-pressed'), 'true');
         assert.ok(calls.some(call => call.command === 'wifi_control' && call.args.action === 'on'));
         await page.locator('#ic-volume-slider').focus(); await page.keyboard.press('ArrowUp');

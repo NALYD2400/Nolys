@@ -8,7 +8,7 @@ import { readMenus, visibleMenuEntries } from '../../../shared/menu-config.js';
 
 /** Méthodes de l'Island qu'un bouton peut appeler par `data-island-action` (liste fermée). */
 const ISLAND_ACTIONS = new Set([
-    'setMode', 'dismissNotification', 'toggleCurrentMusicFavorite',
+    'setMode', 'openSettings', 'updateAudioSessions', 'dismissNotification', 'toggleCurrentMusicFavorite',
     'toggleAudioDeviceDropdown', 'toggleMicDeviceDropdown', 'selectAudioDevice', 'selectMicDevice',
     'setTimerMode', 'resetTimer', 'toggleTimer',
 ]);
@@ -74,9 +74,11 @@ export const eventMethods = {
         });
 
         window.addEventListener('liquid-eco-mode-changed', (e) => {
+            const ecoHadFocus = document.activeElement?.id === 'ic-eco';
             localStorage.setItem('liquid_eco_mode', !!e.detail);
             this.syncEcoMode();
             this.renderContent();
+            if (ecoHadFocus) this.content.querySelector('#ic-eco')?.focus({ preventScroll: true });
         });
 
         // Permanent delegated mousedown listener for progress bar scrubbing (persists across re-renders)
@@ -110,6 +112,12 @@ export const eventMethods = {
                 // Track volume change
                 this.updateMixerScrub(e);
             }
+        });
+
+        // Global mousemove listener for dragging progress bar or mixer volume
+        this.content.addEventListener('input', event => {
+            const slider = event.target.closest('.mixer-volume-slider, .ic-mixer-slider');
+            if (slider) this.setMixerVolume(slider, Number(slider.value));
         });
 
         // Global mousemove listener for dragging progress bar or mixer volume
@@ -238,7 +246,9 @@ export const eventMethods = {
                     return;
                 }
             }
-            if (this.isExpanded && !this.el.contains(e.target)) {
+            // Le bouton peut avoir été remplacé pendant son clic (mode éco).
+            // Le chemin d'origine reste fiable, même lorsque la cible est détachée.
+            if (this.isExpanded && !e.composedPath().includes(this.el)) {
                 this.collapseIsland();
             }
         });

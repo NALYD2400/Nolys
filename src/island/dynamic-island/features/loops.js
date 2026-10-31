@@ -161,9 +161,10 @@ export const loopMethods = {
                 if (volSlider && !volSlider.classList.contains('active') && ipcRenderer) {
                     try {
                         
+                        const readVersion=this._systemVolumeWriteVersion||0;
                         ipcRenderer.invoke('get-system-volume').then(currentVol => {
-                            this.updateSystemVolumeSlider(volSlider, currentVol);
-                        }).catch(() => this.updateSystemVolumeSlider(volSlider, null));
+                            if(readVersion===(this._systemVolumeWriteVersion||0)) this.updateSystemVolumeSlider(volSlider, currentVol);
+                        }).catch(() => {if(readVersion===(this._systemVolumeWriteVersion||0)) this.updateSystemVolumeSlider(volSlider, null);});
                     } catch(e){}
                 }
             }

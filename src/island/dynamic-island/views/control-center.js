@@ -5,15 +5,17 @@ import { ipcRenderer } from '../../../shared/ipc.js';
 import { SoundService } from '../../../services/SoundService.js';
 import { escapeHtml } from '../helpers/format.js';
 import { APP_LOGO_ART, getDisplayMediaArt } from '../helpers/media-art.js';
-import { getMixerIcon, getMuteIcon } from '../helpers/mixer-icons.js';
 import { getMusicHistoryKey } from '../helpers/music-search.js';
 import { systemMetrics, percentLabel } from '../../../shared/system-metrics.js';
+import { bindSystemTile } from '../helpers/system-tile.js';
+import { DEFAULT_SHORTCUTS } from '../../../settings/state/presets.js';
 
 export const controlCenterView = {
     renderControl() {
-        let wifiEnabled = localStorage.getItem('liquid_wifi_enabled') !== 'false';
-        let btEnabled = localStorage.getItem('liquid_bluetooth_enabled') !== 'false';
-        let dndEnabled = localStorage.getItem('liquid_dnd_enabled') === 'true';
+        this._controlCleanup?.();
+        this._controlSliderCleanup?.();
+        this._controlSliderCleanup = null;
+        clearInterval(this.statsInterval);
         const isEcoMode = localStorage.getItem('liquid_eco_mode') === 'true';
         const isFocusMode = localStorage.getItem('liquid_focus_mode') === 'true';
 
@@ -30,10 +32,10 @@ export const controlCenterView = {
         };
         const applySystemStats = (currentStats) => {
             if (!container.isConnected) return;
-            const cpuVal = document.getElementById('ic-stat-val-cpu');
-            const cpuFill = document.getElementById('ic-stat-fill-cpu');
-            const ramVal = document.getElementById('ic-stat-val-ram');
-            const ramFill = document.getElementById('ic-stat-fill-ram');
+            const cpuVal = container.querySelector('#ic-stat-val-cpu');
+            const cpuFill = container.querySelector('#ic-stat-fill-cpu');
+            const ramVal = container.querySelector('#ic-stat-val-ram');
+            const ramFill = container.querySelector('#ic-stat-fill-ram');
 
             if (cpuVal) cpuVal.innerText = percentLabel(currentStats.cpu);
             if (cpuFill) cpuFill.style.width = `${currentStats.cpu ?? 0}%`;
@@ -78,19 +80,13 @@ export const controlCenterView = {
         let thirdCardHtml = '';
         
         if (widgetType === 'launchpad') {
-            const defaultShortcuts = [
-                { name: "Explorer", preset: "explorer", icon: "ph ph-folder", cmd: "explorer.exe" },
-                { name: "Settings", preset: "settings", icon: "ph ph-gear", cmd: "ms-settings:" },
-                { name: "TaskMgr", preset: "taskmgr", icon: "ph ph-cpu", cmd: "taskmgr.exe" },
-                { name: "Calc", preset: "calc", icon: "ph ph-calculator", cmd: "calc.exe" }
-            ];
-            const shortcuts = sanitizeShortcuts(readJSON('liquid_control_shortcuts', defaultShortcuts, value => Array.isArray(value) && value.every(isRecord)));
+            const shortcuts = sanitizeShortcuts(readJSON('liquid_control_shortcuts', DEFAULT_SHORTCUTS, value => Array.isArray(value) && value.every(isRecord)));
             
             thirdCardHtml = `
                 <div class="ic-launchpad-card">
                     ${shortcuts.map((s, idx) => `
-                        <button class="ic-launchpad-btn" id="ic-lp-btn-${idx}" title="${escapeHtml(s.name)}">
-                            <i class="${escapeHtml(s.icon)}"></i>
+                        <button type="button" class="ic-launchpad-btn" id="ic-lp-btn-${idx}" title="${escapeHtml(s.name)}" aria-label="${escapeHtml(s.name)}">
+                            <i class="${escapeHtml(s.icon)}" aria-hidden="true"></i><span>${escapeHtml(({explorer:'Fichiers',settings:'Windows',taskmgr:'Tâches',calc:'Calcul'})[s.preset] || s.name)}</span>
                         </button>
                     `).join('')}
                 </div>
@@ -177,13 +173,13 @@ export const controlCenterView = {
             <div class="island-control-container">
                 <div class="island-control-header">
                     <div class="ic-header-copy">
-                        <span class="ic-title">Centre de Contrôle</span>
+                        <span class="ic-title">Centre de contrôle</span>
                         <span class="ic-time"><i class="ph ph-clock"></i>${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                     <div class="ic-header-actions">
-                        <button class="ic-action-btn" data-island-action="setMode" data-arg="settings" title="Réglages"><i class="ph ph-gear"></i></button>
-                        <button class="ic-action-btn power" id="ic-shutdown" title="Éteindre"><i class="ph ph-power"></i></button>
-                        <button class="ic-close" data-island-action="setMode" data-arg="menu" title="Menu des modules"><i class="ph-bold ph-squares-four"></i></button>
+                        <button type="button" class="ic-action-btn" data-island-action="openSettings" data-arg="control" title="Configurer le centre de contrôle" aria-label="Configurer le centre de contrôle"><i class="ph ph-gear" aria-hidden="true"></i></button>
+                        <button type="button" class="ic-action-btn power" id="ic-shutdown" title="Quitter Nolys" aria-label="Quitter Nolys"><i class="ph ph-power" aria-hidden="true"></i></button>
+                        <button type="button" class="ic-close" data-island-action="setMode" data-arg="menu" title="Menu des modules" aria-label="Menu des modules"><i class="ph-bold ph-squares-four" aria-hidden="true"></i></button>
                     </div>
                 </div>
                 
@@ -191,47 +187,47 @@ export const controlCenterView = {
                     <!-- Left Column: Frosted Toggles + Now Playing + customizable third widget -->
                     <div class="ic-control-stack">
                         <div class="ic-toggles-grid">
-                            <button type="button" class="ic-tile ${wifiEnabled ? 'active' : ''}" id="ic-wifi" aria-pressed="${wifiEnabled}">
+                            <button type="button" class="ic-tile" id="ic-wifi" aria-pressed="mixed" aria-busy="true" disabled title="Activer ou désactiver la radio Wi-Fi de Windows">
                                 <i class="ph ph-wifi-high"></i>
                                 <div class="ic-tile-text">
                                     <span class="ic-tile-label">Wi-Fi</span>
-                                    <span class="ic-tile-status">${wifiEnabled ? 'Activé' : 'Désactivé'}</span>
+                                    <span class="ic-tile-status">Vérification…</span>
                                 </div>
                             </button>
-                            <button type="button" class="ic-tile ${btEnabled ? 'active' : ''}" id="ic-bluetooth" aria-pressed="${btEnabled}">
+                            <button type="button" class="ic-tile" id="ic-bluetooth" aria-pressed="mixed" aria-busy="true" disabled title="Activer ou désactiver le Bluetooth de Windows">
                                 <i class="ph ph-bluetooth"></i>
                                 <div class="ic-tile-text">
                                     <span class="ic-tile-label">Bluetooth</span>
-                                    <span class="ic-tile-status">${btEnabled ? 'Activé' : 'Désactivé'}</span>
+                                    <span class="ic-tile-status">Vérification…</span>
                                 </div>
                             </button>
-                            <button type="button" class="ic-tile ${dndEnabled ? 'active' : ''}" id="ic-dnd" aria-pressed="${dndEnabled}" title="Ne pas déranger : coupe les notifications de Windows">
+                            <button type="button" class="ic-tile" id="ic-dnd" aria-pressed="mixed" aria-busy="true" disabled title="Couper ou autoriser les alertes Windows. Ce réglage est distinct du mode Ne pas déranger de Windows.">
                                 <i class="ph ph-moon"></i>
                                 <div class="ic-tile-text">
-                                    <span class="ic-tile-label">DND</span>
-                                    <span class="ic-tile-status">${dndEnabled ? 'Activé' : 'Désactivé'}</span>
+                                    <span class="ic-tile-label">Alertes PC</span>
+                                    <span class="ic-tile-status">Vérification…</span>
                                 </div>
                             </button>
                             <button type="button" class="ic-tile ${isFocusMode ? 'active' : ''}" id="ic-focus" aria-pressed="${isFocusMode}" title="Focus : plus de notifications dans l’Island, pilule estompée au repos">
                                 <i class="ph ph-target"></i>
                                 <div class="ic-tile-text">
-                                    <span class="ic-tile-label">Focus</span>
+                                    <span class="ic-tile-label">Focus Nolys</span>
                                     <span class="ic-tile-status">${isFocusMode ? 'Activé' : 'Désactivé'}</span>
                                 </div>
                             </button>
-                            <button type="button" class="ic-tile ${isEcoMode ? 'active' : ''}" id="ic-eco" aria-pressed="${isEcoMode}">
+                            <button type="button" class="ic-tile ${isEcoMode ? 'active' : ''}" id="ic-eco" aria-pressed="${isEcoMode}" title="Économie Nolys : réduit les effets et arrête le visualiseur. Les autres applications restent inchangées.">
                                 <i class="ph ph-leaf"></i>
                                 <div class="ic-tile-text">
-                                    <span class="ic-tile-label">Éco</span>
+                                    <span class="ic-tile-label">Économie</span>
                                     <span class="ic-tile-status">${isEcoMode ? 'Activé' : 'Désactivé'}</span>
                                 </div>
                             </button>
-                            <div class="ic-tile ${this.micConfig.enabled ? 'active' : ''}" id="ic-mic" role="group" aria-label="Retour micro">
+                            <div class="ic-tile ${this.micConfig.enabled ? 'active' : ''}" id="ic-mic" role="group" aria-label="Retour micro" title="Écouter ta voix dans le casque. Ce bouton ne coupe pas ton microphone dans les autres applications.">
                                 <button type="button" class="ic-mic-toggle" aria-label="Retour micro" aria-pressed="${Boolean(this.micConfig.enabled)}" style="display:flex;align-items:center;gap:inherit;flex:1;padding:0;border:0;background:transparent;color:inherit;text-align:left">
                                 <i class="ph ph-microphone"></i>
                                 <div class="ic-tile-text">
-                                    <span class="ic-tile-label">Micro</span>
-                                    <span class="ic-tile-status">${this.micConfig.enabled ? 'Activé' : 'Coupé'}</span>
+                                    <span class="ic-tile-label">Retour micro</span>
+                                    <span class="ic-tile-status">${this.micConfig.enabled ? 'Activé' : 'Désactivé'}</span>
                                 </div>
                                 </button><button type="button" class="ic-tile-more" title="Régler le retour micro" aria-label="Régler le retour micro" style="padding:0;border:0;background:transparent;color:inherit"><i class="ph-bold ph-caret-right"></i></button>
                             </div>
@@ -252,33 +248,53 @@ export const controlCenterView = {
                         </div>
 
                         <!-- Dynamically loaded widget -->
-                        ${thirdCardHtml}
+                        <section class="ic-widget" aria-label="${({launchpad:'Raccourcis',stats:'Performance',machine:'Batterie et disque',weather:'Météo',mixer:'Mélangeur'})[widgetType] || 'Widget'}">
+                            <div class="ic-widget-header">
+                                <span class="ic-widget-title">${({launchpad:'Raccourcis',stats:'Performance',machine:'Batterie et disque',weather:'Météo',mixer:'Mélangeur'})[widgetType] || 'Widget'}</span>
+                                <div class="ic-widget-actions">
+                                    ${widgetType === 'mixer' ? '<button type="button" class="ic-mixer-open" data-island-action="setMode" data-arg="mixer"><span>Tous les flux</span><i class="ph ph-arrow-up-right" aria-hidden="true"></i></button>' : ''}
+                                    ${widgetType === 'weather' ? '<button type="button" class="ic-weather-retry" aria-label="Réessayer la météo" title="Réessayer la météo"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i></button>' : ''}
+                                    <button type="button" class="ic-widget-config" data-island-action="openSettings" data-arg="control" aria-label="${widgetType === 'weather' ? (localStorage.getItem('liquid_weather_city')?.trim() ? 'Modifier la ville' : 'Choisir une ville') : 'Configurer le widget'}" title="${widgetType === 'weather' ? 'Ville et widget météo' : 'Configurer le widget'}"><i class="ph ph-sliders-horizontal" aria-hidden="true"></i></button>
+                                </div>
+                            </div>
+                            ${thirdCardHtml}
+                        </section>
                     </div>
                     
                     <!-- Right Column: Stretched Volume Vertical Slider -->
                     <div class="ic-sliders-layout" style="width: 60px;">
-                        <div class="ic-vertical-slider" id="ic-volume-slider" role="slider" tabindex="0" aria-label="Volume système" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuetext="Indisponible" style="--slider-val-pct: 0%" title="Volume Système">
+                        <div class="ic-vertical-slider" id="ic-volume-slider" role="slider" tabindex="0" aria-disabled="true" aria-label="Volume système" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuetext="Indisponible" style="--slider-val-pct: 0%" title="Volume Système">
                             <div class="ic-slider-fill"></div>
                             <div class="ic-slider-icon"><i class="ph ph-speaker-high"></i></div>
+                            <span class="ic-volume-value" aria-hidden="true">—</span>
                         </div>
                     </div>
                 </div>
             </div>
         `;
 
-        // Bind Container Stop Propagation
+        // Delegated header/media/mixer actions must reach the content listeners.
         const container = this.content.querySelector('.island-control-container');
-        container.onclick = (e) => e.stopPropagation();
+        const header = container.querySelector('.island-control-header');
+        const stack = container.querySelector('.ic-control-stack');
+        // Mesurer les blocs à leur hauteur naturelle, indépendamment du volume étiré.
+        // Les dimensions de mise en page excluent le zoom et les animations d'entrée.
+        const fitControl = () => {
+            if (!container.isConnected || !this.isExpanded || this.mode !== 'control') return;
+            const style = getComputedStyle(container);
+            const height = Math.ceil(header.offsetHeight + stack.offsetHeight
+                + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + parseFloat(style.rowGap));
+            const value = `${height}px`;
+            if (this.el.style.getPropertyValue('--control-height') !== value) this.el.style.setProperty('--control-height', value);
+        };
+        const controlResize = new ResizeObserver(fitControl);
+        controlResize.observe(header);
+        controlResize.observe(stack);
+        fitControl();
 
         // Bind Launchpad buttons click handlers
         if (widgetType === 'launchpad') {
-            const defaultShortcuts = [
-                { name: "Explorer", preset: "explorer", icon: "ph ph-folder", cmd: "explorer.exe" },
-                { name: "Settings", preset: "settings", icon: "ph ph-gear", cmd: "ms-settings:" },
-                { name: "TaskMgr", preset: "taskmgr", icon: "ph ph-cpu", cmd: "taskmgr.exe" },
-                { name: "Calc", preset: "calc", icon: "ph ph-calculator", cmd: "calc.exe" }
-            ];
-            const shortcuts = sanitizeShortcuts(readJSON('liquid_control_shortcuts', defaultShortcuts, value => Array.isArray(value) && value.every(isRecord)));
+            const shortcuts = sanitizeShortcuts(readJSON('liquid_control_shortcuts', DEFAULT_SHORTCUTS, value => Array.isArray(value) && value.every(isRecord)));
             
             shortcuts.forEach((s, idx) => {
                 const btn = container.querySelector(`#ic-lp-btn-${idx}`);
@@ -293,6 +309,9 @@ export const controlCenterView = {
                             void btn.offsetWidth;
                             btn.classList.add('is-error');
                             btn.title = `${s.name} : impossible de l’ouvrir`;
+                            this.showIslandFeedback(`Impossible d’ouvrir ${s.name}`, 'ph-warning');
+                        } else {
+                            btn.classList.remove('is-error'); btn.title = s.name;
                         }
                     };
                 }
@@ -353,17 +372,24 @@ export const controlCenterView = {
 
         // Bind Volume Vertical Slider
         const volSlider = container.querySelector('#ic-volume-slider');
+        const writeVolume = async value => {
+            try {
+                if (await ipcRenderer.invoke('set-system-volume',value) === false) throw new Error('Volume refusé');
+            } catch {
+                this.updateSystemVolumeSlider(volSlider,null);
+                if (container.isConnected) this.showIslandFeedback('Volume indisponible','ph-warning');
+            }
+        };
+        let volumeTimer, pendingVolume;
         this._controlSliderCleanup = bindVerticalSlider(volSlider, (val) => {
             sysVol = val;
-            volSlider.setAttribute('aria-valuenow', val);
-            volSlider.setAttribute('aria-valuetext', `${val} %`);
-            if (ipcRenderer) {
-                ipcRenderer.invoke('set-system-volume', val).catch(() => {
-                    this.updateSystemVolumeSlider(volSlider, null);
-                    this.showIslandFeedback('Volume indisponible', 'ph-warning');
-                });
-            }
+            this._systemVolumeWriteVersion=(this._systemVolumeWriteVersion||0)+1;
+            this.updateSystemVolumeSlider(volSlider,val);
+            pendingVolume=val;
+            volumeTimer ??= setTimeout(()=>{volumeTimer=null;const value=pendingVolume;pendingVolume=undefined;writeVolume(value);},40);
         });
+        const stopSlider = this._controlSliderCleanup;
+        this._controlSliderCleanup = () => {stopSlider();clearTimeout(volumeTimer);if(pendingVolume!==undefined) writeVolume(pendingVolume);};
         volSlider?.addEventListener('keydown', event => {
             if (volSlider.getAttribute('aria-disabled') === 'true') return;
             if (!['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft', 'PageUp', 'PageDown', 'Home', 'End'].includes(event.key)) return;
@@ -372,16 +398,12 @@ export const controlCenterView = {
             if (sysVol === null && !['Home', 'End'].includes(event.key)) return;
             const direction = ['ArrowUp', 'ArrowRight', 'PageUp'].includes(event.key) ? 1 : -1;
             sysVol = event.key === 'Home' ? 0 : event.key === 'End' ? 100 : Math.max(0, Math.min(100, sysVol + direction * (event.key.startsWith('Page') ? 10 : 5)));
-            volSlider.style.setProperty('--slider-val-pct', `${sysVol}%`);
-            volSlider.setAttribute('aria-valuenow', sysVol); volSlider.setAttribute('aria-valuetext', `${sysVol} %`);
-            ipcRenderer.invoke('set-system-volume', sysVol).catch(() => {
-                this.updateSystemVolumeSlider(volSlider, null);
-                this.showIslandFeedback('Volume indisponible', 'ph-warning');
-            });
+            this._systemVolumeWriteVersion=(this._systemVolumeWriteVersion||0)+1;
+            this.updateSystemVolumeSlider(volSlider,sysVol);
+            writeVolume(sysVol);
         });
 
         // Bind Quick Tiles Toggle Handlers
-        const TOGGLE_ERRORS = { denied: 'Accès refusé', not_found: 'Introuvable', failed: 'Échec', unknown: 'Échec', error: 'Échec' };
         const setTileState = (el, key, enabled, message) => {
             localStorage.setItem(key, enabled);
             el.classList.toggle('active', enabled);
@@ -393,47 +415,23 @@ export const controlCenterView = {
             this.syncGlassControls();
         };
 
-        // État réel de Windows (le Wi-Fi a pu être coupé ailleurs) : on corrige les tuiles.
-        [['#ic-wifi', 'liquid_wifi_enabled', 'wifi-control'], ['#ic-bluetooth', 'liquid_bluetooth_enabled', 'bluetooth-control'], ['#ic-dnd', 'liquid_dnd_enabled', 'dnd-control']]
-            .forEach(async ([selector, key, channel]) => {
-                const status = await ipcRenderer.invoke(channel, 'status').catch(() => 'unknown');
-                const el = container.querySelector(selector);
-                if (!el || !el.isConnected || el.classList.contains('is-busy')) return;
-                if (status === 'on' || status === 'off') {
-                    const enabled = status === 'on';
-                    if (el.classList.contains('active') !== enabled) setTileState(el, key, enabled);
-                } else if (status === 'not_found') {
-                    el.classList.add('is-unavailable');
-                    const statusText = el.querySelector('.ic-tile-status');
-                    if (statusText) statusText.innerText = 'Indisponible';
-                }
-            });
+        const systemTiles = [
+            ['#ic-wifi', 'liquid_wifi_enabled', 'wifi-control'],
+            ['#ic-bluetooth', 'liquid_bluetooth_enabled', 'bluetooth-control'],
+            ['#ic-dnd', 'liquid_dnd_enabled', 'dnd-control', {on: 'Coupées', off: 'Autorisées'}],
+        ].map(([selector, key, channel, labels]) => bindSystemTile({
+            element: container.querySelector(selector), key, channel, labels,
+            invoke: (channel, action) => ipcRenderer.invoke(channel, action),
+            onError: message => { if (container.isConnected) this.showIslandFeedback(message, 'ph-warning'); },
+        }));
+        const refreshSystemTiles = () => systemTiles.forEach(tile => tile.refresh());
+        this._controlCleanup = () => {
+            controlResize.disconnect();
+            systemTiles.forEach(tile => tile.dispose());
+        };
+        refreshSystemTiles();
 
         const tiles = [
-            { 
-                id: '#ic-wifi', 
-                key: 'liquid_wifi_enabled', 
-                isDefaultTrue: true, 
-                onToggle: async (state) => {
-                    return ipcRenderer.invoke('wifi-control', state ? 'on' : 'off').catch(() => 'error');
-                } 
-            },
-            { 
-                id: '#ic-bluetooth', 
-                key: 'liquid_bluetooth_enabled', 
-                isDefaultTrue: true, 
-                onToggle: async (state) => {
-                    return ipcRenderer.invoke('bluetooth-control', state ? 'on' : 'off').catch(() => 'error');
-                } 
-            },
-            { 
-                id: '#ic-dnd', 
-                key: 'liquid_dnd_enabled', 
-                isDefaultTrue: false, 
-                onToggle: async (state) => {
-                    return ipcRenderer.invoke('dnd-control', state ? 'on' : 'off').catch(() => 'error');
-                } 
-            },
             { 
                 id: '#ic-focus', 
                 key: 'liquid_focus_mode', 
@@ -470,16 +468,20 @@ export const controlCenterView = {
                     const result = await tile.onToggle(newVal);
                     el.classList.remove('is-busy');
                     el.removeAttribute('aria-busy');
-                    if (typeof result === 'string' && result !== 'ok') {
-                        setTileState(el, tile.key, currentVal, TOGGLE_ERRORS[result] || 'Échec');
-                    }
+                    if (result === false) setTileState(el, tile.key, currentVal, 'Échec');
                 };
             }
         });
 
         // Setup stats real-time update interval (2s)
+        let nextWeatherRefresh = Date.now()+15*60*1000;
         this.statsInterval = setInterval(async () => {
+            if (!container.isConnected || this._windowHidden) return;
+            refreshSystemTiles();
+            const clock = container.querySelector('.ic-time');
+            if (clock) clock.innerHTML = `<i class="ph ph-clock" aria-hidden="true"></i>${new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'})}`;
             const currentWidget = localStorage.getItem('liquid_control_widget_type') || 'launchpad';
+            if(currentWidget==='weather' && Date.now()>=nextWeatherRefresh) {nextWeatherRefresh=Date.now()+15*60*1000;this.fillWeatherCard();}
             
             if (currentWidget === 'stats') {
                 applySystemStats(await getSystemStats());
@@ -492,9 +494,9 @@ export const controlCenterView = {
                         const bLevel = Math.round(batt.level * 100);
                         const bCharging = batt.charging;
                         
-                        const battVal = document.getElementById('ic-mach-val-batt');
-                        const battFill = document.getElementById('ic-mach-fill-batt');
-                        const battLabel = document.getElementById('ic-mach-lbl-batt');
+                        const battVal = container.querySelector('#ic-mach-val-batt');
+                        const battFill = container.querySelector('#ic-mach-fill-batt');
+                        const battLabel = container.querySelector('#ic-mach-lbl-batt');
                         
                         if (battVal) battVal.innerText = `${bLevel}%`;
                         if (battFill) battFill.style.width = `${bLevel}%`;
@@ -530,10 +532,10 @@ export const controlCenterView = {
                 const overlay = document.createElement('div');
                 overlay.className = 'ic-confirm-overlay';
                 overlay.innerHTML = `
-                    <div class="ic-confirm-box">
+                    <div class="ic-confirm-box" role="dialog" aria-modal="true" aria-labelledby="ic-confirm-title" aria-describedby="ic-confirm-desc">
                         <i class="ph ph-power ic-confirm-icon"></i>
-                        <span class="ic-confirm-title">Quitter l'Island ?</span>
-                        <span class="ic-confirm-desc">Voulez-vous fermer l'application Nolys ?</span>
+                        <span class="ic-confirm-title" id="ic-confirm-title">Quitter Nolys ?</span>
+                        <span class="ic-confirm-desc" id="ic-confirm-desc">Confirme la fermeture de l’application.</span>
                         <div class="ic-confirm-buttons">
                             <button class="ic-confirm-btn cancel" id="confirm-cancel">Annuler</button>
                             <button class="ic-confirm-btn confirm" id="confirm-ok">Quitter</button>
@@ -542,16 +544,33 @@ export const controlCenterView = {
                 `;
 
                 container.appendChild(overlay);
+                const cancel = overlay.querySelector('#confirm-cancel');
+                const confirm = overlay.querySelector('#confirm-ok');
+                const background = [...container.children].filter(child => child !== overlay);
+                background.forEach(child => { child.inert = true; });
+                const close = () => {
+                    background.forEach(child => { child.inert = false; });
+                    overlay.remove(); shutdownBtn.focus({preventScroll:true});
+                };
+                overlay.addEventListener('keydown', event => {
+                    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); }
+                    else if (event.key === 'Tab') {
+                        event.preventDefault(); event.stopPropagation();
+                        (document.activeElement === cancel ? confirm : cancel).focus();
+                    }
+                });
+                cancel.focus({preventScroll:true});
 
                 // Bind Cancel button
                 overlay.querySelector('#confirm-cancel').onclick = (e) => {
                     e.stopPropagation();
-                    overlay.remove();
+                    close();
                 };
 
                 // Bind Confirm button
                 overlay.querySelector('#confirm-ok').onclick = (e) => {
                     e.stopPropagation();
+                    background.forEach(child => { child.inert = false; });
                     this.mode = 'music';
                     this.isExpanded = false;
                     this.renderContent();
@@ -572,65 +591,18 @@ export const controlCenterView = {
             
 
             // System Volume
+            const readVersion=this._systemVolumeWriteVersion||0;
             try {
                 const fetchedVol = await ipcRenderer.invoke('get-system-volume');
-                this.updateSystemVolumeSlider(volSlider, fetchedVol);
-                if (Number.isFinite(fetchedVol) && fetchedVol >= 0 && fetchedVol <= 100) {
+                if (readVersion===(this._systemVolumeWriteVersion||0)) this.updateSystemVolumeSlider(volSlider, fetchedVol);
+                if (readVersion===(this._systemVolumeWriteVersion||0) && Number.isFinite(fetchedVol) && fetchedVol >= 0 && fetchedVol <= 100) {
                     sysVol = fetchedVol;
                     if (volSlider) {
                         volSlider.style.setProperty('--slider-val-pct', `${Math.round(sysVol)}%`);
                         volSlider.setAttribute('aria-valuenow', sysVol); volSlider.setAttribute('aria-valuetext', `${Math.round(sysVol)} %`);
                     }
                 }
-            } catch (e) { this.updateSystemVolumeSlider(volSlider, null); }
-
-            // Wi-Fi Status
-            try {
-                const realWifi = await ipcRenderer.invoke('wifi-control', 'status');
-                if (realWifi === 'on' || realWifi === 'off') {
-                    const active = realWifi === 'on';
-                    localStorage.setItem('liquid_wifi_enabled', active);
-                    const tileEl = container.querySelector('#ic-wifi');
-                    if (tileEl) {
-                        tileEl.classList.toggle('active', active);
-                        tileEl.setAttribute('aria-pressed', String(active));
-                        const statusText = tileEl.querySelector('.ic-tile-status');
-                        if (statusText) statusText.innerText = active ? 'Activé' : 'Désactivé';
-                    }
-                }
-            } catch (e) { }
-
-            // Bluetooth Status
-            try {
-                const realBt = await ipcRenderer.invoke('bluetooth-control', 'status');
-                if (realBt === 'on' || realBt === 'off') {
-                    const active = realBt === 'on';
-                    localStorage.setItem('liquid_bluetooth_enabled', active);
-                    const tileEl = container.querySelector('#ic-bluetooth');
-                    if (tileEl) {
-                        tileEl.classList.toggle('active', active);
-                        tileEl.setAttribute('aria-pressed', String(active));
-                        const statusText = tileEl.querySelector('.ic-tile-status');
-                        if (statusText) statusText.innerText = active ? 'Activé' : 'Désactivé';
-                    }
-                }
-            } catch (e) { }
-
-            // DND Status
-            try {
-                const realDnd = await ipcRenderer.invoke('dnd-control', 'status');
-                if (realDnd === 'on' || realDnd === 'off') {
-                    const active = realDnd === 'on';
-                    localStorage.setItem('liquid_dnd_enabled', active);
-                    const tileEl = container.querySelector('#ic-dnd');
-                    if (tileEl) {
-                        tileEl.classList.toggle('active', active);
-                        tileEl.setAttribute('aria-pressed', String(active));
-                        const statusText = tileEl.querySelector('.ic-tile-status');
-                        if (statusText) statusText.innerText = active ? 'Activé' : 'Désactivé';
-                    }
-                }
-            } catch (e) { }
+            } catch (e) { if(readVersion===(this._systemVolumeWriteVersion||0)) this.updateSystemVolumeSlider(volSlider, null); }
 
             // Battery Status
             if (widgetType === 'machine' && navigator.getBattery) {
@@ -640,9 +612,9 @@ export const controlCenterView = {
                     batteryLevel = Math.round(batt.level * 100);
                     batteryCharging = batt.charging;
                     
-                    const battVal = document.getElementById('ic-mach-val-batt');
-                    const battFill = document.getElementById('ic-mach-fill-batt');
-                    const battLabel = document.getElementById('ic-mach-lbl-batt');
+                    const battVal = container.querySelector('#ic-mach-val-batt');
+                    const battFill = container.querySelector('#ic-mach-fill-batt');
+                    const battLabel = container.querySelector('#ic-mach-lbl-batt');
                     
                     if (battVal) battVal.innerText = `${batteryLevel}%`;
                     if (battFill) battFill.style.width = `${batteryLevel}%`;
@@ -666,8 +638,8 @@ export const controlCenterView = {
                         diskFreeGb = Math.round(freeBytes / (1024 * 1024 * 1024));
                         diskPercent = Math.round(((totalBytes - freeBytes) / totalBytes) * 100);
                         
-                        const diskVal = document.getElementById('ic-mach-val-disk');
-                        const diskFill = document.getElementById('ic-mach-fill-disk');
+                        const diskVal = container.querySelector('#ic-mach-val-disk');
+                        const diskFill = container.querySelector('#ic-mach-fill-disk');
                         
                         if (diskVal) diskVal.innerText = `${diskFreeGb} Go libres`;
                         if (diskFill) diskFill.style.width = `${diskPercent}%`;
@@ -675,70 +647,14 @@ export const controlCenterView = {
                 } catch(e){}
             }
 
-            // Grouped Audio sessions for Mixer Widget
-            if (widgetType === 'mixer') {
-                try {
-                    const mixerCard = document.getElementById('ic-cc-mixer-card');
-                    if (mixerCard) {
-                        const sessions = await ipcRenderer.invoke('get-audio-sessions');
-                        if (sessions) {
-                            this.audioSessions = sessions;
-                            const grouped = this.getGroupedSessions(sessions);
-                            let mixerRowsHtml = '';
-                            
-                            if (grouped.length === 0) {
-                                mixerRowsHtml = `
-                                    <div style="grid-column: 1/-1; opacity: 0.5; font-size: 11px; text-align: center; padding: 15px 0;">
-                                        Aucun flux audio détecté
-                                    </div>
-                                `;
-                            } else {
-                                mixerRowsHtml = grouped.slice(0, 3).map(s => {
-                                    const icon = s.icon || getMixerIcon(s.name, s.title);
-                                    const isMuted = s.volume === 0 || s.muted;
-                                    const activeVol = isMuted ? 0 : Math.round(s.volume);
-                                    
-                                    let iconHtml = '';
-                                    if (icon) {
-                                        iconHtml = `
-                                            <img src="${escapeHtml(icon)}" style="width: 14px; height: 14px; object-fit: contain;" data-fallback="next">
-                                            <i class="ph ph-music-note" style="display: none; font-size: 12px;"></i>
-                                        `;
-                                    } else {
-                                        iconHtml = `<i class="ph ph-music-note"></i>`;
-                                    }
-                                    
-                                    const muteIcon = getMuteIcon(isMuted, activeVol);
-                                    
-                                    let cleanName = s.name.replace('.exe', '');
-                                    if (cleanName.toLowerCase() === 'audiodg') cleanName = 'Sons système';
-                                    
-                                    return `
-                                        <div class="ic-mixer-row">
-                                            <div class="ic-mixer-app-icon" title="${escapeHtml(cleanName)}">
-                                                ${iconHtml}
-                                            </div>
-                                            <div class="ic-mixer-slider-wrapper">
-                                                <input type="range" class="ic-mixer-slider" data-pid="${s.pid}" min="0" max="100" value="${activeVol}">
-                                            </div>
-                                            <span class="ic-mixer-vol">${activeVol}%</span>
-                                            <div class="ic-mixer-mute ${isMuted ? 'muted' : ''}" data-pid="${s.pid}">
-                                                <i class="ph ${muteIcon}"></i>
-                                            </div>
-                                        </div>
-                                    `;
-                                }).join('');
-                            }
-                            mixerCard.innerHTML = mixerRowsHtml;
-                        }
-                    }
-                } catch(e){}
-            }
+            if (widgetType === 'mixer') await this.updateAudioSessions();
         };
 
         // Fire async updates immediately without blocking the synchronous render thread!
         updateAsyncSystemData();
+        container.querySelector('.ic-weather-retry')?.addEventListener('click', () => this.fillWeatherCard());
         if (widgetType === 'weather') this.fillWeatherCard();
+        this.syncMicTile();
         this.syncGlassControls();
     },
 
@@ -747,13 +663,16 @@ export const controlCenterView = {
         const tile = this.content.querySelector('#ic-mic');
         if (!tile) return;
         const enabled = Boolean(this.micConfig.enabled);
-        const error = enabled && this.micStatus?.error;
-        if (tile.classList.contains('active') === enabled && tile.classList.contains('has-error') === Boolean(error)) return;
+        const error = this.micStatus?.error;
+        const busy = Boolean(this._micSending);
+        const toggle = tile.querySelector('.ic-mic-toggle');
+        toggle.disabled = busy;
+        toggle.setAttribute('aria-busy', String(busy));
+        toggle.setAttribute('aria-pressed', String(enabled));
         tile.classList.toggle('active', enabled);
         tile.classList.toggle('has-error', Boolean(error));
-        tile.querySelector('.ic-mic-toggle')?.setAttribute('aria-pressed', String(enabled));
         const status = tile.querySelector('.ic-tile-status');
-        if (status) status.textContent = error ? 'Erreur' : (enabled ? 'Activé' : 'Coupé');
+        if (status) status.textContent = busy ? 'Application…' : error ? 'Erreur' : (enabled ? 'Activé' : 'Désactivé');
         this.syncGlassControls();
     },
 
@@ -761,9 +680,14 @@ export const controlCenterView = {
     async fillWeatherCard() {
         const city = (localStorage.getItem('liquid_weather_city') || '').trim();
         if (!city) return;
+        const card = this.content.querySelector('#ic-weather-card');
+        if(!card || card.getAttribute('aria-busy')==='true') return;
+        card.setAttribute('aria-busy','true');
+        const retry=this.content.querySelector('.ic-weather-retry');
+        if(retry) retry.disabled=true;
         const weather = await ipcRenderer.invoke('get-weather', city).catch(() => null);
-        const card = document.getElementById('ic-weather-card');
-        if (!card || !card.isConnected) return;
+        card.setAttribute('aria-busy','false'); if(retry) retry.disabled=false;
+        if (!card.isConnected || (localStorage.getItem('liquid_weather_city')||'').trim()!==city) return;
         const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
         if (!weather) {
             set('ic-weather-temp', '—');

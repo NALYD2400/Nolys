@@ -16,6 +16,7 @@ dist/
 .impeccable/fixtures/
 .impeccable/clipboard-test/
 .impeccable/review/
+.impeccable/critique/
 
 # Composant vidéo local, préparé avant la compilation de l’installateur
 src-tauri/resources/replay/ffmpeg.exe

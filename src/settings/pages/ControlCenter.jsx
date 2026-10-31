@@ -56,7 +56,7 @@ export default function ControlCenter({ store }) {
             <Card>
                 <Toggle
                     label="Centre de contrôle"
-                    description="Wi-Fi, Bluetooth, volume, Ne pas déranger et widgets."
+                    description="Wi-Fi, Bluetooth, volume, alertes Windows et actions Nolys."
                     checked={settings.controlEnabled}
                     onChange={(controlEnabled) => update({ controlEnabled })}
                 />
@@ -73,7 +73,7 @@ export default function ControlCenter({ store }) {
                 </Card>
 
                 <Reveal when={settings.widgetType === 'weather'}>
-                    <Card title="Météo" footer="Données Open-Meteo, actualisées toutes les 15 minutes. Seul le nom de la ville est envoyé.">
+                    <Card title="Météo" footer="Données Open-Meteo, mises en cache 15 minutes. La ville sert à trouver ses coordonnées, puis à demander la météo.">
                         <Row label="Ville" description="Par exemple : Lyon, Bruxelles, Montréal.">
                             <input
                                 className="text-input"
