@@ -113,8 +113,10 @@ export const timerView = {
             event.preventDefault(); event.stopPropagation(); this.editTimerPreset(Number(button.dataset.preset));
         });
         root.addEventListener('keydown', event => {
-            event.stopPropagation();
             const preset = event.target.closest('[data-preset]');
+            // Laisser le raccourci du menu global remonter, sauf sur un préréglage éditable.
+            if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10' && !preset)) return;
+            event.stopPropagation();
             if (preset && (event.key === 'F2' || (event.shiftKey && event.key === 'F10'))) {
                 event.preventDefault(); this.editTimerPreset(Number(preset.dataset.preset));
             } else if (event.target.matches('.timer-duration-input') && event.key === 'Enter') {

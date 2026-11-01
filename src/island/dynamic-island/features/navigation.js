@@ -145,7 +145,7 @@ export const navigationMethods = {
         return true;
     },
 
-    setMode(mode) {
+    setMode(mode, { page } = {}) {
         if (mode === 'replay') { this.openReplay(); return; }
         if (mode === 'files') { this.openFiles(); return; }
         if (this.mode === 'files') {
@@ -159,7 +159,7 @@ export const navigationMethods = {
         }
         // Les Réglages s'ouvrent dans l'Island (views/settings.js), plus dans une fenêtre à part.
         if (mode === 'settings') {
-            this.openSettings();
+            this.openSettings(page);
             return;
         }
         this.isAudioDeviceDropdownOpen = false;

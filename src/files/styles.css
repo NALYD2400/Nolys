@@ -10,7 +10,8 @@
 .files-preview-error { max-width: 340px; text-align: center; color: var(--muted); }
 .files-preview-error p { margin: 0 0 16px; }
 .is-preview .files-body { overflow: hidden; }
-:host(:not([data-intro])) .files-tabs { animation: none; }
+/* Déjà visibles pendant le ressort : ne pas les faire réapparaître à son terme. */
+.files-tabs { animation: none; }
 .files-body { min-height: 0; overflow-y: auto; }
 .files-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
 .files-footer .pill-btn { font-size: 10px; }

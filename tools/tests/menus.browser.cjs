@@ -19,9 +19,10 @@ const fs = require('node:fs');
                 case 'get_update_status': return { state: 'idle', currentVersion: '2.4.0', canCheck: false };
                 case 'get_mic_monitor': return { config: { enabled: false }, level: 0 };
                 case 'get_system_volume': return 50;
-                case 'library_get': return { tracks: [], playlists: [] };
+                case 'library_get': return { tracks: [{ id: 'context-track', title: 'Titre de test', artist: 'Nolys', path: 'C:\\Music\\test.wav', duration: 30000 }], playlists: [] };
                 case 'launch_shortcut': return true;
-                case 'get_audio_sessions': case 'get_audio_devices': case 'get_audio_input_devices': case 'register_shortcuts': return [];
+                case 'get_audio_sessions': return [{ pid: 17, name: 'Lecteur.exe', volume: 50, muted: false }];
+                case 'get_audio_devices': case 'get_audio_input_devices': case 'register_shortcuts': return [];
                 default: return null;
             }
         });
@@ -56,8 +57,90 @@ const fs = require('node:fs');
         fs.mkdirSync(shots, { recursive: true });
         const screenshot = async name => {
             await page.addStyleTag({ content: 'html { background: #17151b !important; }' });
+            await page.waitForTimeout(300);
             await page.screenshot({ path: path.join(shots, name) });
         };
+
+        // Vrais clics droits : le repli global fonctionne aussi depuis les shadow DOM.
+        for (const [mode, target] of [
+            ['files', '.files-panel .lib-heading'], ['replay', '.replay-panel .lib-heading'],
+            ['library', '.lib-heading'], ['music-history', '.lib-heading'],
+            ['settings', '.settings-root h1'], ['timer', '.timer-readout'],
+            ['control', '.island-control-container'], ['menu', '.island-menu-grid'],
+        ]) {
+            await page.evaluate(mode => { window.island.isExpanded = true; window.island.setMode(mode); }, mode);
+            await settled();
+            const surface = page.locator(target).first();
+            await surface.click({ button: 'right' });
+            await page.waitForSelector('#island-context-menu');
+            assert.equal(await page.evaluate(() => window.island.mode), mode);
+            assert.equal(await page.getByRole('menuitem', { name: 'Personnaliser ce menu…', exact: true }).count(), 1);
+            if (mode === 'settings') await screenshot('menus-clic-droit-page.png');
+            await page.keyboard.press('Escape');
+            assert.equal(await page.locator('#island-context-menu').count(), 0);
+            assert.equal(await page.evaluate(() => window.island.mode), mode, 'Échap ferme seulement le menu');
+        }
+
+        await page.evaluate(async () => {
+            await window.island.addMusicHistoryItem({ title: 'Titre de test', artist: 'Nolys', appId: 'Spotify' });
+            window.island.setMode('music-history');
+        });
+        await settled();
+        await page.locator('.row[data-key]').click({ button: 'right' });
+        assert.equal(await page.locator('.lib-menu:not([hidden])').count(), 1, 'l’historique garde son menu local');
+        assert.equal(await page.locator('#island-context-menu').count(), 0);
+        await page.keyboard.press('Escape');
+
+        await page.evaluate(() => { window.island.isExpanded = true; window.island.setMode('library'); });
+        await settled();
+        await page.locator('.row[data-track]').click({ button: 'right' });
+        assert.equal(await page.locator('.lib-menu:not([hidden])').count(), 1, 'le morceau garde son menu local');
+        assert.equal(await page.locator('#island-context-menu').count(), 0);
+        await page.keyboard.press('Escape');
+        const search = page.locator('.lib-search input');
+        await search.fill('Texte conservé');
+        // Observer l'annulation au document, après tous les gestionnaires (y compris le filtre natif).
+        await page.evaluate(() => document.addEventListener('contextmenu', event => {
+            window.__contextPrevented = event.defaultPrevented;
+        }));
+        await search.click({ button: 'right' });
+        assert.equal(await page.evaluate(() => window.__contextPrevented), false, 'copier/coller préservé dans le shadow DOM');
+        assert.equal(await page.locator('#island-context-menu').count(), 0);
+        assert.equal(await search.inputValue(), 'Texte conservé');
+        await search.fill('');
+        const back = page.locator('.lib-header [data-action="back"]');
+        await back.focus();
+        await back.press('Shift+F10');
+        await page.waitForSelector('#island-context-menu');
+        await page.keyboard.press('ArrowDown');
+        await page.keyboard.press('Escape');
+        assert.equal(await back.evaluate(el => el.getRootNode().activeElement === el), true, 'Échap rend le focus au bouton d’origine');
+        await back.press('Shift+F10');
+        await page.getByRole('menuitem', { name: 'Personnaliser ce menu…', exact: true }).click();
+        await page.waitForSelector('.menu-editor-list');
+        assert.equal(await page.evaluate(() => window.island.mode), 'settings');
+        await screenshot('menus-clic-droit-personnalisation.png');
+
+        await page.evaluate(() => {
+            window.island.musicData = { title: 'Titre de test', artist: 'Nolys', duration: 180000, progress: 30000, isPlaying: false };
+            window.island.setMode('music');
+        });
+        await settled();
+        const beforeSeek = calls.filter(call => call.command === 'media_control').length;
+        await page.locator('.progress-bar').click({ button: 'right' });
+        assert.equal(await page.locator('#island-context-menu').count(), 1);
+        assert.equal(await page.evaluate(() => Boolean(window.island.isScrubbing)), false);
+        assert.equal(calls.filter(call => call.command === 'media_control').length, beforeSeek, 'le clic droit ne déplace pas la lecture');
+        await page.keyboard.press('Escape');
+        await page.evaluate(() => window.island.setMode('mixer'));
+        await settled();
+        const beforeVolume = calls.filter(call => call.command === 'set_session_volume').length;
+        await page.locator('.mixer-volume-slider').click({ button: 'right' });
+        assert.equal(await page.locator('#island-context-menu').count(), 1);
+        assert.equal(await page.evaluate(() => Boolean(window.island.isScrubbingMixer)), false);
+        assert.equal(calls.filter(call => call.command === 'set_session_volume').length, beforeVolume, 'le clic droit ne modifie pas le volume');
+        await page.keyboard.press('Escape');
+        await page.evaluate(() => { window.island.musicData = null; });
 
         await openMenu();
         assert.equal(await page.locator('.island-menu-item').count(), 10);
@@ -178,6 +261,6 @@ const fs = require('node:fs');
         await page.getByRole('menuitem', { name: 'Réglages', exact: true }).click();
         await page.waitForFunction(() => window.island.isExpanded && window.island.mode === 'settings');
         assert.deepEqual(errors, []);
-        console.log('OK — menus : édition, ordre, visibilité, raccourci natif, bibliothèque, persistance, taille et défilement');
+        console.log('OK — menus : clic droit dans les vues, menus locaux, saisie, clavier, curseurs, personnalisation, persistance et défilement');
     } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exit(1); });

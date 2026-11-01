@@ -5,6 +5,7 @@ import { getDisplayMediaArt } from '../helpers/media-art.js';
 import { isHistoryTrack } from '../helpers/music-search.js';
 import { themeLook } from '../../../shared/theme-look.js';
 import { readMenus, visibleMenuEntries } from '../../../shared/menu-config.js';
+import { isTextInputEvent } from '../../../shared/context-menu.js';
 
 /** Méthodes de l'Island qu'un bouton peut appeler par `data-island-action` (liste fermée). */
 const ISLAND_ACTIONS = new Set([
@@ -15,19 +16,24 @@ const ISLAND_ACTIONS = new Set([
 
 export const eventMethods = {
     initEvents() {
-        // Right-click context menu listener
+        // Les menus locaux traitent l'événement avant ce repli commun à toutes les vues.
         this.el.addEventListener('contextmenu', (e) => {
-            if (this.mode === 'files' || this._fileReceiving) { e.preventDefault(); return; }
-            if (this.mode === 'library' || this.mode === 'music-history' || this.mode === 'settings' || this.mode === 'replay') return;
+            if (e.defaultPrevented || isTextInputEvent(e)) return;
             e.preventDefault();
             e.stopPropagation();
-            
-            // Allow mouse capture
-            if (ipcRenderer) {
-                ipcRenderer.send('set-ignore-mouse', false);
-            }
-            
+            if (this._fileReceiving) return;
             this.showContextMenu(e.clientX, e.clientY);
+        });
+
+        this.el.addEventListener('keydown', (e) => {
+            if (e.defaultPrevented || isTextInputEvent(e) || this._fileReceiving) return;
+            if (e.key !== 'ContextMenu' && !(e.shiftKey && e.key === 'F10')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const target = e.composedPath().find(node => node instanceof Element);
+            const rect = (target || this.el).getBoundingClientRect();
+            this.showContextMenu(rect.left, rect.bottom);
+            document.querySelector('#island-context-menu [role="menuitem"]')?.focus({ preventScroll: true });
         });
 
         this.el.addEventListener('click', (e) => {
@@ -83,6 +89,7 @@ export const eventMethods = {
 
         // Permanent delegated mousedown listener for progress bar scrubbing (persists across re-renders)
         this.content.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
             const progBar = e.target.closest('.progress-bar');
             if (progBar) {
                 e.stopPropagation();
@@ -99,6 +106,7 @@ export const eventMethods = {
 
         // Permanent delegated mousedown listener for session volume scrubbing in the mixer mode
         this.content.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
             const slider = e.target.closest('.mixer-volume-slider, .ic-mixer-slider');
             if (slider) {
                 e.stopPropagation();
@@ -375,7 +383,13 @@ export const eventMethods = {
     },
 
     showContextMenu(x, y) {
+        if (!this.isContextMenuOpen) {
+            let focused = document.activeElement;
+            while (focused?.shadowRoot?.activeElement) focused = focused.shadowRoot.activeElement;
+            this._contextMenuReturnFocus = focused;
+        }
         this.isContextMenuOpen = true;
+        ipcRenderer?.send('set-ignore-mouse', false);
 
         // Remove existing context menu if any (y compris un menu encore en train de se fermer)
         document.querySelectorAll('#island-context-menu, .context-menu.is-closing').forEach((menu) => menu.remove());
@@ -428,6 +442,7 @@ export const eventMethods = {
         menu.style.setProperty('--menu-accent', look.accent);
         menu.style.setProperty('--menu-accent-rgb', look.accentRgb);
         menu.setAttribute('role', 'menu');
+        menu.setAttribute('aria-label', 'Raccourcis Nolys');
         menu.tabIndex = -1;
         menu.innerHTML = `
             <div class="context-menu-bg"></div>
@@ -438,6 +453,8 @@ export const eventMethods = {
                     badge: entry.id === 'mic' && micOn ? '<span class="context-menu-badge">Activé</span>' : '',
                 })).join('')}
             </div>
+            <div class="context-menu-separator" role="separator"></div>
+            ${item('customize-menu', 'ph-pencil-simple', 'Personnaliser ce menu…')}
         `;
 
         if (art) {
@@ -463,7 +480,9 @@ export const eventMethods = {
         const runAction = (action) => {
             this.closeContextMenu();
             const entry = menuEntries.find(item => item.id === action);
-            if (entry) {
+            if (action === 'customize-menu') {
+                this.setMode('settings', { page: 'menus' });
+            } else if (entry) {
                 this.activateMenuEntry(entry);
             } else if (action === 'play') {
                 window.spotifyControl('toggle');
@@ -481,7 +500,9 @@ export const eventMethods = {
 
         // Clavier : flèches pour naviguer, Entrée pour valider (bouton natif), Échap pour fermer.
         const entries = [...menu.querySelectorAll('[role="menuitem"]')];
+        entries.forEach(entry => { entry.tabIndex = -1; });
         menu.addEventListener('keydown', (e) => {
+            e.stopPropagation();
             const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
             if (step) {
                 e.preventDefault();
@@ -493,9 +514,12 @@ export const eventMethods = {
                 entries[e.key === 'Home' ? 0 : entries.length - 1].focus();
             } else if (e.key === 'Escape') {
                 e.preventDefault();
-                this.closeContextMenu();
+                this.closeContextMenu({ restoreFocus: true });
+            } else if (e.key === 'Tab') {
+                this.closeContextMenu({ restoreFocus: true });
             }
         });
+        menu.addEventListener('contextmenu', event => event.preventDefault());
         // La souris et le clavier partagent la même surbrillance.
         menu.addEventListener('pointermove', (e) => {
             const target = e.target.closest('[role="menuitem"]');
@@ -521,7 +545,7 @@ export const eventMethods = {
         }, 50);
     },
 
-    closeContextMenu() {
+    closeContextMenu({ restoreFocus = false } = {}) {
         this.isContextMenuOpen = false;
         if (this._contextMenuCloseHandler) {
             document.removeEventListener('click', this._contextMenuCloseHandler, true);
@@ -531,10 +555,15 @@ export const eventMethods = {
         // suite (plus compté comme ouvert ni comme zone cliquable) et ne réagit plus à la souris.
         const menu = document.getElementById('island-context-menu');
         if (menu) {
+            if (restoreFocus && this._contextMenuReturnFocus?.isConnected) {
+                this._contextMenuReturnFocus.focus({ preventScroll: true });
+            }
+            menu.inert = true;
             menu.removeAttribute('id');
             menu.classList.add('is-closing');
             setTimeout(() => menu.remove(), 140);
         }
+        this._contextMenuReturnFocus = null;
         if (!this.isExpanded && !this._layoutEditMode && ipcRenderer) {
             try {
                 ipcRenderer.send('set-ignore-mouse', true, { forward: true });

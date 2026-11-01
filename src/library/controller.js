@@ -503,9 +503,11 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
     });
 
     on(root, 'contextmenu', event => {
-        event.preventDefault();
         const row = event.target.closest('.row[data-track]');
-        if (row && !state.selecting) trackMenu(row.dataset.track, row.querySelector('[data-action="track-menu"]'), { x: event.clientX, y: event.clientY });
+        if (!row || state.selecting) return;
+        event.preventDefault();
+        event.stopPropagation();
+        trackMenu(row.dataset.track, row.querySelector('[data-action="track-menu"]'), { x: event.clientX, y: event.clientY });
     });
 
     on($('#search'), 'input', event => {

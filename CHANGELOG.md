@@ -1,5 +1,13 @@
 # Historique
 
+## 2.6.3 — 1 novembre 2026
+
+- Menu au clic droit accessible dans toutes les vues de l’Island, avec accès direct à sa personnalisation. Les menus propres aux morceaux et le copier-coller dans les champs de texte sont préservés.
+- Navigation clavier du menu : ouverture par la touche Menu ou Maj+F10 et retour du focus au contrôle d’origine après Échap.
+- Un clic droit sur la progression musicale ou un curseur de volume ne modifie plus leur valeur.
+- Fichiers : les onglets restent visibles à la fin de l’ouverture de la capsule, dans les trois niveaux de mouvement.
+- Lecteur musical : l’icône du menu adopte la même finesse, la même taille et la même teinte que l’historique et les favoris.
+
 ## 2.6.2 — 31 octobre 2026
 
 - Réglages : les menus déroulants restent dans la zone visible de la page, s’ouvrent vers le haut si nécessaire et font défiler leurs options sans déplacer la page. Navigation clavier et fermeture par Échap vérifiées sur les neuf sélecteurs.

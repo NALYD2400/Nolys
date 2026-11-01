@@ -163,10 +163,11 @@ export function mountHistory(host, { store, savedState = {}, ready = Promise.res
     });
 
     on(root, 'contextmenu', event => {
+        const row = event.target.closest('.row[data-key]');
+        if (!row) return;
         event.preventDefault();
         event.stopPropagation();
-        const row = event.target.closest('.row[data-key]');
-        if (row) rowMenu(row.dataset.key, row.querySelector('[data-action="row-menu"]'), { x: event.clientX, y: event.clientY });
+        rowMenu(row.dataset.key, row.querySelector('[data-action="row-menu"]'), { x: event.clientX, y: event.clientY });
     });
 
     on($('#search'), 'input', event => {

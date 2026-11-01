@@ -69,10 +69,8 @@
     border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-/* Bouton d'ouverture du menu : graisse « bold » et icône plus grande que ses voisins de la pilule
- * (la règle de la grappe, plus précise, la remet à 14 px sinon). */
-.island-action-btn.menu-btn i,
-.music-action-cluster .island-action-btn.menu-btn i {
+/* Icône du menu hors grappe ; dans la grappe, elle suit le style commun des actions. */
+.island-action-btn.menu-btn i {
     font-size: 16px;
     color: #fff;
 }
@@ -134,6 +132,7 @@
 
 .music-action-cluster .island-action-btn i {
     font-size: 14px;
+    color: inherit;
 }
 
 .music-action-cluster .island-action-btn:hover {

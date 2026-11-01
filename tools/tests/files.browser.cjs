@@ -78,7 +78,66 @@ const path = require('node:path');
         const shots = path.join(process.cwd(), '.impeccable/review'); fs.mkdirSync(shots, { recursive: true });
         await page.addStyleTag({ content: 'html { background: #17151b !important; }' });
         const shot = async name => { await settled(); await page.screenshot({ path: path.join(shots, name) }); };
-        await page.evaluate(() => window.island.openFiles()); await settled();
+        // Les onglets visibles ne doivent pas disparaître à la fin du ressort de la capsule.
+        const tabsOpening = await page.evaluate(async () => {
+            const { mountFiles } = await import('/files/controller.js');
+            const { initFiles } = await import('/files/store.js');
+            await initFiles();
+            const host = document.createElement('div');
+            host.style.cssText = 'position:fixed;left:0;top:0;width:560px;height:496px';
+            document.body.append(host);
+            let release;
+            const controller = mountFiles(host, { onClose() {}, ready: new Promise(resolve => { release = resolve; }) });
+            try {
+                const root = host.shadowRoot;
+                const tabs = root.querySelector('#files-tabs');
+                await new Promise(requestAnimationFrame);
+                const beforeReady = Number(getComputedStyle(tabs).opacity);
+                release();
+                await new Promise(requestAnimationFrame);
+                const afterReady = Number(getComputedStyle(tabs).opacity);
+                return { beforeReady, afterReady };
+            } finally { controller.destroy(); host.remove(); }
+        });
+        assert.equal(tabsOpening.beforeReady, 1);
+        assert.equal(tabsOpening.afterReady, 1, 'les onglets restent visibles quand la capsule finit de s’ouvrir');
+        // Suivre l'ouverture complète, y compris le retrait de data-intro à 900 ms.
+        for (const motion of ['fluid', 'vivid', 'sober']) {
+            const opening = await page.evaluate(async motion => {
+                localStorage.setItem('liquid_motion_level', motion);
+                window.island.syncMotionPreference();
+                const start = performance.now();
+                let visible = false, frames = 0;
+                const flickers = [];
+                window.island.openFiles();
+                await new Promise(resolve => {
+                    const sample = () => {
+                        const host = window.island._filesHost;
+                        const tabs = host?.shadowRoot?.querySelector('#files-tabs');
+                        let opacity = tabs ? 1 : 0;
+                        // Les parents peuvent masquer les onglets sans changer leur propre style.
+                        for (let node = tabs; node; node = node.parentElement || node.getRootNode().host) {
+                            const style = getComputedStyle(node);
+                            opacity *= Number(style.opacity);
+                            if (node.hidden || style.display === 'none' || style.visibility === 'hidden') opacity = 0;
+                        }
+                        if (opacity >= .99) visible = true;
+                        if (visible && opacity < .95) flickers.push(Math.round(performance.now() - start));
+                        frames++;
+                        if (performance.now() - start < 2100) requestAnimationFrame(sample);
+                        else resolve();
+                    };
+                    requestAnimationFrame(sample);
+                });
+                return { visible, frames, flickers };
+            }, motion);
+            assert.equal(opening.visible, true, `onglets affichés en mouvement ${motion}`);
+            assert.ok(opening.frames > 5, 'plusieurs images de l’ouverture sont observées');
+            assert.deepEqual(opening.flickers, [], `aucune disparition après apparition, mouvement ${motion}`);
+            await page.getByRole('button', { name: 'Fermer les fichiers', exact: true }).click();
+            await settled();
+        }
+        await page.evaluate(() => { localStorage.setItem('liquid_motion_level', 'system'); window.island.syncMotionPreference(); window.island.openFiles(); }); await settled();
         await page.getByRole('heading', { name: 'Déposez vos fichiers' }).waitFor();
         await shot('files-clean-empty.png');
         await page.getByRole('tab', { name: 'Activité', exact: true }).click();
