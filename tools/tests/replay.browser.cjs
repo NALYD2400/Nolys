@@ -181,10 +181,11 @@ const { spawnSync } = require('node:child_process');
         assert.equal(state.recording, true, 'closing the panel must not stop capture');
         await page.evaluate(() => window.__dispatch('replay-status', {}));
         const satellite = page.locator('#island-replay-satellite');
-        await page.waitForSelector('#island-replay-satellite.is-visible');
+        await page.waitForSelector('.compact-activity.is-recording');
+        assert.match(await page.locator('.compact-activity').getAttribute('aria-label'), /REC/);
+        assert.equal(await satellite.getAttribute('aria-hidden'), 'true', 'REC is shown in the main capsule');
+        assert.equal(await satellite.getAttribute('tabindex'), '-1');
         assert.equal(await satellite.textContent(), '', 'Replay satellite must contain only an icon');
-        assert.equal(await satellite.getAttribute('tabindex'), '0');
-        assert.match(await satellite.getAttribute('aria-label'), /REC/);
         const assertSatellites = async expectedSide => {
             await page.waitForTimeout(850);
             const boxes = await page.evaluate(() => {
@@ -196,7 +197,7 @@ const { spawnSync } = require('node:child_process');
             for (const other of boxes.others) assert.ok(boxes.replay.right <= other.x || boxes.replay.x >= other.right, 'satellites must not overlap');
             return boxes;
         };
-        const setActivities = async (microphone, timer, timerValue = 5) => {
+        const setActivities = async (microphone, timer, timerValue = 45) => {
             await page.evaluate(({ microphone, timer, timerValue }) => {
                 const island = window.island;
                 // UI fixtures only: no native microphone or timer is started.
@@ -204,17 +205,21 @@ const { spawnSync } = require('node:child_process');
                 island.startMicLoop = () => {};
                 island.syncMicActivity();
                 island._timers.reset(); island._timers.setMode('countdown');
-                island._timers.setDuration(Math.max(300, timerValue));
+                island._timers.setDuration(timerValue);
                 if (timer) island._timers.toggle();
+                island.syncCompactActivity();
                 island.syncTimerSatellite();
             }, { microphone, timer, timerValue });
         };
-        await assertSatellites('right');
-        await setActivities(true, false); await assertSatellites('left');
-        await page.screenshot({ path: path.join(shots, 'replay-satellite-microphone.png') });
         await setActivities(false, true); await assertSatellites('right');
-        await setActivities(true, true, 3665); await assertSatellites('right');
+        assert.equal(await page.locator('.compact-activity.is-urgent').count(), 1, 'imminent timer takes priority over REC');
+        await setActivities(true, true); await assertSatellites('left');
+        await page.screenshot({ path: path.join(shots, 'replay-satellite-microphone.png') });
+        await setActivities(true, true, 3665);
+        await page.waitForSelector('.compact-activity.is-recording');
+        assert.equal(await page.locator('#island-timer-satellite.is-visible.is-hours').count(), 1, 'distant timer remains accessible beside REC');
         await page.screenshot({ path: path.join(shots, 'replay-satellite-all-active.png') });
+        await setActivities(true, true); await assertSatellites('left');
         const edgeLeft = await page.evaluate(() => innerWidth - window.island.el.getBoundingClientRect().right - 60);
         const edge = await page.addStyleTag({ content: `#dynamic-island-container { left: ${edgeLeft}px; }` });
         await page.evaluate(() => window.island.positionMicSatellite());
@@ -235,7 +240,7 @@ const { spawnSync } = require('node:child_process');
         await page.evaluate(() => window.island.returnToMusicIdle()); await settled();
         await page.waitForSelector('#island-replay-satellite.is-visible');
         await setActivities(false, false);
-        await satellite.click(); await settled();
+        await page.locator('.compact-activity.is-recording').click(); await settled();
         await page.getByRole('button', { name: 'Terminer REC', exact: true }).click();
         await page.getByRole('button', { name: 'Arrêter la capture', exact: true }).click();
         assert.equal(state.phase, 'idle');

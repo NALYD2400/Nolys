@@ -1,3 +1,5 @@
+@import '../shared/feedback.css';
+
 /* Bibliothèque : mêmes matières que les vues de l'Island (historique, mélangeur, lecteur).
  * Couleur d'accent : --neon-primary, posée par le thème ou la pochette, comme partout ailleurs. */
 :host {
@@ -399,19 +401,9 @@ button:disabled, [aria-disabled="true"] { cursor: default; }
     bottom: 96px;
     z-index: 30;
     max-width: calc(100% - 64px);
-    padding: 8px 14px;
-    border-radius: 999px;
-    background: rgba(20, 20, 26, 0.94);
-    border: 1px solid rgb(from var(--accent) r g b / 0.35);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
-    font-size: 11px;
-    font-weight: 600;
-    text-align: center;
     transform: translateX(-50%);
-    animation: lib-toast 0.45s var(--spring) backwards;
     pointer-events: none;
 }
-.lib-toast.is-error { border-color: rgba(255, 69, 58, 0.5); color: #ffd1cd; }
 
 .lib-menu {
     position: absolute;
@@ -523,7 +515,6 @@ button:disabled, [aria-disabled="true"] { cursor: default; }
 @keyframes lib-row-in { from { opacity: 0; transform: translateY(8px); } }
 @keyframes lib-pop { from { opacity: 0; transform: scale(0.92); } }
 @keyframes lib-fade { from { opacity: 0; } }
-@keyframes lib-toast { from { opacity: 0; transform: translate(-50%, 8px) scale(0.96); } }
 @keyframes lib-eq { to { transform: scaleY(1); } }
 @keyframes lib-spin { to { transform: rotate(360deg); } }
 

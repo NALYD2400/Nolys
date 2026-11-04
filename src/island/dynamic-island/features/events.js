@@ -11,7 +11,7 @@ import { isTextInputEvent } from '../../../shared/context-menu.js';
 const ISLAND_ACTIONS = new Set([
     'setMode', 'openSettings', 'updateAudioSessions', 'dismissNotification', 'toggleCurrentMusicFavorite',
     'toggleAudioDeviceDropdown', 'toggleMicDeviceDropdown', 'selectAudioDevice', 'selectMicDevice',
-    'setTimerMode', 'resetTimer', 'toggleTimer',
+    'setTimerMode', 'resetTimer', 'toggleTimer', 'openCompactActivity',
 ]);
 
 export const eventMethods = {

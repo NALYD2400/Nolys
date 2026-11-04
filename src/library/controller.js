@@ -459,7 +459,11 @@ export function mountLibrary(host, { player, savedState = {}, ready = Promise.re
             case 'play': await play(id); break;
             case 'favorite': {
                 const track = player.library.tracks.find(t => t.id === id);
-                if (track) await mutate({ type: 'favorite', id, value: !track.favorite });
+                if (track) {
+                    const favorite = !track.favorite;
+                    await mutate({ type: 'favorite', id, value: favorite });
+                    toast(favorite ? 'Ajouté aux favoris' : 'Retiré des favoris', false, 'ph-star');
+                }
                 break;
             }
             case 'track-menu': trackMenu(id, button); break;

@@ -117,3 +117,20 @@ body .di-stagger > .mic-sheet.leaving {
 
 /* Le choix Windows applique motion-sober via matchMedia. Les animations utiles
  * (chargement, progression) continuent : aucune règle globale ne les fige. */
+body.motion-sober .island-action-btn,
+body.motion-sober .island-action-btn i,
+body.motion-sober .control-btn-music {
+    transition-duration: 0.12s;
+}
+
+body.motion-sober .island-action-btn:hover,
+body.motion-sober .island-action-btn:active,
+body.motion-sober .island-action-btn:hover i,
+body.motion-sober .control-btn-music:hover {
+    transform: none;
+}
+
+body.motion-sober .progress-tooltip {
+    transition: opacity 0.12s ease-out;
+    transform: translate(-50%, 0);
+}

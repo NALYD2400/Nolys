@@ -7,6 +7,7 @@ export const navigationMethods = {
     async transitionState(updateFn) {
         // Mode placement : l'Island reste repliée (aucune ouverture ni notification).
         if (this._layoutEditMode) return;
+        this.clearIslandFeedback?.();
         // Une transition est déjà en cours : celle-ci est rejouée juste après, au lieu d'être perdue
         // (une notification reçue pendant un changement de mode ne s'affichait jamais).
         if (this._transitionInProgress) {

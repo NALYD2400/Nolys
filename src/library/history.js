@@ -140,7 +140,11 @@ export function mountHistory(host, { store, savedState = {}, ready = Promise.res
                 break;
             }
             case 'open': if (item) await store.open(item, item.localTrackId ? 'open' : 'search'); break;
-            case 'favorite': if (item) { await store.toggleFavorite(item); render(); } break;
+            case 'favorite': if (item) {
+                const favorite = !store.isFavorite(item);
+                await store.toggleFavorite(item); render();
+                toast(favorite ? 'Ajouté aux favoris' : 'Retiré des favoris', false, 'ph-star');
+            } break;
             case 'row-menu': rowMenu(key, button); break;
             case 'play': closeMenu(); if (item) await store.open(item, 'open'); break;
             case 'show-library': closeMenu(); if (item) await store.open(item, 'search'); break;

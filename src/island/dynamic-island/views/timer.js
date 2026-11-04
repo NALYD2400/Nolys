@@ -55,6 +55,7 @@ export const timerView = {
             this.onCountdownDone(due);
         }
         if (this.isExpanded && this.mode === 'timer') this.updateTimerDisplay();
+        this.syncCompactActivity?.();
         this.syncTimerSatellite();
     },
 
@@ -69,7 +70,7 @@ export const timerView = {
                         <button type="button" data-timer-action="stopwatch" aria-pressed="${!countdown}" class="${countdown ? '' : 'on'}">Chrono</button>
                         <button type="button" data-timer-action="countdown" aria-pressed="${countdown}" class="${countdown ? 'on' : ''}">Minuteurs</button>
                     </div>
-                    <button class="island-action-btn menu-btn" data-island-action="setMode" data-arg="menu" title="Menu des modules" aria-label="Menu des modules"><i class="ph-bold ph-squares-four"></i></button>
+                    <button class="island-action-btn menu-btn" data-island-action="setMode" data-arg="menu" title="Menu des modules" aria-label="Menu des modules"><i class="ph ph-squares-four"></i></button>
                 </div>
                 ${countdown ? `<div class="timer-management">
                     <div class="timer-selector-row">
@@ -235,7 +236,10 @@ export const timerView = {
         if (value) value.textContent = label;
         bubble.classList.toggle('is-wide', wide); bubble.classList.toggle('is-hours', hours);
         bubble.classList.toggle('is-stopwatch', active?.mode !== 'countdown');
-        bubble.classList.toggle('is-visible', Boolean(active) && !this.isExpanded);
+        const visible = Boolean(active) && !this.isExpanded && this._compactActivityKind !== 'timer';
+        bubble.classList.toggle('is-visible', visible);
+        bubble.tabIndex = visible ? 0 : -1;
+        bubble.setAttribute('aria-hidden', String(!visible));
         bubble.style.setProperty('--timer-pct', String(active?.preset ? Math.min(100, Math.round(total / active.preset * 100)) : 100));
         const title = active ? `${active.name} : ${displayTime(total)}${active.count > 1 ? ` (${active.count} minuteurs en cours)` : ''}. Cliquer pour ouvrir.` : 'Ouvrir les horloges';
         bubble.title = title; bubble.setAttribute('aria-label', title);

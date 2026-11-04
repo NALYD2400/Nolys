@@ -82,7 +82,7 @@ export const systemViews = {
             </div>
             <div style="display: flex; gap: 10px;">
                 <button class="island-action-btn menu-btn" data-island-action="setMode" data-arg="menu" title="Menu des modules">
-                    <i class="ph-bold ph-squares-four"></i>
+                    <i class="ph ph-squares-four"></i>
                 </button>
             </div>
         </div>
@@ -165,7 +165,7 @@ export const systemViews = {
                         <i class="ph ph-globe-stand"></i> Pulse Réseau
                     </div>
                     <button class="island-action-btn menu-btn" data-island-action="setMode" data-arg="menu" title="Menu des modules">
-                        <i class="ph-bold ph-squares-four"></i>
+                        <i class="ph ph-squares-four"></i>
                     </button>
                 </div>
 

@@ -6,6 +6,7 @@ import { publishCover } from '../../../shared/cover-bus.js';
 import { blendHexColors, hexToRgb, rgbToHex } from '../helpers/color.js';
 import { coverBlurPx, getDisplayMediaArt, getRawDisplayMediaArt, isSocialFallbackIcon } from '../helpers/media-art.js';
 import { getMusicHistoryKey } from '../helpers/music-search.js';
+import { coverAccent, coverLightness, coverShade } from '../helpers/cover-readability.js';
 
 export const coverThemeMethods = {
     preloadMediaArt(artUrl, onReady) {
@@ -107,6 +108,9 @@ export const coverThemeMethods = {
     },
 
     _extractColorsFromCover(coverUrl) {
+        const request = this._coverAnalysisRequest = (this._coverAnalysisRequest || 0) + 1;
+        this._coverReadability = null;
+        this.syncCoverReadability();
         if (!coverUrl) {
             this._coverColors = null;
             return;
@@ -117,6 +121,7 @@ export const coverThemeMethods = {
             img.crossOrigin = "Anonymous";
         }
         img.onload = () => {
+            if (request !== this._coverAnalysisRequest) return;
             try {
                 const canvas = document.createElement('canvas');
                 canvas.width = 10;
@@ -125,6 +130,8 @@ export const coverThemeMethods = {
                 const ctx = canvas.getContext('2d', { willReadFrequently: true });
                 ctx.drawImage(img, 0, 0, 10, 10);
                 const imgData = ctx.getImageData(0, 0, 10, 10).data;
+                this._coverReadability = { cover: coverUrl, lightness: coverLightness(imgData) };
+                this.syncCoverReadability();
 
                 let rSum = 0, gSum = 0, bSum = 0, count = 0;
                 let maxVibrancy = -1;
@@ -187,7 +194,10 @@ export const coverThemeMethods = {
             if (this.hasGlassSurfaces()) this.syncGlassControls();
         };
         img.onerror = () => {
+            if (request !== this._coverAnalysisRequest) return;
             this._coverColors = null;
+            this._coverReadability = null;
+            this.syncCoverReadability();
             this.restorePresetTheme();
         };
         img.src = coverUrl;
@@ -204,7 +214,8 @@ export const coverThemeMethods = {
         // Check if cover color sync is enabled in settings
         if (localStorage.getItem('liquid_cover_color_sync') === 'false') return;
 
-        const { primary, secondary } = this._coverColors;
+        const primary = coverAccent(this._coverColors.primary);
+        const secondary = coverAccent(this._coverColors.secondary);
         const priHex = rgbToHex(primary.r, primary.g, primary.b);
         const secHex = rgbToHex(secondary.r, secondary.g, secondary.b);
         const priRgbStr = `${primary.r}, ${primary.g}, ${primary.b}`;
@@ -341,7 +352,21 @@ export const coverThemeMethods = {
         return (Number.isFinite(percent) ? Math.max(0, Math.min(100, percent)) : 50) * 0.009;
     },
 
+    syncCoverReadability() {
+        const cover = getDisplayMediaArt(this.musicData);
+        const compactCover = this.musicData?.isPlaying
+            && localStorage.getItem('liquid_music_enabled') !== 'false'
+            && localStorage.getItem('liquid_island_idle_cover_bg') !== 'false'
+            && localStorage.getItem('liquid_cover_color_sync') !== 'false';
+        const opacity = localStorage.getItem('liquid_eco_mode') === 'true' ? 0
+            : this.isExpanded ? this.getPlayerCoverOpacity() : compactCover ? .55 : 0;
+        const lightness = this._coverReadability?.cover === cover ? this._coverReadability.lightness : 1;
+        const shade = cover ? coverShade(lightness, opacity) : 0;
+        this.el.style.setProperty('--music-readability-shade', shade.toFixed(3));
+    },
+
     syncGlobalCoverAesthetics() {
+        this.syncCoverReadability();
         const data = this.musicData;
         const bgLayer = this.el.querySelector('.island-bg-layer');
         const effectiveArt = getDisplayMediaArt(data);

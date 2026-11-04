@@ -6,6 +6,7 @@ import { getMusicHistoryKey } from '../helpers/music-search.js';
 
 export const musicView = {
     renderMusic() {
+        this.syncCoverReadability();
         const data = this.musicData || {
             title: "Aucune lecture",
             artist: "Lecteur média",

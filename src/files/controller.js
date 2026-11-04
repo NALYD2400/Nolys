@@ -151,7 +151,7 @@ export function mountFiles(host, { onClose, onBack = onClose, ready = Promise.re
         const openDetails = [...content.querySelectorAll('details[open]')].map(el => el.id);
         root.querySelector('#files-tabs').innerHTML = tabs();
         root.querySelectorAll('.lib-header button').forEach(button => { button.disabled = files.busy; });
-        root.querySelector('#files-notice').textContent = files.notice;
+        root.querySelector('#files-notice').textContent = files.notice === 'Fichiers copiés.' ? '' : files.notice;
         const recovery = files.repairable ? `<section class="files-recovery" aria-label="Récupération de l’historique"><p>Vous pouvez ouvrir le journal ou démarrer un historique neuf. Une copie de l’original sera conservée avant toute reconstruction ; les exports restent dans leur dossier.</p><div class="files-actions">${button('reveal-history', 'Ouvrir l’emplacement', 'folder-open')}${confirmRepair ? button('confirm-repair', 'Conserver l’original et reconstruire', 'arrow-clockwise', files.busy ? 'disabled' : '') + button('cancel-repair', 'Annuler', 'x') : button('repair-history', 'Reconstruire l’historique…', 'first-aid')}</div></section>` : '';
         content.innerHTML = `${files.error ? `<div class="files-feedback files-error" role="alert">${e(files.error)}${button('dismiss-error', 'Fermer le message', 'x', 'aria-label="Fermer le message"')}</div>` : ''}${recovery}${files.tab === 'history' ? history() : files.tab === 'preferences' ? preferences() : selection() + tools()}`;
         content.setAttribute('aria-labelledby', `files-tab-${files.tab}`);
@@ -199,8 +199,11 @@ export function mountFiles(host, { onClose, onBack = onClose, ready = Promise.re
             case 'cancel-repair': confirmRepair = false; render(); break;
             case 'confirm-repair': await configure('files_repair_history'); confirmRepair = false; render(); break;
             case 'reveal-history': await act('files_reveal_history'); break;
-            case 'copy-inputs': await copy(inputIds); break;
-            case 'copy-output': await copy([outputId]); break;
+            case 'copy-inputs':
+            case 'copy-output':
+                await copy(button.dataset.action === 'copy-inputs' ? inputIds : [outputId]);
+                if (files.notice) panel.toast(files.notice, false, 'ph-copy');
+                break;
             case 'reveal-input': await act('files_reveal', { id: inputIds[0] }); break;
             case 'reveal-output': await act('files_reveal', { id: outputId }); break;
             case 'exports': await act('files_reveal', { id: null }); break;

@@ -179,7 +179,7 @@ export const controlCenterView = {
                     <div class="ic-header-actions">
                         <button type="button" class="ic-action-btn" data-island-action="openSettings" data-arg="control" title="Configurer le centre de contrôle" aria-label="Configurer le centre de contrôle"><i class="ph ph-gear" aria-hidden="true"></i></button>
                         <button type="button" class="ic-action-btn power" id="ic-shutdown" title="Quitter Nolys" aria-label="Quitter Nolys"><i class="ph ph-power" aria-hidden="true"></i></button>
-                        <button type="button" class="ic-close" data-island-action="setMode" data-arg="menu" title="Menu des modules" aria-label="Menu des modules"><i class="ph-bold ph-squares-four" aria-hidden="true"></i></button>
+                        <button type="button" class="ic-close" data-island-action="setMode" data-arg="menu" title="Menu des modules" aria-label="Menu des modules"><i class="ph ph-squares-four" aria-hidden="true"></i></button>
                     </div>
                 </div>
                 

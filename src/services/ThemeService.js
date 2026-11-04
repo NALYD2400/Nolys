@@ -1,4 +1,5 @@
 import { readRecord } from '../shared/safe-storage.js';
+import { offlineArt } from '../shared/privacy.js';
 
 const hexToRgb = (hex) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -104,9 +105,10 @@ export const ThemeService = {
         }
 
         const bgLayer = island.querySelector('.island-bg-layer');
-        if (bgLayer && config.bgImage) {
-            bgLayer.style.backgroundImage = `url('${config.bgImage}')`;
-            bgLayer.style.opacity = (config.imgOpacity !== undefined ? config.imgOpacity : 100) / 100;
+        if (bgLayer) {
+            const background = offlineArt(config.bgImage);
+            bgLayer.style.backgroundImage = background ? `url(${JSON.stringify(background.replace(/\\/g, '/'))})` : 'none';
+            bgLayer.style.opacity = background ? (config.imgOpacity ?? 100) / 100 : '0';
         }
     },
 

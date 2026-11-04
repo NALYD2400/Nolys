@@ -2,6 +2,7 @@
 import { ipcRenderer } from '../../../shared/ipc.js';
 import { escapeHtml } from '../helpers/format.js';
 import { getMusicSearchProvider, isHistoryTrack } from '../helpers/music-search.js';
+import { showFeedback, clearFeedback } from '../../../shared/feedback.js';
 
 export const volumeMethods = {
     updateSystemVolumeSlider(slider, value) {
@@ -58,23 +59,17 @@ export const volumeMethods = {
     },
 
     showIslandFeedback(message, icon = 'ph-check') {
-        if (this._feedbackTimeout) clearTimeout(this._feedbackTimeout);
+        let toast = this.el.querySelector('.island-feedback-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.className = 'island-feedback-toast';
+            this.el.appendChild(toast);
+        }
+        showFeedback(toast, message, { icon, error: icon.includes('warning') });
+    },
 
-        const existing = this.el.querySelector('.island-feedback-toast');
-        if (existing) existing.remove();
-
-        const toast = document.createElement('div');
-        toast.className = 'island-feedback-toast';
-        toast.innerHTML = `<i class="ph ${icon}"></i><span>${escapeHtml(message)}</span>`;
-        this.el.appendChild(toast);
-
-        this._feedbackTimeout = setTimeout(() => {
-            toast.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
-            toast.style.opacity = '0';
-            toast.style.transform = 'translate(-50%, -50%) scale(0.94)';
-            setTimeout(() => toast.remove(), 260);
-            this._feedbackTimeout = null;
-        }, 1100);
+    clearIslandFeedback() {
+        clearFeedback(this.el.querySelector('.island-feedback-toast'));
     },
 
     getGroupedSessions(sessions) {

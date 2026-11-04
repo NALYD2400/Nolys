@@ -3,11 +3,19 @@ import { ThemeService } from '../../../services/ThemeService.js';
 import { escapeHtml, formatTime } from '../helpers/format.js';
 import { applyLoopMarquee } from '../helpers/marquee.js';
 import { APP_LOGO_ART, coverBlurPx, getDisplayMediaArt, getFallbackIcon, getServiceArtStyle, shouldPreferServiceIcon } from '../helpers/media-art.js';
+import { compactActivity } from '../helpers/compact-activity.js';
+import { replay } from '../../../replay/store.js';
+import { offlineArt } from '../../../shared/privacy.js';
+import { readRecord } from '../../../shared/safe-storage.js';
 
 export const idleView = {
     renderIdle() {
-        this.syncTimerSatellite?.();
         if (this.isExpanded) return;
+        const activity = this.getCompactActivity();
+        this._compactActivityKind = activity?.kind || null;
+        this.syncTimerSatellite?.();
+        this.syncReplaySatellite?.();
+        this.syncCoverReadability();
         // Largeur adaptée au titre : recalculée plus bas pour la musique, sinon taille du CSS.
         this.el.style.width = '';
 
@@ -25,10 +33,11 @@ export const idleView = {
                 bgLayer.style.opacity = '0.55'; // Vibrant visibility for tiny capsule
                 bgLayer.style.filter = `blur(${coverBlurPx(0.55)}px) saturate(200%)`;
             } else {
-                const islandConfig = JSON.parse(localStorage.getItem('liquid_island_config') || '{}');
-                if (islandConfig.bgImage && (!this.musicData || !this.musicData.isPlaying)) {
-                    bgLayer.style.backgroundImage = `url('${islandConfig.bgImage.replace(/\\/g, '/')}')`;
-                    bgLayer.style.opacity = (islandConfig.imgOpacity || 100) / 100;
+                const islandConfig = readRecord('liquid_island_config');
+                const background = offlineArt(islandConfig.bgImage);
+                if (background && !this.musicData?.isPlaying) {
+                    bgLayer.style.backgroundImage = `url(${JSON.stringify(background.replace(/\\/g, '/'))})`;
+                    bgLayer.style.opacity = (islandConfig.imgOpacity ?? 100) / 100;
                     bgLayer.style.filter = `blur(${islandConfig.blur ?? 30}px)`;
                 } else {
                     bgLayer.style.backgroundImage = 'none';
@@ -64,11 +73,22 @@ export const idleView = {
             return;
         }
 
-        // Mini Network Indicator if in network mode but idle? 
-        // Or if user prefers network monitoring in idle. 
-        // For now, let's keep idle standard unless playing music or explicitly notifying.
-        // However, if we want the "Pulse" to be useful for background monitoring, we could add a tiny dot or indicator.
-        // Let's stick to music logic for now as per usual OS behavior.
+        if (activity) {
+            this.el.classList.toggle('island-active-music', Boolean(musicEnabled && this.musicData?.isPlaying));
+            this.el.classList.remove('island-active-network');
+            if (!this.el.classList.contains('island-game-compact')) this.el.style.width = '200px';
+            this.content.innerHTML = `<div class="island-idle-content">
+                <button type="button" class="compact-activity ${activity.urgent ? 'is-urgent' : ''} ${activity.kind === 'recording' ? 'is-recording' : ''}"
+                    data-island-action="openCompactActivity">
+                    <i class="ph ${activity.icon}" aria-hidden="true"></i>
+                    <span class="compact-activity-label"></span><strong class="compact-activity-value"></strong>
+                </button></div>`;
+            this.updateCompactActivity(activity);
+            this._vizCanvas = null;
+            this.syncVisualizerActivity();
+            this.positionMicSatellite?.();
+            return;
+        }
 
         if (musicEnabled && this.musicData && this.musicData.isPlaying) {
             this.el.classList.add('island-active-music');
@@ -158,6 +178,44 @@ export const idleView = {
             // Restore default settings glow
             ThemeService.applyIslandSettings();
         }
+    },
+
+    getCompactActivity() {
+        if (this._layoutEditMode || ['ai-thinking', 'ai-action', 'notification'].includes(this.mode)) return null;
+        return compactActivity(this._timers?.satellite, replay.state.snapshot,
+            this.musicData?.isPlaying && localStorage.getItem('liquid_music_enabled') !== 'false');
+    },
+
+    updateCompactActivity(activity) {
+        const button = this.content.querySelector('.compact-activity');
+        if (!button) return;
+        for (const [selector, text] of [['.compact-activity-label', activity.label], ['.compact-activity-value', activity.value]]) {
+            const node = button.querySelector(selector);
+            if (node.textContent !== text) node.textContent = text;
+        }
+        button.classList.toggle('is-urgent', activity.urgent);
+        const label = `${activity.label} : ${activity.value}. Ouvrir ${activity.mode === 'timer' ? 'les horloges' : 'Replay et enregistrement'}.`;
+        if (button.getAttribute('aria-label') !== label) button.setAttribute('aria-label', label);
+    },
+
+    syncCompactActivity() {
+        if (this.isExpanded || this._isTransitioning || this._layoutEditMode || this._fileReceiving
+            || ['ai-thinking', 'ai-action', 'notification'].includes(this.mode)) return;
+        const activity = this.getCompactActivity();
+        if ((activity?.kind || null) !== (this._compactActivityKind || null)) this.renderIdle();
+        else if (activity) this.updateCompactActivity(activity);
+    },
+
+    openCompactActivity() {
+        const activity = this.getCompactActivity();
+        if (!activity) return;
+        if (activity.kind === 'timer') {
+            const timer = this._timers.satellite;
+            if (timer?.id) this._timers.select(timer.id);
+            else this._timers.setMode('stopwatch');
+            this.persistTimers();
+        }
+        this.openExpandedMode(activity.mode);
     },
 
     /**

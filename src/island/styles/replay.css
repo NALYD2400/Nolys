@@ -2,5 +2,8 @@
 #dynamic-island.island-mode-replay .island-library-view { --panel-height: 536px; }
 #dynamic-island.island-mode-replay.island-replay-player { width: var(--replay-player-width, 680px); }
 .island-satellite-replay { appearance: none; }
+.island-satellite-replay .satellite-icon { display: grid; place-items: center; width: 20px; height: 20px; line-height: 1; }
+/* Même centrage optique que la caméra dans la capsule compacte. */
+.island-satellite-replay .satellite-icon::before { display: block; transform: translateY(1px); }
 .island-satellite-replay.is-recording .satellite-icon { color: #ff9696; }
 .island-satellite-replay:focus-visible { outline: 2px solid var(--neon-primary); outline-offset: 3px; }

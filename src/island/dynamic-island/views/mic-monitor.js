@@ -58,8 +58,8 @@ export const micMonitorView = {
                         <span class="mic-title-main">Retour micro</span>
                         <span class="mic-title-state"><span class="mic-state-dot"></span>${escapeHtml(state)}</span>
                     </div>
-                    <button class="mic-icon-btn" data-mic="settings" title="Plus de réglages (balance, latence, seuil)"><i class="ph-bold ph-sliders-horizontal"></i></button>
-                    <button class="mic-icon-btn" data-mic="back" title="Centre de contrôle"><i class="ph-bold ph-squares-four"></i></button>
+                    <button class="mic-icon-btn" data-mic="settings" title="Plus de réglages (balance, latence, seuil)"><i class="ph ph-sliders-horizontal"></i></button>
+                    <button class="mic-icon-btn" data-mic="back" title="Centre de contrôle"><i class="ph ph-squares-four"></i></button>
                     <button class="mic-switch ${enabled ? 'on' : ''}" data-mic="toggle" role="switch" aria-checked="${enabled}" aria-label="Retour micro" title="${enabled ? 'Couper le retour' : 'Activer le retour'}">
                         <span class="mic-switch-knob"></span>
                     </button>

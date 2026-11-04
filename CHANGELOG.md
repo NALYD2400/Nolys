@@ -1,5 +1,15 @@
 # Historique
 
+## 2.6.4 — 4 novembre 2026
+
+- Fond musical adaptatif : assombrissement calculé à partir des zones claires de la pochette, avec protection des titres et des temps sans modifier le réglage d’intensité.
+- Mode compact : dernière minute d’un minuteur prioritaire, puis REC et les autres horloges ; un replay en attente laisse la musique visible. Clic sur l’activité pour ouvrir son module.
+- Retours d’action partagés entre les vues : même présentation, durée et annonce accessible pour les favoris, la copie de fichiers et la sauvegarde Replay.
+- Icônes des boutons de menu harmonisées dans les différentes vues ; boutons regroupés plus faciles à cliquer et focus clavier visible dans le lecteur.
+- Progression musicale : zone de clic élargie sans épaissir la piste, suppression du déplacement des temps au survol et infobulle contenue aux extrémités.
+- Survols plus stables dans les groupes de boutons, indicateur de lecture sans pulsation continue et interactions simplifiées en mode de mouvement sobre.
+- Un fond personnalisé mal renseigné ne bloque plus le démarrage. Les fonds distants respectent le mode hors ligne.
+
 ## 2.6.3 — 1 novembre 2026
 
 - Menu au clic droit accessible dans toutes les vues de l’Island, avec accès direct à sa personnalisation. Les menus propres aux morceaux et le copier-coller dans les champs de texte sont préservés.

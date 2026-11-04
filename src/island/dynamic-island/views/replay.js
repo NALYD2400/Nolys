@@ -17,6 +17,7 @@ export const replayView = {
         indicator.addEventListener('click', event => { event.stopPropagation(); this.openReplay(); });
         replay.subscribe(({ snapshot }) => {
             if (!snapshot) return;
+            this.syncCompactActivity?.();
             this.syncReplaySatellite();
         });
         initReplay();
@@ -25,7 +26,8 @@ export const replayView = {
         const indicator = this._replaySatellite;
         if (!indicator) return;
         const snapshot = replay.state.snapshot;
-        const visible = activeCapture(snapshot) && !this.isExpanded && !this._layoutEditMode;
+        const visible = activeCapture(snapshot) && !this.isExpanded && !this._layoutEditMode
+            && !['recording', 'replay'].includes(this._compactActivityKind);
         indicator.classList.toggle('is-visible', visible);
         indicator.classList.toggle('is-recording', Boolean(snapshot?.recording));
         indicator.tabIndex = visible ? 0 : -1;

@@ -484,7 +484,7 @@ export const mixerMethods = {
                             <i class="ph ph-microphone"></i>
                         </button>
                         <button class="island-action-btn menu-btn" data-island-action="setMode" data-arg="menu" title="Menu des modules">
-                            <i class="ph-bold ph-squares-four"></i>
+                            <i class="ph ph-squares-four"></i>
                         </button>
                     </div>
                 </div>

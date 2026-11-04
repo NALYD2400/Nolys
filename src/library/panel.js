@@ -4,6 +4,7 @@
  */
 import styles from './styles.css?inline';
 import { icon } from './view.js';
+import { showFeedback, clearFeedback } from '../shared/feedback.js';
 
 // Feuille analysée une seule fois et partagée par chaque ouverture (un <style> par vue
 // était réanalysé à chaque fois, au moment où la capsule finit de s'agrandir).
@@ -24,17 +25,12 @@ export function createPanel(host, markup) {
     const abort = new AbortController();
     const on = (target, name, callback, options = {}) => target.addEventListener(name, callback, { ...options, signal: abort.signal });
     let disposed = false;
-    let toastTimer;
     let menuAnchor = null;
 
-    function toast(message, error = false) {
+    function toast(message, error = false, icon) {
         const element = $('#toast');
         if (disposed || !element) return;
-        clearTimeout(toastTimer);
-        element.textContent = message;
-        element.classList.toggle('is-error', error);
-        element.hidden = !message;
-        if (message) toastTimer = setTimeout(() => { element.hidden = true; }, error ? 7000 : 3200);
+        showFeedback(element, message, { error, ...(icon ? { icon } : {}) });
     }
 
     /** Menu ancré sous un bouton, ou au pointeur (clic droit), sans sortir de la capsule. */
@@ -124,7 +120,7 @@ export function createPanel(host, markup) {
         },
         destroy() {
             disposed = true;
-            clearTimeout(toastTimer);
+            clearFeedback($('#toast'));
             clearTimeout(introTimer);
             abort.abort();
         },

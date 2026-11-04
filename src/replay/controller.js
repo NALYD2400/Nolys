@@ -317,7 +317,11 @@ export function mountReplay(host, { onClose, onBack, ready = Promise.resolve(), 
         if (action === 'reindex') { await replay.mutate('replay_reindex'); if (!destroyed) { render(true); panel.toast(replay.state.snapshot?.notice || 'Réindexation terminée'); } return; }
         if (action === 'relocate') { await replay.mutate('replay_relocate', { id: target.closest('[data-clip]').dataset.clip }); return; }
         if (action === 'recover') { await replay.mutate('replay_recover', { id: target.dataset.recovery }); if (!destroyed) { panel.toast(replay.state.snapshot?.notice || 'Récupération terminée'); await maintenance(); } return; }
-        if (action === 'primary') await replay.action(activeCapture(replay.state.snapshot) ? 'save' : 'start');
+        if (action === 'primary') {
+            const saving = activeCapture(replay.state.snapshot);
+            const succeeded = await replay.action(saving ? 'save' : 'start');
+            if (saving && succeeded && !destroyed) panel.toast('Replay sauvegardé', false, 'ph-check');
+        }
         else if (action === 'record') await replay.action(replay.state.snapshot?.recording ? 'record-stop' : 'record');
         else if (action === 'stop') await replay.action('stop');
         else if (action === 'refresh') { await replay.loadSources(); render(true); sourcePreview.refresh(); }
