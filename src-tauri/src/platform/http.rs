@@ -111,8 +111,16 @@ mod tests {
                     std::thread::sleep(Duration::from_millis(5));
                 };
                 let _ = stream.set_read_timeout(Some(Duration::from_secs(1)));
-                let mut request = [0; 4096]; let _ = stream.read(&mut request);
-                let header = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len());
+                // TCP peut fragmenter les en-têtes. Fermer avec des octets de
+                // requête non lus peut produire un RST et tronquer la réponse.
+                let mut request = Vec::new();
+                while !request.windows(4).any(|bytes| bytes == b"\r\n\r\n") {
+                    let mut chunk = [0; 4096];
+                    let count = stream.read(&mut chunk).unwrap();
+                    assert!(count > 0 && request.len() + count <= 16 * 1024);
+                    request.extend_from_slice(&chunk[..count]);
+                }
+                let header = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n", body.len());
                 let _ = stream.write_all(header.as_bytes());
                 if stall { std::thread::sleep(Duration::from_millis(350)); }
                 let _ = stream.write_all(&body);

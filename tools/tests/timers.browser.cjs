@@ -36,7 +36,35 @@ const assert = require('node:assert/strict');
             await page.waitForTimeout(600);
         };
         await page.goto(`${process.env.NOLYS_UI_URL || 'http://127.0.0.1:1420'}/island/index.html`);
+        await page.waitForFunction(() => window.island?._timers && window.island.localPlayer);
+        await page.evaluate(() => {
+            window.__timerOpeningTargets = [];
+            const render = window.island.renderContent;
+            window.island.renderContent = function (...args) {
+                const result = render.apply(this, args);
+                if (this.isExpanded && this.mode === 'timer') {
+                    const height = getComputedStyle(this.el).height;
+                    const transition = this.el.getAnimations().find(animation => animation.transitionProperty === 'height');
+                    window.__timerOpeningTargets.push(transition?.effect.getKeyframes().at(-1).height || height);
+                }
+                return result;
+            };
+        });
         await open();
+        assert.deepEqual(await page.evaluate(() => window.__timerOpeningTargets), ['208px', '208px'], 'opening targets the stopwatch size before its content is mounted');
+        const assertFits = async () => {
+            await page.waitForTimeout(600);
+            const box = await page.locator('.island-timer-container').evaluate(element => ({
+                client: element.clientHeight, scroll: element.scrollHeight, width: element.clientWidth, scrollWidth: element.scrollWidth,
+            }));
+            assert.ok(box.scroll <= box.client + 1 && box.scrollWidth <= box.width + 1, JSON.stringify(box));
+        };
+        const openSettings = async () => {
+            if (!await page.locator('.timer-settings').evaluate(element => element.open)) await page.locator('.timer-settings summary').click();
+            await assertFits();
+        };
+        await assertFits();
+        if (process.env.NOLYS_TIMER_SCREENSHOTS) await page.locator('#dynamic-island').screenshot({ path: `${process.env.NOLYS_TIMER_SCREENSHOTS}/chrono-compact.png` });
         await page.locator('[data-timer-action="toggle"]').click();
         const measured = await page.evaluate(() => {
             const before = window.island.timerValue;
@@ -48,6 +76,12 @@ const assert = require('node:assert/strict');
         assert.ok(measured >= 3, `Stopwatch lost blocked UI time: ${measured}`);
         await page.locator('[data-timer-action="toggle"]').click();
         await page.locator('[data-timer-action="countdown"]').click();
+        assert.equal(await page.locator('.island-timer-container').evaluate(element => getComputedStyle(element).scrollbarWidth), 'none', 'no scrollbar flashes while switching to countdown');
+        assert.equal(await page.locator('.timer-name-input').isVisible(), false);
+        await assertFits();
+        if (process.env.NOLYS_TIMER_SCREENSHOTS) await page.locator('#dynamic-island').screenshot({ path: `${process.env.NOLYS_TIMER_SCREENSHOTS}/minuteur-compact.png` });
+        await openSettings();
+        if (process.env.NOLYS_TIMER_SCREENSHOTS) await page.locator('#dynamic-island').screenshot({ path: `${process.env.NOLYS_TIMER_SCREENSHOTS}/minuteur-reglages.png` });
         await page.locator('.timer-name-input').fill('Cuisine');
         await page.locator('.timer-name-input').press('Enter');
         await page.locator('[data-timer-action="toggle"]').click();
@@ -81,6 +115,7 @@ const assert = require('node:assert/strict');
         await page.reload(); await open();
         assert.equal(await page.evaluate(() => window.island._timers.state.timers.length), 2);
         assert.equal(await page.evaluate(() => window.island._timers.satellite.count), 2);
+        await openSettings();
         assert.equal(await page.locator('.timer-name-input').inputValue(), 'Thé');
         await page.locator('.timer-duration-input').fill('00:02');
         await page.locator('.timer-duration-input').press('Enter');
@@ -109,6 +144,16 @@ const assert = require('node:assert/strict');
         });
         assert.equal(await page.locator('.timer-name-input').inputValue(), 'Restauré');
         assert.equal(await page.locator('.timer-readout').textContent(), '00:15');
+        // Le bouton délégué du menu doit traverser le gestionnaire local du chrono.
+        await page.locator('.menu-btn i').click();
+        await page.waitForFunction(() => window.island.mode === 'menu' && !window.island._transitionInProgress, null, { timeout: 2000 });
+        assert.equal(await page.evaluate(() => window.island.isExpanded), true);
+        await open();
+        await page.locator('[data-timer-action="stopwatch"]').click();
+        await page.getByRole('button', { name: 'Menu des modules', exact: true }).focus();
+        await page.keyboard.press('Enter');
+        await page.waitForFunction(() => window.island.mode === 'menu' && !window.island._transitionInProgress, null, { timeout: 2000 });
+        assert.equal(await page.evaluate(() => window.island.isExpanded), true);
         assert.deepEqual(errors, []);
         console.log(JSON.stringify({ status: 'passed', blockedRendererSeconds: measured, checks: ['independent timers', 'stable input focus', 'keyboard and context editing under CSP', 'restart persistence', 'single completion alarm', 'layout fit', 'corrupt state preserved and recovered'] }));
     } finally { await browser.close(); }

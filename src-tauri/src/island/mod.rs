@@ -183,9 +183,6 @@ pub fn broadcast_layout(app: &AppHandle) {
 /// Active ou coupe le clic traversant.
 pub fn set_click_through(app: &AppHandle, ignore: bool) {
     let state = app.state::<AppState>();
-    if ignore && state.layout_edit_mode.load(Ordering::SeqCst) {
-        return;
-    }
     state.click_through.store(ignore, Ordering::SeqCst);
     if let Some(hwnd) = window(app).and_then(|w| w.hwnd().ok()) {
         win::set_click_through(hwnd, ignore);

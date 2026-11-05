@@ -6,6 +6,8 @@
  * commande Tauri typée. Les canaux inconnus sont refusés, comme avant.
  */
 
+import { stampConfig } from './config-sequence.js';
+
 const tauri = window.__TAURI__;
 
 /** Canaux « fire and forget » : canal -> (arguments) => [commande, paramètres]. */
@@ -13,7 +15,7 @@ const SEND_CHANNELS = {
     'spotify-control': (action) => ['media_control', { action: String(action ?? '') }],
     'wallpaper-sync-status': (status, style) => ['wallpaper_sync_status', { status: status ?? false, style: style ?? null }],
     'set-ignore-mouse': (ignore) => ['set_ignore_mouse', { ignore: Boolean(ignore) }],
-    'config-changed': (config) => ['config_changed', { config: config ?? {} }],
+    'config-changed': (config) => ['config_changed', { config: stampConfig(config ?? {}) }],
     'layout-config-changed': (layout) => ['set_layout_config', { layout: layout ?? null }],
     'layout-reset': () => ['reset_layout'],
     'layout-drag-begin': () => ['layout_drag_begin'],

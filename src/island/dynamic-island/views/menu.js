@@ -2,6 +2,7 @@
 import { visibleMenuEntries, moduleMenuSize } from '../../../shared/menu-config.js';
 import { ipcRenderer } from '../../../shared/ipc.js';
 import { escapeHtml } from '../helpers/format.js';
+import { renderModuleArtwork } from '../../../shared/module-art.js';
 
 export const menuView = {
     /** Calculé avant le ressort, sans dépendre du contenu de la vue précédente. */
@@ -35,7 +36,7 @@ export const menuView = {
         const entries = visibleMenuEntries('modules');
         this.content.innerHTML = `<div class="island-menu-grid" role="group" aria-label="Modules">
             ${entries.map(entry => `<button type="button" class="island-menu-item" data-menu-id="${escapeHtml(entry.id)}" title="${escapeHtml(entry.label)}">
-                <div class="menu-icon"><i class="ph ${entry.icon}" aria-hidden="true"></i></div>
+                ${renderModuleArtwork(entry.id, entry.cmd) || `<div class="menu-icon"><i class="ph ${entry.icon}" aria-hidden="true"></i></div>`}
                 <span>${escapeHtml(entry.shortLabel || entry.label)}</span>
             </button>`).join('')}
         </div>`;

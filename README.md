@@ -1,10 +1,10 @@
 # Nolys
 
-<p><img src="branding/icon-source.png" alt="Logo Nolys : N en verre cuivre" width="160"></p>
+<p><img src="branding/icon-source.png" alt="Logo Nolys : Orbite en verre nacré" width="160"></p>
 
 **Votre musique. Votre bureau. À portée de clic.**
 
-Nolys est le nouveau nom de Liquid Dynamic Island. La version **2.6.5** rétablit la musique dans la capsule avec le chrono et les minuteurs dans la bulle à gauche pendant la lecture. [Télécharger la dernière version Windows](https://github.com/NALYD2400/Nolys/releases/latest).
+Nolys est le nouveau nom de Liquid Dynamic Island. La version **2.6.6** apporte l’identité Orbite nacrée, les icônes de modules sur fond transparent et un placement plus stable. [Télécharger la dernière version Windows](https://github.com/NALYD2400/Nolys/releases/latest).
 
 Widget « Dynamic Island » pour Windows : musique (Spotify, navigateurs…), mixeur audio par application, centre de contrôle, notifications, synchronisation du fond d'écran.
 
@@ -25,7 +25,7 @@ Le cœur Tauri 2 / Rust remplace l’ancien assemblage Electron, .NET et PowerSh
 
 ## Identité
 
-Le N en verre teinté cuivre est partagé par l’app, la barre système, l’installateur et le portfolio. Palette : cuivre `#D49460`, champagne `#EDBC89`, charbon `#17151B`, ivoire `#F5EFE7`. Les préférences enregistrées et les couleurs des pochettes restent prioritaires. [Sources et exports de la marque](branding/README.md).
+Le symbole Orbite en verre blanc nacré sur bleu nuit est partagé par l’app, la barre système et l’installateur. Les cinq illustrations du menu utilisent des accents bleu, rouge Replay, ambre, turquoise et violet. Les thèmes existants, les préférences enregistrées et les couleurs des pochettes restent prioritaires. [Sources et exports de la marque](branding/README.md).
 
 Le dépôt GitHub et l’identifiant `com.nalyd.liquid-dynamic-island` sont conservés pour assurer la continuité des données et du canal de mise à jour.
 

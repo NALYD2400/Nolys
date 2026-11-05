@@ -1,0 +1,265 @@
+{
+  "reference": "09 — Orbite nacrée",
+  "referenceGeneratedFile": "exec-375c6cdd-6b32-4d71-8eec-63fef5405ce9.png",
+  "prompts": "prompt.md",
+  "assets": [
+    {
+      "source": "icon-source.png",
+      "generatedFile": "exec-3ef5a265-0108-4319-ada1-6080fa7fc1e9.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "sha256": "fbad86cb091750598b102ae7c34779d41ff090d6cfe36c444a92c90b68687263"
+    },
+    {
+      "source": "module-sources/music.png",
+      "generatedFile": "exec-f08a756f-27dc-461d-b3c2-d285198dcbe8.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "sha256": "393ca0cf01e74907cbc12f4f9b2465875bbe5e09eb03dee03bcef920f21b3f36"
+    },
+    {
+      "source": "module-sources/replay.png",
+      "generatedFile": "exec-07de4fca-a02f-4bb6-9d9f-bf4073454001.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "sha256": "bfc9f6eb16bcbeab183cef36b6a9361748194ed037f1de7f30eb959b6881d3df"
+    },
+    {
+      "source": "module-sources/files.png",
+      "generatedFile": "exec-88625c77-7296-45e5-9f21-98f8f4eaf7c7.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "sha256": "1b5046cb77a35c5a5a822e0aa42d8c586c01c7dde844b844c0101470bf322fd7"
+    },
+    {
+      "source": "module-sources/timer.png",
+      "generatedFile": "exec-ce0b71e5-9078-4fba-b733-c822429d81e2.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "sha256": "64bba009fbaa0eddd56184d251e094169de4c4535ca083d87a1f6e5b23fa773d"
+    },
+    {
+      "source": "module-sources/mic.png",
+      "generatedFile": "exec-c7930301-440a-4f26-acaf-425f3617e695.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "sha256": "43c58b77667c07e078fe5b72f2e7700a6c2e1e3ba002088b48fd82a65e9d39cd"
+    },
+    {
+      "source": "module-sources/neutral/files.png",
+      "generatedFile": "exec-f99c079f-fe21-4ade-887b-be00337b60e5.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "neutralSymbol": true,
+      "prompts": "neutral-prompts.json",
+      "sha256": "73cfaee20c28e30baad1baedda299e63f01d25467df6235ab6b5f74dcf105a8f"
+    },
+    {
+      "source": "module-sources/neutral/replay.png",
+      "generatedFile": "exec-79661a4e-1546-4df6-accc-d1f86b38c042.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "neutralSymbol": true,
+      "prompts": "neutral-prompts.json",
+      "sha256": "da9dbf2184e64a3d3a566ca8b15a5c2266c12cb753b7fb49c1cfb146d7aaf3cb"
+    },
+    {
+      "source": "module-sources/neutral/timer.png",
+      "generatedFile": "exec-add44dbe-080a-4331-b65d-2d71bfbaee0a.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "neutralSymbol": true,
+      "prompts": "neutral-prompts.json",
+      "sha256": "b89d3a82c13944dcfa7c3145614a5e4f149717627b54009cf3151cc601a91062"
+    },
+    {
+      "source": "module-sources/neutral/control.png",
+      "generatedFile": "exec-afc22b2c-ef60-4510-bee3-57f6a65a1e44.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "neutralSymbol": true,
+      "prompts": "neutral-prompts.json",
+      "sha256": "809e09a0d28ba8fdc70ce220fd35a2a5bc1a00e30cb340a9b33acb1e86dfd5ae"
+    },
+    {
+      "source": "module-sources/neutral/music.png",
+      "generatedFile": "exec-01e95154-9488-47e9-b94b-a74fcb5f1d98.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "neutralSymbol": true,
+      "prompts": "neutral-prompts.json",
+      "sha256": "ef27521380175c13768373503a7284984d102140ccf6238024786b626ba9fa06"
+    },
+    {
+      "source": "module-sources/neutral/mic.png",
+      "generatedFile": "exec-b33c2123-3a5c-49c3-83a8-414c19e4fc1b.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "neutralSymbol": true,
+      "prompts": "neutral-prompts.json",
+      "sha256": "f66df55d68b8df84aa1479827ec49f120e5657f0cd8716b6c7f749fd04e84cc6"
+    },
+    {
+      "source": "module-sources/neutral/music-history.png",
+      "generatedFile": "exec-36ed86c3-11df-4d66-a5ae-7ac60374c3ee.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "neutralSymbol": true,
+      "prompts": "neutral-prompts.json",
+      "sha256": "f0a4414b5d289883a895c395fb3a90610900064d85c498c2560624761830c4ce"
+    },
+    {
+      "source": "module-sources/neutral/mixer.png",
+      "generatedFile": "exec-4ce777e8-87fd-4100-bc91-cb30973027d1.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "neutralSymbol": true,
+      "prompts": "neutral-prompts.json",
+      "sha256": "9469a942e3942f208c26f3dc73faea7da51506be9f40f7690197e559e6b3e635"
+    },
+    {
+      "source": "module-sources/neutral/library.png",
+      "generatedFile": "exec-5c7837fb-da80-4c79-bd23-20d7eb560f38.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "neutralSymbol": true,
+      "prompts": "neutral-prompts.json",
+      "sha256": "0eb35815642a096c940c7e5172f75a58877058ceacbb8d712f3007cf3026f57b"
+    },
+    {
+      "source": "module-sources/neutral/settings.png",
+      "generatedFile": "exec-24d55230-f052-4de9-9fbf-97089ea5cd80.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "neutralSymbol": true,
+      "prompts": "neutral-prompts.json",
+      "sha256": "fda4b3eb9ce6cefd6ddc4a8ef3db6d8a0de3974941a4471c6d6f2a14e68eac29"
+    },
+    {
+      "source": "module-sources/neutral/menu.png",
+      "generatedFile": "exec-35cdf6cf-7555-4768-be15-7da5af37744f.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "neutralSymbol": true,
+      "prompts": "neutral-prompts.json",
+      "sha256": "00d49f346208228972111678cf8c2fc73b7ccdbfae8bdbded561ee6189f78c14"
+    },
+    {
+      "source": "module-sources/neutral/layout.png",
+      "generatedFile": "exec-aeb11616-8b5f-4c28-90f7-cbc44e18c3ee.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "neutralSymbol": true,
+      "prompts": "utility-prompts.json",
+      "sha256": "536e7e5c599a13ecab5982b3e577cabf236a5a435e259d8e634a7369aa41d6ae"
+    },
+    {
+      "source": "module-sources/neutral/exit.png",
+      "generatedFile": "exec-44f11b55-59f0-43ce-9411-af5772e56e01.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "neutralSymbol": true,
+      "prompts": "utility-prompts.json",
+      "sha256": "839ef4e1b2ccda096d755ba284d5cce2d5a767e348059e54bc6e7dd6fd7dcc69"
+    },
+    {
+      "source": "module-sources/neutral/customize-menu.png",
+      "generatedFile": "exec-c6a6945a-6ddf-4ca9-a771-6c655326f62b.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "neutralSymbol": true,
+      "prompts": "utility-prompts.json",
+      "sha256": "edbae198795e73f39564208a431850733e964d7ab2423b7caebf80d28ffacbff"
+    },
+    {
+      "source": "module-sources/neutral/taskmgr.png",
+      "generatedFile": "exec-e1623150-9eff-4d02-9a3b-e84798bb4cd9.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "neutralSymbol": true,
+      "prompts": "utility-prompts.json",
+      "sha256": "d8e386c98f306e5a49f9703f74af09cf40a95c77631902f14699e44cf9e8f701"
+    },
+    {
+      "source": "module-sources/neutral/calc.png",
+      "generatedFile": "exec-3fc1dead-7f8e-46d6-8f1a-af75070a54b4.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "neutralSymbol": true,
+      "prompts": "utility-prompts.json",
+      "sha256": "bc5b3a709b86f632cb51c18a626aaa2276145c89c199ea1ab872991abb3d7185"
+    },
+    {
+      "source": "module-sources/neutral/terminal.png",
+      "generatedFile": "exec-01075e8e-1960-44bd-a012-d70aed883702.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "neutralSymbol": true,
+      "prompts": "utility-prompts.json",
+      "sha256": "2de983cf0dbc66edc7ecaa8b020a35c6b00ca0fd750c4a6c94d1638896a8bf07"
+    },
+    {
+      "source": "module-sources/neutral/notepad.png",
+      "generatedFile": "exec-d48a9170-eb9c-4814-8e7d-3b5875dcd049.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "neutralSymbol": true,
+      "prompts": "utility-prompts.json",
+      "sha256": "29c700ed401a5e4a9b11640f46f1d0440343505ea6ea9c3c7f780389e02cc49e"
+    },
+    {
+      "source": "module-sources/neutral/paint.png",
+      "generatedFile": "exec-f6f932d9-2013-479e-904b-7118742a3f37.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "neutralSymbol": true,
+      "prompts": "utility-prompts.json",
+      "sha256": "b8ff38352b90be9372f8d2368cf9bde2920dcbbb81b790c2fca90a12e21d4a80"
+    },
+    {
+      "source": "module-sources/neutral/snipping.png",
+      "generatedFile": "exec-97a2f190-9469-4f98-b0e7-ad0856f9259e.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "neutralSymbol": true,
+      "prompts": "utility-prompts.json",
+      "sha256": "c1a8b60060b93111250970b6af2dd50911d265b00f0bc166d427c38e28a235db"
+    },
+    {
+      "source": "module-sources/neutral/music-search.png",
+      "generatedFile": "exec-aa49f7ea-6927-44b1-b92c-55f36e14c17e.png",
+      "tool": "imagegen-built-in",
+      "date": "2026-11-05",
+      "transparentBackground": true,
+      "neutralSymbol": true,
+      "prompts": "utility-prompts.json",
+      "sha256": "84f33eb660226b35959f1d6a13b6a8eb35b181a3724dc14aa43906eeb1b5ad60"
+    }
+  ]
+}

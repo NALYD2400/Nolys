@@ -6,6 +6,7 @@ import { isHistoryTrack } from '../helpers/music-search.js';
 import { themeLook } from '../../../shared/theme-look.js';
 import { readMenus, visibleMenuEntries } from '../../../shared/menu-config.js';
 import { isTextInputEvent } from '../../../shared/context-menu.js';
+import { renderModuleArtwork } from '../../../shared/module-art.js';
 
 /** Méthodes de l'Island qu'un bouton peut appeler par `data-island-action` (liste fermée). */
 const ISLAND_ACTIONS = new Set([
@@ -405,9 +406,9 @@ export const eventMethods = {
         const hasMedia = menus.showMedia && isHistoryTrack(this.musicData || {});
         const micOn = Boolean(this.micConfig?.enabled);
         const isCurrent = (mode) => this.isExpanded && this.mode === mode;
-        const item = (action, icon, label, { extraClass = '', badge = '' } = {}) => `
+        const item = (action, icon, label, { extraClass = '', badge = '', command } = {}) => `
             <button type="button" class="context-menu-item ${extraClass}" role="menuitem" data-action="${action}">
-                <i class="ph ${icon}" aria-hidden="true"></i>
+                ${renderModuleArtwork(action, command) || `<i class="ph ${icon}" aria-hidden="true"></i>`}
                 <span>${escapeHtml(label)}</span>
                 ${isCurrent(action) ? '<i class="ph-bold ph-check context-menu-check" aria-hidden="true"></i>' : badge}
             </button>`;
@@ -449,6 +450,7 @@ export const eventMethods = {
             ${mediaSection}
             <div class="context-menu-entries">
                 ${menuEntries.map(entry => item(entry.id, entry.icon, entry.label, {
+                    command: entry.cmd,
                     extraClass: entry.id === 'exit' ? 'danger' : '',
                     badge: entry.id === 'mic' && micOn ? '<span class="context-menu-badge">Activé</span>' : '',
                 })).join('')}

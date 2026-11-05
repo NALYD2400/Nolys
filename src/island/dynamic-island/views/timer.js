@@ -59,28 +59,31 @@ export const timerView = {
         this.syncTimerSatellite();
     },
 
+    syncTimerSize() {
+        // La destination du morph doit exister même quand le contenu est vidé à l'ouverture.
+        this.el.dataset.timerMode = this.timerMode;
+        this.el.toggleAttribute('data-timer-settings-open', this.timerMode === 'countdown' && Boolean(this._timerSettingsOpen));
+    },
+
     renderTimer() {
         if (!this.isExpanded || this.mode !== 'timer') { this.syncTimerSatellite(); return; }
+        this.syncTimerSize();
         const countdown = this.timerMode === 'countdown';
         const timer = this._timers.selected;
         this.content.innerHTML = `
-            <div class="island-timer-container">
+            <div class="island-timer-container" data-mode="${this.timerMode}">
                 <div class="island-timer-header">
                     <div class="timer-mode" role="group" aria-label="Mode">
                         <button type="button" data-timer-action="stopwatch" aria-pressed="${!countdown}" class="${countdown ? '' : 'on'}">Chrono</button>
                         <button type="button" data-timer-action="countdown" aria-pressed="${countdown}" class="${countdown ? 'on' : ''}">Minuteurs</button>
                     </div>
-                    <button class="island-action-btn menu-btn" data-island-action="setMode" data-arg="menu" title="Menu des modules" aria-label="Menu des modules"><i class="ph ph-squares-four"></i></button>
+                    <button type="button" class="island-action-btn menu-btn" data-island-action="setMode" data-arg="menu" title="Menu des modules" aria-label="Menu des modules"><i class="ph ph-squares-four"></i></button>
                 </div>
                 ${countdown ? `<div class="timer-management">
                     <div class="timer-selector-row">
                         <select class="timer-select" aria-label="Minuteur sélectionné">${this._timers.state.timers.map(item => `<option value="${item.id}" ${item.id === timer.id ? 'selected' : ''}>${escapeHtml(item.name)}</option>`).join('')}</select>
                         <button type="button" class="timer-small-btn" data-timer-action="add" aria-label="Ajouter un minuteur" title="Ajouter un minuteur" ${this._timers.state.timers.length >= MAX_TIMERS ? 'disabled' : ''}><i class="ph ph-plus"></i></button>
-                        <button type="button" class="timer-small-btn" data-timer-action="remove" aria-label="Retirer le minuteur arrêté" title="Retirer le minuteur arrêté" ${this._timers.state.timers.length === 1 || timer.deadline !== null ? 'disabled' : ''}><i class="ph ph-trash"></i></button>
                     </div>
-                    <input class="timer-name-input" maxlength="40" value="${escapeHtml(timer.name)}" aria-label="Nom du minuteur" placeholder="Nom du minuteur">
-                    <div class="timer-presets">${this._timerPresets.map((seconds, index) => `<button type="button" class="timer-preset ${this.timerPreset === seconds ? 'on' : ''}" data-preset="${index}" title="${seconds % 60 === 0 ? `${seconds / 60} min` : displayTime(seconds)} — F2 ou clic droit pour modifier">${seconds % 60 === 0 ? `${seconds / 60} min` : displayTime(seconds)}</button>`).join('')}</div>
-                    <div class="timer-duration-row"><input class="timer-duration-input" value="${displayTime(timer.presetMs / 1000)}" aria-label="Durée personnalisée" placeholder="25 · 1h30 · 1:30:00"><button type="button" class="timer-small-btn" data-timer-action="duration">Appliquer</button></div>
                 </div>` : ''}
                 <div class="timer-stage">
                     <div class="timer-status"></div>
@@ -90,21 +93,36 @@ export const timerView = {
                         <button type="button" class="timer-control-btn primary" data-timer-action="toggle"><i class="ph-fill ph-play"></i></button>
                     </div>
                 </div>
+                ${countdown ? `
+                <div class="timer-presets" aria-label="Durées rapides">${this._timerPresets.map((seconds, index) => `<button type="button" class="timer-preset ${this.timerPreset === seconds ? 'on' : ''}" data-preset="${index}" title="${formatTimerPreset(seconds)} — F2 ou clic droit pour modifier">${formatTimerPreset(seconds)}</button>`).join('')}</div>
+                <details class="timer-settings" ${this._timerSettingsOpen ? 'open' : ''}>
+                    <summary><i class="ph ph-sliders-horizontal" aria-hidden="true"></i> Modifier le minuteur<i class="ph ph-caret-down timer-settings-caret" aria-hidden="true"></i></summary>
+                    <div class="timer-settings-fields">
+                        <label class="timer-field">Nom<input class="timer-name-input" maxlength="40" value="${escapeHtml(timer.name)}" aria-label="Nom du minuteur" placeholder="Nom du minuteur"></label>
+                        <label class="timer-field">Durée<div class="timer-duration-row"><input class="timer-duration-input" value="${displayTime(timer.presetMs / 1000)}" aria-label="Durée personnalisée" placeholder="25 · 1h30 · 1:30:00"><button type="button" class="timer-small-btn" data-timer-action="duration">Appliquer</button></div></label>
+                        <div class="timer-settings-footer"><span class="timer-policy">Continue en veille et après fermeture.<br>Alarme au retour.</span><button type="button" class="timer-small-btn" data-timer-action="remove" aria-label="Retirer le minuteur arrêté" title="Retirer le minuteur arrêté" ${this._timers.state.timers.length === 1 || timer.deadline !== null ? 'disabled' : ''}><i class="ph ph-trash" aria-hidden="true"></i></button></div>
+                    </div>
+                </details>` : ''}
                 <div class="timer-message" role="status"></div>
-                <div class="timer-policy">Le temps continue en veille et après fermeture. Alarme au retour.<br>Durées rapides : F2 pour modifier.</div>
             </div>`;
         const root = this.content.querySelector('.island-timer-container');
+        root.querySelector('.timer-settings')?.addEventListener('toggle', event => {
+            this._timerSettingsOpen = event.target.open;
+            this.syncTimerSize();
+        });
         root.addEventListener('click', event => {
+            // Le menu est traité par la délégation de .island-content.
+            if (event.target.closest('[data-island-action]')) return;
+            event.stopPropagation();
             const preset = event.target.closest('[data-preset]');
             const button = event.target.closest('[data-timer-action]');
             if (!preset && !button) return;
-            event.stopPropagation();
             if (preset) { this.setTimerPreset(this._timerPresets[Number(preset.dataset.preset)]); return; }
             const action = button.dataset.timerAction;
             if (action === 'stopwatch' || action === 'countdown') this.setTimerMode(action);
             else if (action === 'toggle') this.toggleTimer();
             else if (action === 'reset') this.resetTimer();
-            else if (action === 'add') { this._timers.add(); this.persistTimers(); this.renderTimer(); this.content.querySelector('.timer-name-input')?.focus(); }
+            else if (action === 'add') { this._timers.add(); this._timerSettingsOpen = true; this.persistTimers(); this.renderTimer(); this.content.querySelector('.timer-name-input')?.focus(); }
             else if (action === 'remove') { this._timers.remove(); this.persistTimers(); this.renderTimer(); this.content.querySelector('.timer-select')?.focus(); }
             else if (action === 'duration') this.applyTimerDuration();
         });

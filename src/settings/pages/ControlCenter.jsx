@@ -1,5 +1,6 @@
 import { Card, ChoiceGrid, Reveal, Row, Select, Toggle } from '../components/controls.jsx';
 import { SHORTCUT_GROUPS, SHORTCUT_PRESETS, WIDGET_OPTIONS } from '../state/presets.js';
+import { moduleArtworkId } from '../../shared/module-art.js';
 
 const SHORTCUT_MENU = SHORTCUT_GROUPS.map((group) => ({
     label: group.label,
@@ -7,6 +8,7 @@ const SHORTCUT_MENU = SHORTCUT_GROUPS.map((group) => ({
         value: key,
         label: key === 'custom' ? 'Personnalisé…' : SHORTCUT_PRESETS[key].name,
         icon: SHORTCUT_PRESETS[key].icon,
+        moduleId: moduleArtworkId(null, SHORTCUT_PRESETS[key].cmd),
     })),
 }));
 

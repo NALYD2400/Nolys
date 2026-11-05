@@ -231,6 +231,7 @@ export const navigationMethods = {
     },
 
     renderContent() {
+        if (this.isExpanded && this.mode === 'timer') this.syncTimerSize();
         this.syncReplaySatellite?.();
         if (this.mode !== 'replay' || !this.isExpanded) this.leaveReplay?.();
         if (this.mode === 'files') { this.renderFiles(); return; }

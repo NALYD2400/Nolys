@@ -1,0 +1,7 @@
+# Logo Liquid Glass validé
+
+Créé avec l’outil intégré Imagegen à partir du N simplifié. Le rendu final conserve la silhouette et utilise une matière de verre teintée cuivre/champagne. Le fichier source garde la transparence autour du carré arrondi.
+
+## Prompt
+
+Refine the supplied N application icon into its final professional Liquid Glass version. Preserve EXACTLY the existing N ribbon geometry, two curved fold cutouts, center placement and rounded charcoal tile. The user selected this mark and its copper/champagne palette. Improve only finish and optical clarity: softly transparent smoked glass tinted restrained copper #D49460, thin pale champagne edge highlights #EDBC89, one gentle broad reflection, slightly clearer charcoal showing through the center. Reduce the previous bright orange glowing edges significantly; keep reflections physically convincing and very controlled. The glass should feel modern and premium, rather than orange jelly or chrome. Crisp smooth edges, uncluttered large surfaces, subtle softly rounded glass thickness; front-facing graphic app icon with no perspective. Strongly readable silhouette at small icon sizes, even generous padding. Dark tile #17151B, simple and nearly flat. Transparent surroundings outside the tile. Absolutely no grain, scratches, metallic texture, outer glow, sparkles, added letters, text, borders, drop shadow or extra symbols. Keep the identical silhouette, composition and transparent exterior of the input. Deliver just ONE clean finished icon, high resolution, square.

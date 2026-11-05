@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, Card, Icon, Row, Segmented, Select, Switch, Toggle } from '../components/controls.jsx';
+import { Button, Card, Icon, ModuleArtwork, Row, Segmented, Select, Switch, Toggle } from '../components/controls.jsx';
+import { moduleArtwork } from '../../shared/module-art.js';
 import { MENU_ACTIONS, MAX_MENU_ITEMS, menuEntry, sanitizeMenus, SHORTCUT_ICONS } from '../../shared/menu-config.js';
 import { SHORTCUT_PRESETS } from '../state/presets.js';
 
@@ -32,8 +33,8 @@ export default function Menus({ store }) {
     const groups = [
         { label: 'Fonctions de Nolys', options: MENU_ACTIONS.filter(action =>
             !(surface === 'modules' && action.contextOnly) && !entries.some(entry => entry.id === action.id))
-            .map(action => ({ value: action.id, label: action.label, icon: action.icon })) },
-        { label: 'Windows', options: WINDOWS_SHORTCUTS.map(([id, preset]) => ({ value: `windows:${id}`, label: preset.name, icon: preset.icon })) },
+            .map(action => ({ value: action.id, label: action.label, icon: action.icon, moduleId: action.id })) },
+        { label: 'Windows', options: WINDOWS_SHORTCUTS.map(([id, preset]) => ({ value: `windows:${id}`, label: preset.name, icon: preset.icon, moduleId: id === 'settings' ? 'windows-settings' : id })) },
         { label: 'Personnel', options: [{ value: 'custom', label: 'Application, dossier ou lien…', icon: 'ph-arrow-square-out' }] },
     ].filter(group => group.options.length);
 
@@ -79,7 +80,9 @@ export default function Menus({ store }) {
                         const unavailable = action.flag && localStorage.getItem(action.flag) === 'false';
                         return (
                             <li key={entry.id} className={`menu-editor-row${entry.enabled === false ? ' is-hidden' : ''}`}>
-                                <Icon name={action.icon} className="menu-editor-icon" />
+                                {moduleArtwork(action.id, action.cmd)
+                                    ? <ModuleArtwork id={action.id} command={action.cmd} className="menu-editor-artwork" />
+                                    : <Icon name={action.icon} className="menu-editor-icon" />}
                                 <div className="menu-editor-name">
                                     <span>{action.label}</span>
                                     {custom && <small title={entry.cmd}>{entry.cmd}</small>}

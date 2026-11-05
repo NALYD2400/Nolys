@@ -39,10 +39,6 @@
     user-select: text;
 }
 
-#layout-drag-surface {
-    display: none;
-}
-
 #dynamic-island {
     /* Custom fluid dark crystal settings */
     --island-bg: rgba(10, 10, 15, 0.92);
@@ -177,18 +173,17 @@
  * recentre et termine. Aucun agrandissement de la pilule ici : la mise à
  * l'échelle d'une surface déjà dessinée la rendait floue. */
 body.layout-edit-mode #dynamic-island-container {
-    pointer-events: auto;
+    pointer-events: none;
     flex-direction: column;
     align-items: center;
     gap: 14px;
-    padding: 12px 28px 16px;
+    padding: 0 28px 16px;
     box-sizing: border-box;
     position: relative;
 }
 
 body.layout-edit-mode #dynamic-island {
     pointer-events: auto;
-    -webkit-app-region: drag;
     cursor: grab;
     outline: 1.5px dashed rgba(255, 255, 255, 0.5);
     outline-offset: 6px;
@@ -201,22 +196,6 @@ body.layout-edit-mode #dynamic-island {
 
 body.layout-edit-mode.layout-edit-armed #dynamic-island {
     animation: layoutPlacementIntro 0.45s cubic-bezier(0.2, 0.9, 0.2, 1);
-}
-
-/* Zone de prise un peu plus large que la pilule, sans recouvrir la barre. */
-body.layout-edit-mode #layout-drag-surface {
-    display: block;
-    position: absolute;
-    top: 0;
-    left: 50%;
-    width: 320px;
-    height: 62px;
-    transform: translateX(-50%);
-    border-radius: 999px;
-    pointer-events: auto;
-    cursor: grab;
-    -webkit-app-region: drag;
-    z-index: 20;
 }
 
 body.layout-edit-mode #dynamic-island:hover,
@@ -233,7 +212,6 @@ body.layout-edit-mode #dynamic-island::before {
 }
 
 body.layout-edit-mode.layout-edit-dragging #dynamic-island-container,
-body.layout-edit-mode.layout-edit-dragging #layout-drag-surface,
 body.layout-edit-mode.layout-edit-dragging #dynamic-island {
     cursor: grabbing;
 }
@@ -264,11 +242,12 @@ body.layout-edit-mode.layout-edit-dragging #dynamic-island {
 
 body.layout-edit-mode #layout-edit-toolbar {
     display: flex;
-    flex-wrap: wrap;
+    pointer-events: auto;
+    flex-wrap: nowrap;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    max-width: 390px;
+    width: max-content;
     padding: 6px;
     position: relative;
     z-index: 30;
@@ -284,7 +263,7 @@ body.layout-edit-mode #layout-edit-toolbar {
         0 12px 30px rgba(0, 0, 0, 0.4);
     color: #fff;
     font-size: 12px;
-    animation: layoutToolbarIn 0.3s cubic-bezier(0.2, 0.9, 0.25, 1.1);
+    animation: layoutToolbarIn 0.2s ease-out;
     /* Zoom inverse de celui de la fenêtre : la barre garde la même taille à l'écran quelle que
      * soit la taille de l'Island (ses boutons ne grossissent plus sous la souris). */
     zoom: calc(1 / var(--island-layout-scale, 1));
@@ -292,7 +271,7 @@ body.layout-edit-mode #layout-edit-toolbar {
 
 /* Retour en douceur sous la pilule après une série de clics sur − / +. */
 body.layout-edit-mode #layout-edit-toolbar.is-settling {
-    transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.25, 1);
+    transition: transform 0.2s ease-out;
 }
 
 .layout-edit-group {
@@ -338,6 +317,11 @@ body.layout-edit-mode #layout-edit-toolbar.is-settling {
     color: #6cb4ff;
 }
 
+#layout-edit-toolbar [data-layout="preview"] {
+    width: 82px;
+    flex: 0 0 82px;
+}
+
 #layout-edit-toolbar .layout-edit-text-btn.is-primary {
     background: #0a84ff;
     color: #fff;
@@ -354,22 +338,12 @@ body.layout-edit-mode #layout-edit-toolbar.is-settling {
     font-weight: 600;
 }
 
-.layout-edit-hint {
-    flex-basis: 100%;
-    margin: 2px 0 0;
-    text-align: center;
-    font-size: 10px;
-    color: rgba(255, 255, 255, 0.55);
-}
-
 @keyframes layoutToolbarIn {
     from {
         opacity: 0;
-        transform: translateY(-6px);
     }
     to {
         opacity: 1;
-        transform: translateY(0);
     }
 }
 
@@ -490,9 +464,17 @@ body.motion-vivid .inner-action-btn:hover {
 }
 
 .island-mode-timer {
-    width: 380px;
-    height: 398px;
+    width: 340px;
+    height: 284px;
     border-radius: calc(var(--shell-radius) * var(--corner-k));
+}
+
+.island-mode-timer[data-timer-mode="stopwatch"] {
+    height: 208px;
+}
+
+.island-mode-timer[data-timer-mode="countdown"][data-timer-settings-open] {
+    height: 422px;
 }
 
 .island-mode-network {

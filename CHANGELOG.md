@@ -1,5 +1,13 @@
 # Historique
 
+## 2.6.6 — 5 novembre 2026
+
+- Nouvelle identité Orbite nacrée pour Nolys, y compris l’icône Windows et l’installateur. Les modules et raccourcis Windows partagent des symboles sur fond transparent, colorés en CSS ; Replay adopte un rouge plus franc.
+- Placement : retrait du petit texte sous les commandes, boutons de taille et d’aperçu stables sous la souris, et marges transparentes qui laissent passer les clics autour de l’Island. La pilule peut toujours toucher le haut de l’écran.
+- Chrono et minuteurs : vue compacte, durées rapides et réglages du minuteur regroupés dans un panneau repliable.
+- Replay : l’aperçu conserve toute sa largeur quand la source est indisponible.
+- Réglages : un ancien retour de configuration ne peut plus écraser une restauration en cours.
+
 ## 2.6.5 — 5 novembre 2026
 
 - Chrono et minuteurs : pendant la lecture musicale, la musique reste dans la capsule et les horloges s’affichent dans la bulle à gauche, comme en 2.6.3.

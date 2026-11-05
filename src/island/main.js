@@ -5,6 +5,7 @@
 // En premier : les autres modules lisent les réglages dès leur chargement.
 import '../shared/settings-store.js';
 import { ipcRenderer, native } from '../shared/ipc.js';
+import { isCurrentConfigEvent } from '../shared/config-sequence.js';
 import { LocalMusicPlayer } from '../services/LocalMusicPlayer.js';
 import { warmLibrary } from '../library/controller.js';
 import { warmSettingsView } from './dynamic-island/views/settings.js';
@@ -284,13 +285,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // (Chaque envoi contient tous les réglages : sauter les intermédiaires ne perd rien.)
     let pendingConfig = null;
     ipcRenderer.on('config-changed', (event, config) => {
+        if (!isCurrentConfigEvent(config)) return;
         const scheduled = pendingConfig !== null;
         pendingConfig = config || {};
         if (scheduled) return;
         setTimeout(() => {
             const next = pendingConfig;
             pendingConfig = null;
-            applyConfig(next);
+            if (isCurrentConfigEvent(next)) applyConfig(next);
         }, 16);
     });
 

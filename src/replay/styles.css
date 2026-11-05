@@ -41,7 +41,7 @@
 #replay-buffer-time { font-size: 40px; line-height: 1; font-weight: 650; font-variant-numeric: tabular-nums; }
 #replay-buffer-description { margin: 0; font-size: 11px; color: rgba(255, 255, 255, .85); }
 .replay-source-preview { width: 100%; margin: 0; }
-.replay-source-preview-frame { position: relative; display: grid; place-items: center; aspect-ratio: 16 / 9; overflow: hidden; border: 1px solid var(--line); border-radius: calc(12px * var(--corner-k, 1)); corner-shape: squircle; background: #000; }
+.replay-source-preview-frame { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border: 1px solid var(--line); border-radius: calc(12px * var(--corner-k, 1)); corner-shape: squircle; background: #000; }
 .replay-source-preview-frame::before { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(180deg, #000c, #0009 38%, #0009 62%, #000d); }
 .replay-source-preview img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: contain; }
 #replay-source-preview-status { position: absolute; inset: 44px 16px auto; z-index: 2; color: var(--muted); font-size: 10px; }

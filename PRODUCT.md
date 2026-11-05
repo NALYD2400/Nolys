@@ -35,9 +35,11 @@ Le module Replay & REC étend le panneau Bibliothèque/Fichiers : tampon vidéo 
 
 ## Brand Commitments
 
-Nom Nolys, logo N existant et identité Liquid Glass cuivre/champagne documentée dans le dépôt. Les choix d'apparence enregistrés par l'utilisateur restent prioritaires. Fichiers réutilise les composants, le verre, le thème et les animations de l'application existante. La référence Tangerine porte sur le traitement des fichiers au cours d'un glisser-déposer.
+Nom Nolys. Le 5 novembre 2026, l’utilisateur a remplacé le N cuivre par le symbole Orbite à deux courbes en verre blanc nacré, avec fond bleu nuit et reflets bleus/violets. Il a préféré la forme originale à la variante dont le centre dessinait une capsule. Cinq illustrations de modules sont validées ; Replay porte un accent rouge franc, à sa demande. Sources dans `branding/`, règles dans `DESIGN.md`. Les thèmes Liquid Glass existants et les choix d'apparence enregistrés par l'utilisateur restent prioritaires. Fichiers réutilise les composants, le verre, le thème et les animations de l'application existante. La référence Tangerine porte sur le traitement des fichiers au cours d'un glisser-déposer.
 
 ## Evidence on Hand
+
+Le 5 novembre 2026, l’utilisateur a demandé de séparer les symboles neutres et la couleur pour les modules uniquement, avec un effet léger. Les dix modules et le lanceur utilisent des PNG nacrés neutres et un éclairage CSS statique partagé entre le menu et les réglages React. Le logo principal reste inchangé. À sa demande suivante, les actions des menus et les huit raccourcis Windows prédéfinis rejoignent la famille nacrée. Les contours sont retirés au clic droit et dans le lanceur du centre de contrôle.
 
 - Demande de l'utilisateur dans cette conversation : concevoir l'intégration de Tangerine au dépôt dans l'Island ; choix détaillés délégués à l'agent après examen de la référence.
 - `README.md`, `branding/README.md`, `src/shared/theme-look.js`.

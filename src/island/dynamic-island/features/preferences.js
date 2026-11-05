@@ -54,26 +54,33 @@ export const preferenceMethods = {
         if (!toolbar) return;
         const scale = Number(this._layoutConfig.scale) || 1;
         if (!this._toolbarAnchor) {
-            // Haut de la barre sans son décalage, en pixels CSS (indépendant du zoom de la fenêtre).
-            const top = toolbar.getBoundingClientRect().top - (this._toolbarShift || 0) / scale;
-            const screenTop = top * scale + (this._toolbarShift || 0);
-            this._toolbarAnchor = { top, screenTop };
+            const rect = toolbar.getBoundingClientRect();
+            // Position à l'écran en DIP : le coin de la fenêtre se déplace aussi
+            // pour garder la pilule en place lorsque Rust change le zoom.
+            this._toolbarAnchor = {
+                x: (Number(this._layoutConfig.x) || 0) + rect.left * scale,
+                y: (Number(this._layoutConfig.y) || 0) + rect.top * scale,
+            };
             toolbar.classList.remove('is-settling');
         }
         clearTimeout(this._toolbarReleaseTimer);
+        this._toolbarBusyUntil = performance.now() + 900;
         this._toolbarReleaseTimer = setTimeout(() => this.releaseLayoutToolbar(), 900);
     },
 
-    releaseLayoutToolbar() {
+    releaseLayoutToolbar(force = false) {
         const toolbar = document.getElementById('layout-edit-toolbar');
         if (!toolbar || !this._toolbarAnchor) return;
-        // Souris encore sur la barre : on attend qu'elle en sorte.
-        if (toolbar.matches(':hover')) {
-            toolbar.addEventListener('pointerleave', () => this.releaseLayoutToolbar(), { once: true });
+        clearTimeout(this._toolbarReleaseTimer);
+        const remaining = (this._toolbarBusyUntil || 0) - performance.now();
+        if (!force && remaining > 0) {
+            this._toolbarReleaseTimer = setTimeout(() => this.releaseLayoutToolbar(), remaining);
             return;
         }
+        // Souris encore sur la barre : on attend qu'elle en sorte.
+        if (!force && toolbar.matches(':hover')) return;
         this._toolbarAnchor = null;
-        toolbar.classList.add('is-settling');
+        toolbar.classList.toggle('is-settling', !force);
         this.anchorLayoutToolbar();
     },
 
@@ -82,9 +89,16 @@ export const preferenceMethods = {
         if (!toolbar) return;
         const anchor = this._toolbarAnchor;
         const scale = Number(this._layoutConfig.scale) || 1;
-        // Pixels d'écran : la barre a un zoom inverse de celui de la fenêtre (styles/base.css).
-        this._toolbarShift = anchor ? Math.round(anchor.screenTop - anchor.top * scale) : 0;
-        toolbar.style.transform = this._toolbarShift ? `translateY(${this._toolbarShift}px)` : '';
+        const previous = this._toolbarShift || { x: 0, y: 0 };
+        const rect = toolbar.getBoundingClientRect();
+        const originX = Number(this._layoutConfig.x) || 0;
+        const originY = Number(this._layoutConfig.y) || 0;
+        // Le transform est exprimé en DIP grâce au zoom inverse de la barre.
+        const x = anchor ? anchor.x - (originX + rect.left * scale - previous.x) : 0;
+        const y = anchor ? anchor.y - (originY + rect.top * scale - previous.y) : 0;
+        this._toolbarShift = { x, y };
+        toolbar.style.transform = x || y ? `translate(${x}px, ${y}px)` : '';
+        window.dispatchEvent(new Event('nolys-hit-region-changed'));
     },
 
     /**
@@ -92,7 +106,7 @@ export const preferenceMethods = {
      * Windows ne laisse pas remonter la fenêtre au-dessus du bord de l'écran.
      */
     bindLayoutDrag() {
-        for (const target of [document.getElementById('layout-drag-surface'), document.getElementById('dynamic-island')]) {
+        for (const target of [document.getElementById('dynamic-island')]) {
             if (!target || target.dataset.layoutDrag) continue; // une seule fois, même après plusieurs activations
             target.dataset.layoutDrag = 'true';
             target.addEventListener('pointerdown', (e) => {
@@ -138,10 +152,15 @@ export const preferenceMethods = {
                 this.freezeLayoutToolbar();
                 this.stepLayoutScale(action === 'bigger' ? 1 : -1);
             }
-            else if (action === 'center') ipcRenderer.send('layout-reset');
-            else if (action === 'preview') this.toggleLayoutPreview();
+            else if (action === 'center') { this.releaseLayoutToolbar(true); ipcRenderer.send('layout-reset'); }
+            else if (action === 'preview') { this.freezeLayoutToolbar(); this.toggleLayoutPreview(); }
             else if (action === 'done') ipcRenderer.send('set-layout-edit-mode', false);
         });
+        toolbar.addEventListener('pointerleave', () => this.releaseLayoutToolbar());
+        const resize = new ResizeObserver(() => this.anchorLayoutToolbar());
+        resize.observe(toolbar);
+        resize.observe(this.el);
+        window.addEventListener('resize', () => this.anchorLayoutToolbar());
 
         // Molette au-dessus de l'Island ou de la barre : taille.
         const onWheel = (e) => {
@@ -235,6 +254,7 @@ export const preferenceMethods = {
                 document.body.classList.remove('layout-edit-armed');
             }, 1600);
         } else {
+            this.releaseLayoutToolbar(true);
             document.body.classList.remove('layout-edit-dragging');
             document.body.classList.remove('layout-edit-armed');
             clearTimeout(this._layoutEditArmTimeout);
@@ -263,6 +283,7 @@ export const preferenceMethods = {
         this.mode = 'music';
         this.isExpanded = on;
         this.renderContent();
+        this.anchorLayoutToolbar();
     },
 
     setLayoutPreviewButton(on) {

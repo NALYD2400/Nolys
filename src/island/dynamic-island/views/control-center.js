@@ -9,6 +9,7 @@ import { getMusicHistoryKey } from '../helpers/music-search.js';
 import { systemMetrics, percentLabel } from '../../../shared/system-metrics.js';
 import { bindSystemTile } from '../helpers/system-tile.js';
 import { DEFAULT_SHORTCUTS } from '../../../settings/state/presets.js';
+import { renderModuleArtwork } from '../../../shared/module-art.js';
 
 export const controlCenterView = {
     renderControl() {
@@ -86,7 +87,7 @@ export const controlCenterView = {
                 <div class="ic-launchpad-card">
                     ${shortcuts.map((s, idx) => `
                         <button type="button" class="ic-launchpad-btn" id="ic-lp-btn-${idx}" title="${escapeHtml(s.name)}" aria-label="${escapeHtml(s.name)}">
-                            <i class="${escapeHtml(s.icon)}" aria-hidden="true"></i><span>${escapeHtml(({explorer:'Fichiers',settings:'Windows',taskmgr:'Tâches',calc:'Calcul'})[s.preset] || s.name)}</span>
+                            ${renderModuleArtwork(null, s.cmd) || `<i class="${escapeHtml(s.icon)}" aria-hidden="true"></i>`}<span>${escapeHtml(({explorer:'Fichiers',settings:'Windows',taskmgr:'Tâches',calc:'Calcul'})[s.preset] || s.name)}</span>
                         </button>
                     `).join('')}
                 </div>

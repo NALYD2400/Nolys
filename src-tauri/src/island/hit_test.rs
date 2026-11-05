@@ -55,8 +55,9 @@ fn tick(app: &AppHandle) -> bool {
     let click_through = state.click_through.load(Ordering::Relaxed);
     // tao réécrit parfois les styles de la fenêtre : on réaffirme l'état voulu (sans effet s'il est déjà bon).
     win::set_click_through(hwnd, click_through);
-    // Mode placement : toute la fenêtre doit rester saisissable.
-    if state.layout_edit_mode.load(Ordering::Relaxed) || !win::is_visible(hwnd) {
+    // Le placement utilise les mêmes zones visibles : les grandes marges
+    // transparentes restent traversantes, y compris au-dessus de la pilule.
+    if !win::is_visible(hwnd) {
         return false;
     }
     let (Some((cx, cy)), Some(bounds)) = (win::cursor_position(), win::window_rect(hwnd)) else { return true };

@@ -60,6 +60,8 @@
 .ic-volume-value { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); color: #fff; mix-blend-mode: difference; padding: 0; font-size: 11px; font-weight: 650; white-space: nowrap; font-variant-numeric: tabular-nums; pointer-events: none; }
 .ic-launchpad-card .ic-launchpad-btn { flex: 1; min-width: 0; width: auto; height: 50px; border-radius: 12px; flex-direction: column; gap: 5px; margin: 0 2px; }
 .ic-launchpad-btn > span { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9.5px; padding: 0 2px; box-sizing: border-box; }
+.ic-launchpad-btn > .module-art { --module-size: 24px; }
+.ic-launchpad-btn > .module-art::before { content: none; }
 
 .ic-close {
     background: rgba(255, 255, 255, 0.06);

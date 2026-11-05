@@ -1,0 +1,97 @@
+{
+  "tool": "imagegen-built-in",
+  "date": "2026-11-05",
+  "transparentBackground": true,
+  "assets": [
+    {
+      "id": "layout",
+      "label": "Déplacer et redimensionner",
+      "source": "module-sources/neutral/layout.png",
+      "generatedFile": "exec-aeb11616-8b5f-4c28-90f7-cbc44e18c3ee.png",
+      "path": "C:\\Users\\dylan\\.codex\\generated_images\\01a1ad12-c6b2-70a3-92ed-c5af573a2388\\exec-aeb11616-8b5f-4c28-90f7-cbc44e18c3ee.png",
+      "prompt": "Use case: logo-brand. Create ONE production standalone icon matching the attached NOLYS neutral pearly glass symbol, which is a MATERIAL REFERENCE, not the requested shape. Output exactly one isolated glyph only, no app tile, no container, no square, no outline border, no background, no text. Genuine TRANSPARENT ALPHA around symbol and through holes. Neutral achromatic pearl-white frosted sculpted glass, silver-gray midtones, broad white highlights and soft graphite fold shading. ZERO color tint: colors are added later in CSS. Smooth thick sculpted 3D forms, frontal, bold and SIMPLE, excellent legibility at 24 pixels. Square canvas, glyph centered using 76% of its longest dimension with generous equal padding. Clean alpha contours with no disconnected speckles, no shadow or glow outside the symbol. No extra decorative objects, no typography, no brand marks. Symbol to render: A four-way MOVE cross made of four thick connected arrows pointing up, down, left, right, soft rounded 3D glass arrowheads and short center arms, balanced compact silhouette.",
+      "reference": "D:/4_Projets_et_Dev/Workspace/1_Projets/En_Cours/dynamique island/branding/module-sources/neutral/settings.png"
+    },
+    {
+      "id": "exit",
+      "label": "Quitter",
+      "source": "module-sources/neutral/exit.png",
+      "generatedFile": "exec-44f11b55-59f0-43ce-9411-af5772e56e01.png",
+      "path": "C:\\Users\\dylan\\.codex\\generated_images\\01a1ad12-c6b2-70a3-92ed-c5af573a2388\\exec-44f11b55-59f0-43ce-9411-af5772e56e01.png",
+      "prompt": "Use case: logo-brand. Create ONE production standalone icon matching the attached NOLYS neutral pearly glass symbol, which is a MATERIAL REFERENCE, not the requested shape. Output exactly one isolated glyph only, no app tile, no container, no square, no outline border, no background, no text. Genuine TRANSPARENT ALPHA around symbol and through holes. Neutral achromatic pearl-white frosted sculpted glass, silver-gray midtones, broad white highlights and soft graphite fold shading. ZERO color tint: colors are added later in CSS. Smooth thick sculpted 3D forms, frontal, bold and SIMPLE, excellent legibility at 24 pixels. Square canvas, glyph centered using 76% of its longest dimension with generous equal padding. Clean alpha contours with no disconnected speckles, no shadow or glow outside the symbol. No extra decorative objects, no typography, no brand marks. Symbol to render: A thick classic POWER symbol: an almost complete circular ring open at top with ONE short vertical stroke entering from top, strong clean silhouette, no extra ring.",
+      "reference": "D:/4_Projets_et_Dev/Workspace/1_Projets/En_Cours/dynamique island/branding/module-sources/neutral/settings.png"
+    },
+    {
+      "id": "customize-menu",
+      "label": "Personnaliser",
+      "source": "module-sources/neutral/customize-menu.png",
+      "generatedFile": "exec-c6a6945a-6ddf-4ca9-a771-6c655326f62b.png",
+      "path": "C:\\Users\\dylan\\.codex\\generated_images\\01a1ad12-c6b2-70a3-92ed-c5af573a2388\\exec-c6a6945a-6ddf-4ca9-a771-6c655326f62b.png",
+      "prompt": "Use case: logo-brand. Create ONE production standalone icon matching the attached NOLYS neutral pearly glass symbol, which is a MATERIAL REFERENCE, not the requested shape. Output exactly one isolated glyph only, no app tile, no container, no square, no outline border, no background, no text. Genuine TRANSPARENT ALPHA around symbol and through holes. Neutral achromatic pearl-white frosted sculpted glass, silver-gray midtones, broad white highlights and soft graphite fold shading. ZERO color tint: colors are added later in CSS. Smooth thick sculpted 3D forms, frontal, bold and SIMPLE, excellent legibility at 24 pixels. Square canvas, glyph centered using 76% of its longest dimension with generous equal padding. Clean alpha contours with no disconnected speckles, no shadow or glow outside the symbol. No extra decorative objects, no typography, no brand marks. Symbol to render: A single broad PENCIL diagonally tilted up right, simple pointed tip, thick rounded faceted shaft, small distinct eraser cap. No paper or frame.",
+      "reference": "D:/4_Projets_et_Dev/Workspace/1_Projets/En_Cours/dynamique island/branding/module-sources/neutral/settings.png"
+    },
+    {
+      "id": "taskmgr",
+      "label": "Gestionnaire des tâches",
+      "source": "module-sources/neutral/taskmgr.png",
+      "generatedFile": "exec-e1623150-9eff-4d02-9a3b-e84798bb4cd9.png",
+      "path": "C:\\Users\\dylan\\.codex\\generated_images\\01a1ad12-c6b2-70a3-92ed-c5af573a2388\\exec-e1623150-9eff-4d02-9a3b-e84798bb4cd9.png",
+      "prompt": "Use case: logo-brand. Create ONE production standalone icon matching the attached NOLYS neutral pearly glass symbol, which is a MATERIAL REFERENCE, not the requested shape. Output exactly one isolated glyph only, no app tile, no container, no square, no outline border, no background, no text. Genuine TRANSPARENT ALPHA around symbol and through holes. Neutral achromatic pearl-white frosted sculpted glass, silver-gray midtones, broad white highlights and soft graphite fold shading. ZERO color tint: colors are added later in CSS. Smooth thick sculpted 3D forms, frontal, bold and SIMPLE, excellent legibility at 24 pixels. Square canvas, glyph centered using 76% of its longest dimension with generous equal padding. Clean alpha contours with no disconnected speckles, no shadow or glow outside the symbol. No extra decorative objects, no typography, no brand marks. Symbol to render: One rounded-square CPU CHIP with three short thick pins on each side, large central inset containing three simple ascending bar-chart bars. Minimize small details.",
+      "reference": "D:/4_Projets_et_Dev/Workspace/1_Projets/En_Cours/dynamique island/branding/module-sources/neutral/settings.png"
+    },
+    {
+      "id": "calc",
+      "label": "Calculatrice",
+      "source": "module-sources/neutral/calc.png",
+      "generatedFile": "exec-3fc1dead-7f8e-46d6-8f1a-af75070a54b4.png",
+      "path": "C:\\Users\\dylan\\.codex\\generated_images\\01a1ad12-c6b2-70a3-92ed-c5af573a2388\\exec-3fc1dead-7f8e-46d6-8f1a-af75070a54b4.png",
+      "prompt": "Use case: logo-brand. Create ONE production standalone icon matching the attached NOLYS neutral pearly glass symbol, which is a MATERIAL REFERENCE, not the requested shape. Output exactly one isolated glyph only, no app tile, no container, no square, no outline border, no background, no text. Genuine TRANSPARENT ALPHA around symbol and through holes. Neutral achromatic pearl-white frosted sculpted glass, silver-gray midtones, broad white highlights and soft graphite fold shading. ZERO color tint: colors are added later in CSS. Smooth thick sculpted 3D forms, frontal, bold and SIMPLE, excellent legibility at 24 pixels. Square canvas, glyph centered using 76% of its longest dimension with generous equal padding. Clean alpha contours with no disconnected speckles, no shadow or glow outside the symbol. No extra decorative objects, no typography, no brand marks. Symbol to render: A compact upright CALCULATOR body with one dark horizontal display opening and four LARGE rounded key cutouts arranged 2 by 2. No numbers or text.",
+      "reference": "D:/4_Projets_et_Dev/Workspace/1_Projets/En_Cours/dynamique island/branding/module-sources/neutral/settings.png"
+    },
+    {
+      "id": "terminal",
+      "label": "Terminal",
+      "source": "module-sources/neutral/terminal.png",
+      "generatedFile": "exec-01075e8e-1960-44bd-a012-d70aed883702.png",
+      "path": "C:\\Users\\dylan\\.codex\\generated_images\\01a1ad12-c6b2-70a3-92ed-c5af573a2388\\exec-01075e8e-1960-44bd-a012-d70aed883702.png",
+      "prompt": "Use case: logo-brand. Create ONE production standalone icon matching the attached NOLYS neutral pearly glass symbol, which is a MATERIAL REFERENCE, not the requested shape. Output exactly one isolated glyph only, no app tile, no container, no square, no outline border, no background, no text. Genuine TRANSPARENT ALPHA around symbol and through holes. Neutral achromatic pearl-white frosted sculpted glass, silver-gray midtones, broad white highlights and soft graphite fold shading. ZERO color tint: colors are added later in CSS. Smooth thick sculpted 3D forms, frontal, bold and SIMPLE, excellent legibility at 24 pixels. Square canvas, glyph centered using 76% of its longest dimension with generous equal padding. Clean alpha contours with no disconnected speckles, no shadow or glow outside the symbol. No extra decorative objects, no typography, no brand marks. Symbol to render: A bold terminal prompt consisting of a thick right-pointing CHEVRON and a short UNDERSCORE, two geometric symbols, no window frame or letters.",
+      "reference": "D:/4_Projets_et_Dev/Workspace/1_Projets/En_Cours/dynamique island/branding/module-sources/neutral/settings.png"
+    },
+    {
+      "id": "notepad",
+      "label": "Bloc-notes",
+      "source": "module-sources/neutral/notepad.png",
+      "generatedFile": "exec-d48a9170-eb9c-4814-8e7d-3b5875dcd049.png",
+      "path": "C:\\Users\\dylan\\.codex\\generated_images\\01a1ad12-c6b2-70a3-92ed-c5af573a2388\\exec-d48a9170-eb9c-4814-8e7d-3b5875dcd049.png",
+      "prompt": "Use case: logo-brand. Create ONE production standalone icon matching the attached NOLYS neutral pearly glass symbol, which is a MATERIAL REFERENCE, not the requested shape. Output exactly one isolated glyph only, no app tile, no container, no square, no outline border, no background, no text. Genuine TRANSPARENT ALPHA around symbol and through holes. Neutral achromatic pearl-white frosted sculpted glass, silver-gray midtones, broad white highlights and soft graphite fold shading. ZERO color tint: colors are added later in CSS. Smooth thick sculpted 3D forms, frontal, bold and SIMPLE, excellent legibility at 24 pixels. Square canvas, glyph centered using 76% of its longest dimension with generous equal padding. Clean alpha contours with no disconnected speckles, no shadow or glow outside the symbol. No extra decorative objects, no typography, no brand marks. Symbol to render: A single upright white glass NOTE PAGE, rounded corners, small folded upper-right corner, three broad recessed horizontal lines. No pencil.",
+      "reference": "D:/4_Projets_et_Dev/Workspace/1_Projets/En_Cours/dynamique island/branding/module-sources/neutral/settings.png"
+    },
+    {
+      "id": "paint",
+      "label": "Paint",
+      "source": "module-sources/neutral/paint.png",
+      "generatedFile": "exec-f6f932d9-2013-479e-904b-7118742a3f37.png",
+      "path": "C:\\Users\\dylan\\.codex\\generated_images\\01a1ad12-c6b2-70a3-92ed-c5af573a2388\\exec-f6f932d9-2013-479e-904b-7118742a3f37.png",
+      "prompt": "Use case: logo-brand. Create ONE production standalone icon matching the attached NOLYS neutral pearly glass symbol, which is a MATERIAL REFERENCE, not the requested shape. Output exactly one isolated glyph only, no app tile, no container, no square, no outline border, no background, no text. Genuine TRANSPARENT ALPHA around symbol and through holes. Neutral achromatic pearl-white frosted sculpted glass, silver-gray midtones, broad white highlights and soft graphite fold shading. ZERO color tint: colors are added later in CSS. Smooth thick sculpted 3D forms, frontal, bold and SIMPLE, excellent legibility at 24 pixels. Square canvas, glyph centered using 76% of its longest dimension with generous equal padding. Clean alpha contours with no disconnected speckles, no shadow or glow outside the symbol. No extra decorative objects, no typography, no brand marks. Symbol to render: One bold artist PALETTE with clear large thumb-hole and three large recessed pigment wells; keep entirely white and gray without actual colored paint. A short broad paintbrush rests diagonally on its lower right edge. Simple readable silhouette.",
+      "reference": "D:/4_Projets_et_Dev/Workspace/1_Projets/En_Cours/dynamique island/branding/module-sources/neutral/settings.png"
+    },
+    {
+      "id": "snipping",
+      "label": "Capture d’écran",
+      "source": "module-sources/neutral/snipping.png",
+      "generatedFile": "exec-97a2f190-9469-4f98-b0e7-ad0856f9259e.png",
+      "path": "C:\\Users\\dylan\\.codex\\generated_images\\01a1ad12-c6b2-70a3-92ed-c5af573a2388\\exec-97a2f190-9469-4f98-b0e7-ad0856f9259e.png",
+      "prompt": "Use case: logo-brand. Create ONE production standalone icon matching the attached NOLYS neutral pearly glass symbol, which is a MATERIAL REFERENCE, not the requested shape. Output exactly one isolated glyph only, no app tile, no container, no square, no outline border, no background, no text. Genuine TRANSPARENT ALPHA around symbol and through holes. Neutral achromatic pearl-white frosted sculpted glass, silver-gray midtones, broad white highlights and soft graphite fold shading. ZERO color tint: colors are added later in CSS. Smooth thick sculpted 3D forms, frontal, bold and SIMPLE, excellent legibility at 24 pixels. Square canvas, glyph centered using 76% of its longest dimension with generous equal padding. Clean alpha contours with no disconnected speckles, no shadow or glow outside the symbol. No extra decorative objects, no typography, no brand marks. Symbol to render: A bold white glass SCREENSHOT CROP symbol: FOUR separated thick L-shaped corner brackets enclosing a simple pair of compact scissors with two broad oval loop handles and short open blades. Large simple components, no intricate detail, no frame background.",
+      "reference": "D:/4_Projets_et_Dev/Workspace/1_Projets/En_Cours/dynamique island/branding/module-sources/neutral/settings.png"
+    },
+    {
+      "id": "music-search",
+      "label": "Recherche musicale",
+      "source": "module-sources/neutral/music-search.png",
+      "generatedFile": "exec-aa49f7ea-6927-44b1-b92c-55f36e14c17e.png",
+      "path": "C:\\Users\\dylan\\.codex\\generated_images\\01a1ad12-c6b2-70a3-92ed-c5af573a2388\\exec-aa49f7ea-6927-44b1-b92c-55f36e14c17e.png",
+      "prompt": "Use case: logo-brand. Create ONE production standalone icon matching the attached NOLYS neutral pearly glass symbol, which is a MATERIAL REFERENCE, not the requested shape. Output exactly one isolated glyph only, no app tile, no container, no square, no outline border, no background, no text. Genuine TRANSPARENT ALPHA around symbol and through holes. Neutral achromatic pearl-white frosted sculpted glass, silver-gray midtones, broad white highlights and soft graphite fold shading. ZERO color tint: colors are added later in CSS. Smooth thick sculpted 3D forms, frontal, bold and SIMPLE, excellent legibility at 24 pixels. Square canvas, glyph centered using 76% of its longest dimension with generous equal padding. Clean alpha contours with no disconnected speckles, no shadow or glow outside the symbol. No extra decorative objects, no typography, no brand marks. Symbol to render: A single thick MAGNIFYING GLASS with one large circular clear hole, short rounded handle pointing down right, one cohesive search pictogram, no musical note or additional symbol.",
+      "reference": "D:/4_Projets_et_Dev/Workspace/1_Projets/En_Cours/dynamique island/branding/module-sources/neutral/settings.png"
+    }
+  ]
+}

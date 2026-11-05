@@ -1,3 +1,5 @@
+@import '../shared/module-art.css';
+
 /* Réglages dans l'Island (shadow DOM, voir mount.jsx) — Liquid Glass, thème sombre.
  * La vue a la taille de la capsule (680 × 524 au plus) : barre latérale et pages côte à côte. */
 
@@ -602,6 +604,11 @@ button {
     width: 16px;
     font-size: 14px;
     opacity: 0.85;
+}
+
+.menu-item .module-art,
+.menu-editor-artwork {
+    --module-size: 24px;
 }
 
 .menu-check {

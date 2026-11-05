@@ -4,6 +4,7 @@
  */
 import { startTransition, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { playClick } from '../state/sound.js';
+import { moduleArtwork, moduleArtworkStyle } from '../../shared/module-art.js';
 
 /** Vert « activé » façon iOS : l'état reste lisible quelle que soit la pochette. */
 export const SWITCH_TINT = '#30d158';
@@ -12,6 +13,13 @@ export const SWITCH_TINT = '#30d158';
 export const Icon = ({ name, weight = 'regular', className = '' }) => (
     <i className={`${weight === 'regular' ? 'ph' : `ph-${weight}`} ${name} ${className}`} aria-hidden="true" />
 );
+
+export function ModuleArtwork({ id, command, className = '' }) {
+    const art = moduleArtwork(id, command);
+    return art ? <span className={`module-art ${className}`} style={moduleArtworkStyle(id, command)} aria-hidden="true">
+        <img src={art.src} width="128" height="128" alt="" draggable="false" />
+    </span> : null;
+}
 
 /** Groupe de réglages sur une surface sombre. */
 export function Card({ title, footer, children }) {
@@ -331,7 +339,9 @@ export function Select({ value, options, groups, title, onChange, placeholder = 
                         return <button key={option.value} type="button" role="option" aria-selected={selected}
                             tabIndex={index === active ? 0 : -1} data-option-index={index}
                             className={selected ? 'menu-item is-selected' : 'menu-item'} onClick={() => choose(index)}>
-                            {option.icon && <Icon name={option.icon.replace(/^ph(-fill|-bold)? /, '')} />}
+                            {option.moduleId && moduleArtwork(option.moduleId)
+                                ? <ModuleArtwork id={option.moduleId} />
+                                : option.icon && <Icon name={option.icon.replace(/^ph(-fill|-bold)? /, '')} />}
                             <span>{option.label}</span>{selected && <Icon name="ph-check" weight="bold" className="menu-check" />}
                         </button>;
                     })}

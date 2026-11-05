@@ -1,6 +1,6 @@
 [package]
 name = "liquid-dynamic-island"
-version = "2.6.5"
+version = "2.6.6"
 description = "Nolys — widget Dynamic Island pour Windows"
 authors = ["NALYD2400"]
 edition = "2021"

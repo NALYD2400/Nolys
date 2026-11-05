@@ -23,6 +23,7 @@ import { sanitizeSettings, validateBackup } from './validation.js';
 import { isSyncedKey, ensureSettingsSaved } from '../../shared/settings-store.js';
 import { readJSON } from '../../shared/safe-storage.js';
 import { preferenceTransaction } from './preference-transaction.js';
+import { invalidateConfigEvents } from '../../shared/config-sequence.js';
 
 const backupKey = key => isSyncedKey(key) || key === 'nolys_library_player';
 const localValues = () => Object.fromEntries(Object.keys(localStorage).filter(key => backupKey(key) && !key.startsWith('liquid_recovery_')).map(key => [key, localStorage.getItem(key)]));
@@ -135,6 +136,7 @@ export function useSettings() {
         if (file.size > 16 * 1024 * 1024) throw new Error('La sauvegarde dépasse 16 Mio.');
         const payload = validateBackup(JSON.parse(await file.text()));
         flush();
+        invalidateConfigEvents();
         const next = fromSnapshot(settings, payload.settings);
         const previous = localValues();
         const previousNative = await native.invoke('preferences_bundle');
@@ -167,6 +169,7 @@ export function useSettings() {
 
     const recoverImport = useCallback(async (kind = 'import') => {
         flush();
+        invalidateConfigEvents();
         const backup = readJSON(`liquid_recovery_before_${kind === 'reset' ? 'reset' : 'import'}`, null, value => value && typeof value.uiValues === 'object');
         if (!backup) throw new Error('Aucune sauvegarde de récupération disponible.');
         const previous = localValues(), previousNative = await native.invoke('preferences_bundle');

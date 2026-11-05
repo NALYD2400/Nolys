@@ -4,6 +4,7 @@
  */
 @import url('./base.css');
 @import url('./music.css');
+@import url('../../shared/module-art.css');
 @import url('./notification-menu.css');
 @import url('./network-stats.css');
 @import url('./search.css');

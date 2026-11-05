@@ -4,12 +4,14 @@
 .island-timer-container {
     width: 100%;
     height: 100%;
-    padding: 14px 20px 14px;
+    padding: 14px 20px;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     overflow-y: auto;
+    /* Le contenu peut déborder pendant le morph ; garder le défilement sans barre fugace. */
+    scrollbar-width: none;
 }
 
 .island-timer-header {
@@ -18,6 +20,29 @@
     justify-content: space-between;
     flex-shrink: 0;
 }
+
+/* Même format que le bouton Modules du lecteur musical. */
+.island-timer-header .menu-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    border: none;
+    background: rgba(255, 255, 255, 0.055);
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+.island-timer-header .menu-btn i { font-size: 14px; }
+body .island-timer-header .menu-btn:hover {
+    background: rgba(255, 255, 255, 0.105);
+    color: #fff;
+    transform: none;
+    text-shadow: none;
+    box-shadow: none;
+}
+.island-timer-header .menu-btn:hover i { transform: none; }
+body .island-timer-header .menu-btn:active { transform: scale(0.95); }
 
 /* Chrono / Minuteur : même langage que le sélecteur de latence du retour micro. */
 .timer-mode {
@@ -45,16 +70,18 @@
     color: #111;
 }
 
-/* Durées rapides du minuteur, à la place du statut quand il est prêt. */
+/* Durées rapides, sous les commandes principales. */
 .timer-presets {
     display: flex;
+    justify-content: center;
     gap: 6px;
-    height: 22px;
+    min-height: 28px;
+    flex-shrink: 0;
     align-items: center;
 }
 
 .timer-preset {
-    height: 22px;
+    height: 28px;
     padding: 0 9px;
     border-radius: 999px;
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -78,47 +105,35 @@
 
 .timer-stage {
     flex: 1;
-    min-height: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    min-height: 120px;
+    min-height: 110px;
 }
 
 .timer-status {
-    padding: 4px 9px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.055);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    color: rgba(255, 255, 255, 0.58);
-    font-size: 9px;
-    font-weight: 650;
+    color: rgba(255, 255, 255, 0.74);
+    font-size: 10px;
+    font-weight: 500;
     line-height: 1;
 }
 
 .timer-readout {
     font-family: var(--font-mono, monospace);
-    font-size: 46px;
-    font-weight: 800;
+    font-size: 42px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
     line-height: 1;
     letter-spacing: 0;
     color: #fff;
-    text-shadow:
-        0 0 14px rgba(var(--neon-primary-rgb), 0.18),
-        0 6px 18px rgba(0, 0, 0, 0.35);
 }
 
 .timer-controls {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    padding: 5px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    gap: 12px;
 }
 
 .timer-control-btn {
@@ -148,7 +163,6 @@
     background: rgba(var(--neon-primary-rgb), 0.2);
     border-color: rgba(var(--neon-primary-rgb), 0.42);
     color: #fff;
-    box-shadow: 0 0 14px rgba(var(--neon-primary-rgb), 0.18);
 }
 
 .timer-control-btn.primary.is-running {
@@ -183,7 +197,7 @@
     text-align: center;
 }
 
-.timer-management { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+.timer-management { flex-shrink: 0; }
 .timer-selector-row, .timer-duration-row { display: flex; gap: 6px; align-items: center; }
 .timer-select, .timer-name-input, .timer-duration-input {
     min-width: 0;
@@ -197,6 +211,7 @@
     box-sizing: border-box;
 }
 .timer-select, .timer-duration-input { flex: 1; }
+.timer-select { border-color: transparent; background: transparent; padding-left: 0; }
 .timer-select option { color: #fff; background: #222; }
 .timer-small-btn {
     height: 26px;
@@ -210,8 +225,28 @@
     cursor: pointer;
 }
 .timer-small-btn:disabled { opacity: .35; cursor: default; }
-.timer-policy { flex-shrink: 0; color: var(--text-secondary, rgba(255,255,255,.65)); font-size: 9px; line-height: 1.4; text-align: center; }
+.timer-settings { flex-shrink: 0; }
+.timer-settings summary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 28px;
+    list-style: none;
+    color: rgba(255, 255, 255, 0.74);
+    font-size: 10px;
+    cursor: pointer;
+    border-radius: 8px;
+}
+.timer-settings summary::-webkit-details-marker { display: none; }
+.timer-settings summary:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+.timer-settings-caret { transition: transform 0.2s ease; }
+.timer-settings[open] .timer-settings-caret { transform: rotate(180deg); }
+.timer-settings-fields { display: flex; flex-direction: column; gap: 10px; padding-top: 10px; }
+.timer-field { display: flex; flex-direction: column; gap: 4px; color: rgba(255, 255, 255, 0.74); font-size: 10px; }
+.timer-settings-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.timer-policy { color: rgba(255,255,255,.74); font-size: 9px; line-height: 1.4; }
 .timer-message:empty { display: none; }
 .timer-message { flex-shrink: 0; font-size: 10px; color: var(--text-primary, #fff); line-height: 1.3; }
-.island-timer-container :is(button,input,select):focus-visible { outline: 2px solid var(--neon-primary, #d49460); outline-offset: 2px; }
+.island-timer-container :is(button,input,select,summary):focus-visible { outline: 2px solid var(--neon-primary, #d49460); outline-offset: 2px; }
 .island-timer-container [aria-invalid="true"] { border-color: #f99; outline: 1px solid #f99; }
