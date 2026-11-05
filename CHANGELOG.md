@@ -1,5 +1,9 @@
 # Historique
 
+## À venir
+
+- Chrono et minuteurs : pendant la lecture musicale, la musique reste dans la capsule et les horloges s’affichent dans la bulle à gauche, comme en 2.6.3.
+
 ## 2.6.4 — 4 novembre 2026
 
 - Fond musical adaptatif : assombrissement calculé à partir des zones claires de la pochette, avec protection des titres et des temps sans modifier le réglage d’intensité.

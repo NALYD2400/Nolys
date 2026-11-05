@@ -27,12 +27,23 @@ test('dark cover accents remain visible and already bright colors retain their i
     assert.ok(blue.b > blue.r && blue.r === blue.g);
 });
 
-test('a timer in its last minute takes priority over recording and retains its identity', () => {
-    const activity = compactActivity({ name: 'Thé', mode: 'countdown', value: 45 }, { recording: true, recordingSeconds: 10 }, true);
+test('without music a timer in its last minute takes priority over recording and retains its identity', () => {
+    const activity = compactActivity({ name: 'Thé', mode: 'countdown', value: 45 }, { recording: true, recordingSeconds: 10 }, false);
     assert.equal(activity.kind, 'timer');
     assert.equal(activity.label, 'Thé');
     assert.equal(activity.value, '00:45');
     assert.equal(activity.urgent, true);
+});
+
+test('music leaves both the stopwatch and countdowns in their satellite', () => {
+    for (const timer of [
+        { mode: 'stopwatch', name: 'Chrono', value: 872 },
+        { mode: 'countdown', name: 'Cuisine', value: 300 },
+        { mode: 'countdown', name: 'Thé', value: 45 },
+    ]) {
+        assert.equal(compactActivity(timer, { phase: 'idle' }, true), null);
+        assert.equal(compactActivity(timer, { phase: 'idle' }, false).kind, 'timer');
+    }
 });
 
 test('recording takes priority over a distant timer and exposes the actual duration', () => {

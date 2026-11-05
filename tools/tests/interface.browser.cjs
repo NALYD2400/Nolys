@@ -81,6 +81,65 @@ const path = require('node:path');
         await page.locator('.compact-activity').click();
         await page.waitForFunction(() => window.island.isExpanded && window.island.mode === 'timer');
 
+        // Musique + chrono : la capsule garde le titre et la bulle garde son compteur.
+        await page.waitForFunction(() => !window.island._transitionInProgress);
+        await page.evaluate(() => {
+            const island = window.island;
+            window.__replay.restore({ phase: 'idle', recording: false, clipsRevision: 1, config: {}, clips: [] });
+            island._timers.reset();
+            island._timers.setMode('stopwatch');
+            island._timers.reset();
+            island._timers.state.stopwatch.elapsedMs = 872000;
+            island._timers.toggle();
+            island.tickTimers();
+        });
+        media = { ...media, title: 'Musique avec chrono', isPlaying: true };
+        await page.evaluate(data => {
+            window.island.updateMusic(data);
+            window.island.collapseIsland();
+        }, media);
+        await page.waitForSelector('.idle-title-text');
+        await page.waitForSelector('#island-timer-satellite.is-visible');
+        assert.equal(await page.locator('#island-timer-satellite').evaluate(bubble => bubble.classList.contains('is-wide')), true);
+        assert.equal(await page.locator('.compact-activity').count(), 0);
+        await page.waitForFunction(() => {
+            const bubble = document.querySelector('#island-timer-satellite').getBoundingClientRect();
+            const island = window.island.el.getBoundingClientRect();
+            return bubble.right < island.left;
+        });
+        const counter = await page.locator('.satellite-timer-value').textContent();
+        await page.waitForFunction(value => document.querySelector('.satellite-timer-value').textContent !== value, counter, { timeout: 4000 });
+        assert.equal(await page.locator('.idle-title-text').textContent(), 'Musique avec chrono');
+        await page.screenshot({ path: path.join(shots, 'music-stopwatch-satellite.png') });
+        media = { ...media, isPlaying: false };
+        await page.evaluate(data => window.island.updateMusic(data), media);
+        await page.waitForSelector('.compact-activity');
+        assert.equal(await page.locator('#island-timer-satellite').getAttribute('aria-hidden'), 'true');
+        media = { ...media, isPlaying: true };
+        await page.evaluate(data => window.island.updateMusic(data), media);
+        await page.waitForSelector('#island-timer-satellite.is-visible');
+        await page.locator('#island-timer-satellite').click();
+        await page.waitForFunction(() => window.island.isExpanded && window.island.mode === 'timer');
+        assert.equal(await page.evaluate(() => window.island._timers.state.mode), 'stopwatch');
+
+        // Un minuteur proche de son échéance reste aussi à gauche pendant la lecture.
+        await page.waitForFunction(() => !window.island._transitionInProgress);
+        await page.evaluate(() => {
+            const island = window.island;
+            island._timers.reset();
+            island._timers.setMode('countdown');
+            island._timers.reset();
+            island._timers.setDuration(45);
+            island._timers.toggle();
+            island.tickTimers();
+            island.collapseIsland();
+        });
+        await page.waitForSelector('.idle-title-text');
+        await page.waitForSelector('#island-timer-satellite.is-visible');
+        assert.equal(await page.locator('.compact-activity').count(), 0);
+        await page.locator('#island-timer-satellite').click();
+        await page.waitForFunction(() => window.island.isExpanded && window.island.mode === 'timer');
+
         // Même rendu et remplacement sans ancien délai qui masque le nouveau message.
         await page.evaluate(() => window.island.showIslandFeedback('Ajouté aux favoris', 'ph-star'));
         const toast = page.locator('.island-feedback-toast');
@@ -106,6 +165,6 @@ const path = require('node:path');
         await page.waitForTimeout(250);
         await page.screenshot({ path: path.join(shots, 'shared-feedback.png') });
         assert.deepEqual(errors, []);
-        console.log(JSON.stringify({ status: 'passed', shades, checks: ['bright/dark/pattern covers', 'cover background disabled', 'compact priorities and navigation', 'stable counter focus', 'shared feedback style and message replacement'] }));
+        console.log(JSON.stringify({ status: 'passed', shades, checks: ['bright/dark/pattern covers', 'cover background disabled', 'compact priorities and navigation', 'music with stopwatch and countdown satellites', 'pause and resume', 'stable counter focus', 'shared feedback style and message replacement'] }));
     } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
