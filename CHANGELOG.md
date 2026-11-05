@@ -1,6 +1,6 @@
 # Historique
 
-## À venir
+## 2.6.5 — 5 novembre 2026
 
 - Chrono et minuteurs : pendant la lecture musicale, la musique reste dans la capsule et les horloges s’affichent dans la bulle à gauche, comme en 2.6.3.
 
