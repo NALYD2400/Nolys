@@ -167,6 +167,7 @@ export const preferenceMethods = {
             if (!this._layoutEditMode) return;
             e.preventDefault();
             e.stopPropagation();
+            if (toolbar.contains(e.target)) this.freezeLayoutToolbar();
             this.stepLayoutScale(e.deltaY < 0 ? 1 : -1);
         };
         document.getElementById('dynamic-island-container')?.addEventListener('wheel', onWheel, { passive: false, capture: true });

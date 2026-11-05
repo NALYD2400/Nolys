@@ -50,7 +50,7 @@ const path = require('node:path');
             const r = el.getBoundingClientRect(), { x = 0, y = 0, scale = 1 } = window.island._layoutConfig;
             return { x: x + r.left * scale, y: y + r.top * scale, width: r.width * scale, height: r.height * scale };
         });
-        async function fixedClicks(action, count, expected) {
+        async function fixedClicks(action, count, expected, wheel = false) {
             const origin = await screenBox(action);
             for (let i = 0; i < count; i++) {
                 // Même position à l'écran, convertie en coordonnées de la fenêtre après chaque zoom.
@@ -58,7 +58,10 @@ const path = require('node:path');
                     const l = window.island._layoutConfig;
                     return { x: (x - l.x) / l.scale, y: (y - l.y) / l.scale };
                 }, { x: origin.x + origin.width / 2, y: origin.y + origin.height / 2 });
-                await page.mouse.click(point.x, point.y);
+                if (wheel) {
+                    await page.mouse.move(point.x, point.y);
+                    await page.mouse.wheel(0, action === 'bigger' ? -100 : 100);
+                } else await page.mouse.click(point.x, point.y);
                 await page.waitForTimeout(45);
                 const current = await screenBox(action);
                 for (const key of ['x', 'y', 'width', 'height']) assert.ok(Math.abs(current[key] - origin[key]) < 1, `${action} ${key} stable à ${layout.scale} : ${JSON.stringify(current)} / ${JSON.stringify(origin)}`);
@@ -68,6 +71,8 @@ const path = require('node:path');
         await fixedClicks('bigger', 10, 1.5);
         await fixedClicks('smaller', 17, .65);
         await fixedClicks('bigger', 7, 1);
+        await fixedClicks('bigger', 8, 1.4, true);
+        await fixedClicks('smaller', 8, 1, true);
         const preview = await screenBox('preview');
         await page.locator('[data-layout="preview"]').click();
         assert.equal(await page.evaluate(() => window.island._layoutPreview && window.island.isExpanded), true);
@@ -93,6 +98,6 @@ const path = require('node:path');
         await page.waitForFunction(() => !window.island._layoutEditMode);
         assert.equal(await page.locator('#layout-edit-toolbar').isVisible(), false);
         assert.deepEqual(errors, []);
-        console.log('Placement : clics fixes 65–150 %, aperçu, zones visibles, clavier et sortie OK.');
+        console.log('Placement : clics fixes 65–150 %, molette, aperçu, zones visibles, clavier et sortie OK.');
     } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
