@@ -93,6 +93,19 @@ const pageShots = process.env.NOLYS_SHOTS;
         await page.evaluate(() => document.fonts.ready);
         await shot(path.join(screenshots, '21-reglages-general.png'));
 
+        // Les actions du guide mènent à une vraie section et transfèrent le focus
+        // après disparition du bouton, sans modifier les menus personnalisés.
+        for (const [button, destination] of [['Position', 'Position'], ['Menus', 'Menus'], ['Raccourcis', 'Raccourcis']]) {
+            if (await heading() !== 'Général') await page.getByRole('button', { name: 'Général', exact: true }).click();
+            const guide = page.locator('section.card').filter({ has: page.getByRole('heading', { name: 'Bien démarrer', exact: true }) });
+            await guide.getByRole('button', { name: button, exact: true }).click();
+            await page.waitForFunction(title => {
+                const root = window.island._settingsHost.shadowRoot;
+                return root.activeElement === root.querySelector('h1') && root.activeElement.textContent === title;
+            }, destination);
+        }
+        await page.getByRole('button', { name: 'Général', exact: true }).click();
+
         // Un clic dans les Réglages ne replie pas l'Island ; un réglage relayé ne remonte pas la vue.
         const hostBefore = await page.evaluateHandle(() => window.island._settingsHost);
         const toggle = page.getByRole('switch', { name: 'Notifications dans l’Island' });

@@ -146,6 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
             window.island.applyLayoutConfig(state.layout);
         }
         window.island.setLayoutEditMode(Boolean(state.editMode));
+        window.island.applyWindowViewport(state.viewport);
     }).catch((err) => {
         console.warn('[Layout] Failed to load initial state:', err);
     });
@@ -309,6 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('liquid_layout_config', JSON.stringify(layout));
         window.island.applyLayoutConfig(layout);
     });
+    ipcRenderer.on('island-viewport-changed', (event, viewport) => window.island?.applyWindowViewport(viewport));
 
     // Fenêtre masquée (plein écran, raccourci) : animations en pause tant que rien n'est visible.
     ipcRenderer.on('island-visibility-changed', (event, visible) => {

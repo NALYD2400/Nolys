@@ -81,13 +81,13 @@ function Profiles({ store }) {
     );
 }
 
-export default function General({ store }) {
+export default function General({ store, onNavigate }) {
     const { settings, update } = store;
     const [autoStart, setAutoStart] = useAutoStart();
 
     return (
         <>
-            <GettingStarted />
+            <GettingStarted onNavigate={onNavigate} />
             <Profiles store={store} />
 
             <Card title="Démarrage">

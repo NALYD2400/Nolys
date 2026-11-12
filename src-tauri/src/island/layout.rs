@@ -56,6 +56,17 @@ pub fn clamp_scale(scale: f64) -> f64 {
     if scale.is_finite() { scale.clamp(0.65, 1.5) } else { 1.0 }
 }
 
+/// Pendant le placement, seul le contenu est mis à l'échelle dans WebView2.
+/// La fenêtre garde un zoom et une taille fixes, avec le même centre/haut de pilule.
+pub fn editing_viewport(layout: &Layout) -> Layout {
+    Layout {
+        x: layout.x + BASE_WIDTH * (layout.scale - 1.0) / 2.0,
+        y: layout.y + PILL_TOP_OFFSET * (layout.scale - 1.0),
+        scale: 1.0,
+        ..layout.clone()
+    }
+}
+
 /// Zone de travail d'un écran, en pixels logiques.
 #[derive(Debug, Clone, Copy, Serialize)]
 pub struct WorkArea {
@@ -63,6 +74,32 @@ pub struct WorkArea {
     pub y: f64,
     pub width: f64,
     pub height: f64,
+}
+
+/// Surface transparente fixe sur la zone utile du moniteur.
+/// L'offset conserve exactement l'ancrage visuel de la pilule dans cette surface.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowViewport {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+    pub scale: f64,
+    pub offset_x: f64,
+    pub offset_y: f64,
+    pub monitor_scale: f64,
+}
+
+pub fn window_viewport(base: &Layout, area: WorkArea) -> WindowViewport {
+    WindowViewport { x: area.x, y: area.y,
+        width: area.width,
+        height: area.height,
+        scale: base.scale,
+        offset_x: (base.x - area.x) / base.scale,
+        offset_y: (base.y - area.y) / base.scale,
+        monitor_scale: 1.0,
+    }
 }
 
 pub fn monitor_id(monitor: &Monitor) -> String {
@@ -304,6 +341,43 @@ mod tests {
                 assert!((moved.x + BASE_WIDTH * scale / 2.0 - (original.x + width * scale / 2.0)).abs() < 0.51);
                 assert!((moved.y + PILL_TOP_OFFSET * scale - (original.y + top * scale)).abs() < 0.01);
                 assert_eq!(adapt_to_top_offset(moved.clone(), PILL_TOP_OFFSET), moved);
+            }
+        }
+    }
+
+    #[test]
+    fn editing_keeps_the_pill_anchor_with_a_fixed_webview_zoom() {
+        for scale in [0.65, 0.95, 1.0, 1.2, 1.5] {
+            let saved = at(-300.0, scale);
+            let viewport = editing_viewport(&saved);
+            assert_eq!(viewport.scale, 1.0);
+            assert!((viewport.x + BASE_WIDTH / 2.0 - (saved.x + BASE_WIDTH * scale / 2.0)).abs() < 0.001);
+            assert!((viewport.y + PILL_TOP_OFFSET - (saved.y + PILL_TOP_OFFSET * scale)).abs() < 0.001);
+            assert_eq!(saved.scale, scale);
+        }
+    }
+
+    #[test]
+    fn viewport_covers_screen_without_changing_the_capsule_anchor() {
+        for area in [
+            WorkArea { x: 0.0, y: 0.0, width: 1920.0, height: 1040.0 },
+            WorkArea { x: -1280.0, y: 40.0, width: 1280.0, height: 680.0 },
+            WorkArea { x: 1920.0, y: -600.0, width: 1024.0, height: 600.0 },
+        ] {
+            for scale in [0.65, 1.0, 1.5] {
+                for x in [area.x - 500.0, area.x + area.width - 100.0] {
+                    for y in [area.y - 250.0, area.y + area.height - 40.0] {
+                        let saved = Layout { x, y, scale, display_id: "fixture".into() };
+                        let view = window_viewport(&saved, area);
+                        assert_eq!((view.x, view.y, view.width, view.height), (area.x, area.y, area.width, area.height));
+                        assert!(view.x <= area.x && view.y <= area.y);
+                        assert!(view.x + view.width >= area.x + area.width);
+                        assert!(view.y + view.height >= area.y + area.height);
+                        assert!((view.x + (view.offset_x + BASE_WIDTH / 2.0) * scale - (x + BASE_WIDTH * scale / 2.0)).abs() < 0.001);
+                        assert!((view.y + (view.offset_y + PILL_TOP_OFFSET) * scale - (y + PILL_TOP_OFFSET * scale)).abs() < 0.001);
+                        assert_eq!((saved.x, saved.y, saved.scale), (x, y, scale));
+                    }
+                }
             }
         }
     }

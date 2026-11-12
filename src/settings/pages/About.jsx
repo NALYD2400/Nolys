@@ -46,7 +46,7 @@ function Updates({ updates }) {
     );
 }
 
-export default function About({ store }) {
+export default function About({ store, onNavigate }) {
     const fileInput = useRef(null);
     const [importError, setImportError] = useState('');
     const updates = useUpdates();
@@ -102,7 +102,7 @@ export default function About({ store }) {
             </Card>
 
             <Maintenance store={store} />
-            <GettingStarted always />
+            <GettingStarted always onNavigate={onNavigate} />
 
             <Card>
                 <Row label="Quitter l’application" description="Ferme l’Island et rétablit ton fond d’écran.">

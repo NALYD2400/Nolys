@@ -2,7 +2,17 @@
 import { ipcRenderer } from '../../../shared/ipc.js';
 
 export const navigationMethods = {
-    // ... (rest of methods)
+    /** Invalide ensemble l'animation courante, son rendu tardif et la demande suivante. */
+    cancelTransition() {
+        this._transitionToken = (this._transitionToken || 0) + 1;
+        this._queuedTransition = null;
+        this._transitionInProgress = false;
+        this._isTransitioning = false;
+        clearTimeout(this._introTimer);
+        this._introTimer = null;
+        this.el.classList.remove('animating');
+        this.content.classList.remove('di-intro');
+    },
 
     async transitionState(updateFn) {
         // Mode placement : l'Island reste repliée (aucune ouverture ni notification).
@@ -101,6 +111,7 @@ export const navigationMethods = {
     },
 
     returnToMusicIdle() {
+        this.cancelTransition();
         this.clearNotification();
         this.mode = 'music';
         this.isExpanded = false;
@@ -141,12 +152,12 @@ export const navigationMethods = {
         }
         const mode = action === 'widgets' ? 'menu' : action;
         if (!['music', 'music-history', 'menu', 'mixer', 'mic', 'control', 'settings', 'library', 'files', 'replay', 'timer'].includes(mode)) return false;
-        this.isExpanded = true;
-        this.setMode(mode);
+        if (mode === 'files') { this.openFiles(); return true; }
+        this.setMode(mode, { expand: true });
         return true;
     },
 
-    setMode(mode, { page } = {}) {
+    setMode(mode, { page, expand = false } = {}) {
         if (mode === 'replay') { this.openReplay(); return; }
         if (mode === 'files') { this.openFiles(); return; }
         if (this.mode === 'files') {
@@ -169,6 +180,7 @@ export const navigationMethods = {
         if (mode === 'menu') {
             this.transitionState(() => {
                 this.mode = mode;
+                if (expand) this.isExpanded = true;
                 this.renderContent();
             });
             return;
@@ -181,6 +193,7 @@ export const navigationMethods = {
 
         this.transitionState(() => {
             this.mode = mode;
+            if (expand) this.isExpanded = true;
             this.renderContent();
         });
     },

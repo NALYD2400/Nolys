@@ -7,6 +7,7 @@ import { compactActivity } from '../helpers/compact-activity.js';
 import { replay } from '../../../replay/store.js';
 import { offlineArt } from '../../../shared/privacy.js';
 import { readRecord } from '../../../shared/safe-storage.js';
+import { renderModuleArtwork } from '../../../shared/module-art.js';
 
 export const idleView = {
     renderIdle() {
@@ -80,7 +81,7 @@ export const idleView = {
             this.content.innerHTML = `<div class="island-idle-content">
                 <button type="button" class="compact-activity ${activity.urgent ? 'is-urgent' : ''} ${activity.kind === 'recording' ? 'is-recording' : ''}"
                     data-island-action="openCompactActivity">
-                    <i class="ph ${activity.icon}" aria-hidden="true"></i>
+                    ${renderModuleArtwork(activity.mode)}
                     <span class="compact-activity-label"></span><strong class="compact-activity-value"></strong>
                 </button></div>`;
             this.updateCompactActivity(activity);
@@ -111,7 +112,7 @@ export const idleView = {
             } else if (displayArt && displayArt.length > 0) {
                 coverHtml = `<img src="${escapeHtml(displayArt)}" style="width: 28px; height: 28px; border-radius: ${coverRadius}; object-fit: cover; margin-left: 2px;" data-fallback="note">`;
             } else {
-                if (appIcon) {
+                if (appIcon && appIcon !== APP_LOGO_ART) {
                     coverHtml = `<img src="${escapeHtml(appIcon)}" style="width: 28px; height: 28px; border-radius: ${coverRadius}; object-fit: contain; background: #000; padding: 2px; margin-left: 2px;" data-fallback="note">`;
                 } else {
                     coverHtml = `<img src="${APP_LOGO_ART}" class="idle-cover-art app-logo-art" style="border-radius: ${coverRadius};" alt="Nolys">`;

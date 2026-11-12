@@ -20,7 +20,7 @@ const { spawnSync } = require('node:child_process');
         const preview = spawnSync(process.env.NOLYS_FFMPEG || path.join(process.cwd(), 'src-tauri/resources/replay/ffmpeg.exe'), ['-v', 'error', '-i', fixture, '-frames:v', '1', '-vf', 'scale=320:180', '-f', 'image2pipe', '-c:v', 'mjpeg', 'pipe:1'], { windowsHide: true });
         assert.equal(preview.status, 0);
         await context.route('**/__replay_thumbnail.jpg', route => route.fulfill({ contentType: 'image/jpeg', body: preview.stdout }));
-        let rejectDeletion = false, rejectRename = false;
+        let reverseSources = false, rejectDeletion = false, rejectRename = false, delayMaintenance = false, releaseMaintenance, maintenanceStarted;
         let networkSample = { netDown: 2048, netUp: 128 };
         await context.route('**/__replay_fixture.mp4', route => {
             const bytes = fs.readFileSync(fixture);
@@ -35,7 +35,10 @@ const { spawnSync } = require('node:child_process');
             if (command === 'replay_media') return 'http://localhost:1420/__replay_fixture.mp4';
             if (command === 'replay_thumbnail') return 'http://localhost:1420/__replay_thumbnail.jpg';
             if (command === 'replay_preflight' && args.kind === 'preview') return `data:image/jpeg;base64,${preview.stdout.toString('base64')}`;
-            if (command === 'replay_cache') return { bytes: 1024, files: 1, limitBytes: 128 * 1024 ** 2 };
+            if (command === 'replay_cache') {
+                if (delayMaintenance) await new Promise(resolve => { releaseMaintenance = resolve; maintenanceStarted(); });
+                return { bytes: 1024, files: 1, limitBytes: 128 * 1024 ** 2 };
+            }
             if (command === 'replay_recovery_list') return [];
             if (command === 'replay_reindex' || command === 'replay_relocate') return structuredClone(state);
             if (command === 'replay_rename') {
@@ -48,7 +51,7 @@ const { spawnSync } = require('node:child_process');
                 state.clips = state.clips.filter(clip => clip.id !== args.id); state.notice = null;
                 return structuredClone(state);
             }
-            if (command === 'replay_sources') return [{ id: 'monitor:1', kind: 'monitor', label: 'Écran 1 · 1920 × 1080', width: 1920, height: 1080 }, { id: 'window:42:10', kind: 'window', label: 'Jeu de test', width: 2560, height: 1440 }, {id:'window:long',kind:'window',label:'Fenêtre avec un titre très long · '+ 'Texte externe & <test> '.repeat(100),width:1920,height:1080}];
+            if (command === 'replay_sources') { const sources = [{ id: 'monitor:1', kind: 'monitor', label: 'Écran 1 · 1920 × 1080', width: 1920, height: 1080 }, { id: 'window:42:10', kind: 'window', label: 'Jeu de test', width: 2560, height: 1440 }, {id:'window:long',kind:'window',label:'Fenêtre avec un titre très long · '+ 'Texte externe & <test> '.repeat(100),width:1920,height:1080}]; return reverseSources ? sources.toReversed() : sources; }
             if (command === 'replay_configure') { state.config = args.config; return structuredClone(state); }
             if (command === 'replay_action') {
                 if (args.action === 'start') Object.assign(state, { phase: 'buffering', bufferedSeconds: 30.25, bufferBytes: 19 * 1024 ** 2, encoder: 'h264_amf', pipeline: 'DXGI · GPU direct', width: 1920, height: 1080 });
@@ -97,6 +100,44 @@ const { spawnSync } = require('node:child_process');
         });
         assert.ok(menuFits.inside && menuFits.width<menuFits.panel && menuFits.overflow===0,JSON.stringify(menuFits));
         await page.screenshot({path:path.join(shots,'replay-source-menu.png')});
+        await page.keyboard.press('Escape');
+        await page.locator('#replay-sourceId-trigger').click();
+        await page.keyboard.press('End');
+        reverseSources = true;
+        await page.locator('[data-action="refresh"]').evaluate(button => button.click());
+        await page.waitForFunction(() => {
+            const root = window.island._replayHost.shadowRoot;
+            return root.querySelector('.replay-select-menu [role="option"]:nth-child(2)')?.dataset.value === 'window:long';
+        });
+        assert.equal(await page.evaluate(() => window.island._replayHost.shadowRoot.activeElement.dataset.value), 'window:long', 'le réordonnancement garde la source pointée');
+        await page.keyboard.press('Enter');
+        assert.equal(await page.locator('#replay-sourceId').inputValue(), 'window:long');
+        reverseSources = false;
+        await page.locator('[data-action="refresh"]').click();
+        await page.waitForFunction(() => window.island._replayHost.shadowRoot.querySelector('#replay-sourceId').options[1]?.value === 'monitor:1');
+        // Le zoom CSS réel de la capsule ne change pas les coordonnées locales du menu.
+        for (const scale of [.65, 1, 1.25, 1.5]) {
+            await page.evaluate(scale => {
+                window.island.el.style.zoom = String(scale);
+                document.querySelector('#dynamic-island-container').style.setProperty('--island-viewport-y', '-172px');
+            }, scale);
+            await page.locator('#replay-sourceId-trigger').click();
+            const geometry = await page.evaluate(() => {
+                const root = window.island._replayHost.shadowRoot;
+                const menu = root.querySelector('.replay-select-menu').getBoundingClientRect();
+                const anchor = root.querySelector('#replay-sourceId-trigger').getBoundingClientRect();
+                const panel = root.querySelector('.replay-panel').getBoundingClientRect();
+                return { left: Math.abs(menu.left - anchor.left), width: Math.abs(menu.width - anchor.width),
+                    inside: menu.left >= panel.left && menu.right <= panel.right + 1 && menu.top >= panel.top && menu.bottom <= panel.bottom + 1 };
+            });
+            assert.ok(geometry.inside && geometry.left < 2 && geometry.width < 2, `menu Replay à ${scale}: ${JSON.stringify(geometry)}`);
+            await page.keyboard.press('Escape');
+        }
+        await page.evaluate(() => {
+            window.island.el.style.removeProperty('zoom');
+            document.querySelector('#dynamic-island-container').style.removeProperty('--island-viewport-y');
+        });
+        await page.locator('#replay-sourceId-trigger').click();
         await page.keyboard.press('End'); await page.keyboard.press('Enter');
         assert.equal(await page.locator('#replay-sourceId').inputValue(),'window:long');
         assert.equal(await page.locator('#replay-sourceId-trigger').getAttribute('aria-expanded'),'false');
@@ -116,9 +157,21 @@ const { spawnSync } = require('node:child_process');
         await page.screenshot({ path: path.join(shots, 'replay-clips-empty-desktop.png') });
         await page.getByRole('tab', { name: 'Capture', exact: true }).click(); await page.waitForTimeout(400);
         assert.equal(await page.getByRole('button', { name: 'Activer le replay', exact: true }).isEnabled(), true);
+        const maintenancePending = new Promise(resolve => { maintenanceStarted = resolve; });
+        delayMaintenance = true;
         await page.getByRole('tab', { name: 'Réglages', exact: true }).click();
+        await maintenancePending;
         const advanced = page.locator('[data-settings-section="advanced"]');
         const diagnostics = page.locator('[data-settings-section="diagnostics"]');
+        await advanced.locator('summary').click();
+        await page.locator('#replay-fps-trigger').click();
+        await page.evaluate(() => { window.__openReplaySelect = window.island._replayHost.shadowRoot.querySelector('#replay-fps-trigger'); });
+        delayMaintenance = false; releaseMaintenance();
+        await page.waitForFunction(() => window.island._replayHost.shadowRoot.querySelector('[data-settings-section="diagnostics"]').textContent.includes('Cache des aperçus'));
+        assert.equal(await page.evaluate(() => window.__openReplaySelect === window.island._replayHost.shadowRoot.querySelector('#replay-fps-trigger')), true, 'le retour tardif du stockage conserve le bouton ouvert');
+        assert.equal(await page.locator('.replay-select-menu').isVisible(), true, 'la liste reste ouverte pendant la mise à jour du stockage');
+        await page.keyboard.press('Escape');
+        await advanced.locator('summary').click();
         assert.equal(await advanced.evaluate(el => el.open), false);
         assert.equal(await diagnostics.evaluate(el => el.open), false);
         assert.equal(await page.getByLabel('Durée du replay · secondes', { exact: true }).isVisible(), true);
@@ -137,6 +190,31 @@ const { spawnSync } = require('node:child_process');
         await advanced.locator('summary').focus();
         await advanced.locator('summary').press('Enter');
         assert.equal(await advanced.evaluate(el => el.open), true, 'advanced options open from the keyboard');
+        await page.getByLabel('Microphone', { exact: true }).check();
+        for (const scale of [.65, 1, 1.5]) {
+            await page.evaluate(scale => {
+                window.island.el.style.zoom = String(scale);
+                document.querySelector('#dynamic-island-container').style.setProperty('--island-viewport-y', '-172px');
+            }, scale);
+            for (const key of ['height', 'fps', 'capture', 'encoder', 'codec', 'preset', 'outputDevice', 'inputDevice', 'audioKbps']) {
+                await page.locator(`#replay-${key}-trigger`).click();
+                await page.keyboard.press('End');
+                const geometry = await page.evaluate(key => {
+                    const root = window.island._replayHost.shadowRoot, menu = root.querySelector('.replay-select-menu');
+                    const m = menu.getBoundingClientRect(), anchor = root.querySelector(`#replay-${key}-trigger`).getBoundingClientRect();
+                    const panel = root.querySelector('.replay-panel').getBoundingClientRect(), focused = root.activeElement.getBoundingClientRect();
+                    return { inside: m.left >= panel.left && m.right <= panel.right + 1 && m.top >= panel.top && m.bottom <= panel.bottom + 1,
+                        left: Math.abs(m.left - anchor.left), width: Math.abs(m.width - anchor.width),
+                        optionVisible: focused.top >= m.top && focused.bottom <= m.bottom + 1 };
+                }, key);
+                assert.ok(geometry.inside && geometry.left < 2 && geometry.width < 2 && geometry.optionVisible, `${key} à ${scale}: ${JSON.stringify(geometry)}`);
+                await page.keyboard.press('Escape');
+            }
+        }
+        await page.evaluate(() => {
+            window.island.el.style.removeProperty('zoom');
+            document.querySelector('#dynamic-island-container').style.removeProperty('--island-viewport-y');
+        });
         await page.getByRole('combobox', { name: /Images par seconde/ }).click();
         await page.getByRole('option', {name:'120 FPS',exact:true}).click();
         assert.equal(await page.locator('#replay-fps').inputValue(),'120','le menu transmet la valeur choisie');
@@ -291,6 +369,46 @@ const { spawnSync } = require('node:child_process');
         await page.evaluate(() => window.__dispatch('replay-status', {})); await page.waitForTimeout(300);
         assert.equal(await page.locator('#replay-video').evaluate(video => video === window.__playingVideo), true, 'telemetry must not reload video');
         assert.ok(await page.locator('#replay-video').evaluate(video => video.paused && video.currentTime >= 1.1));
+        assert.equal(await page.locator('#replay-video').evaluate(video => video.controls), false);
+        const seek = page.getByRole('slider', { name: 'Position dans le clip', exact: true });
+        for (const scale of [.65, 1, 1.5]) {
+            await page.locator('#dynamic-island').evaluate((el, value) => { el.style.zoom = value; }, scale);
+            for (const fraction of [.25, .75]) {
+                const box = await seek.boundingBox();
+                await page.mouse.click(box.x + box.width * fraction, box.y + box.height / 2);
+                await page.waitForFunction(fraction => {
+                    const video = window.__playingVideo;
+                    return !video.seeking && Math.abs(video.currentTime / video.duration - fraction) < .04;
+                }, fraction);
+            }
+            await seek.focus(); await page.keyboard.press('Home');
+            await page.waitForFunction(() => window.__playingVideo.currentTime < .1);
+            await page.keyboard.press('End');
+            await page.waitForFunction(() => Math.abs(window.__playingVideo.currentTime - window.__playingVideo.duration) < .1);
+        }
+        await page.locator('#dynamic-island').evaluate(el => { el.style.zoom = ''; });
+        await page.getByRole('button', { name: 'Couper le son', exact: true }).click();
+        assert.equal(await page.locator('#replay-video').evaluate(video => video.muted), true);
+        await page.getByRole('button', { name: 'Activer le son', exact: true }).click();
+        await page.getByRole('button', { name: 'Lecture', exact: true }).click();
+        await page.waitForFunction(() => !window.__playingVideo.paused);
+        await page.getByRole('button', { name: 'Pause', exact: true }).click();
+        await page.waitForFunction(() => window.__playingVideo.paused);
+        const clipVolume = page.getByRole('slider', { name: 'Volume du clip', exact: true });
+        await clipVolume.focus(); await page.keyboard.press('Home');
+        await page.waitForFunction(() => window.__playingVideo.volume === 0);
+        await page.keyboard.press('End');
+        await page.waitForFunction(() => window.__playingVideo.volume === 1 && !window.__playingVideo.muted);
+        if (await page.getByRole('button', { name: 'Plein écran', exact: true }).isVisible()) {
+            await page.getByRole('button', { name: 'Plein écran', exact: true }).click();
+            await page.waitForFunction(() => Boolean(document.fullscreenElement));
+            await page.waitForTimeout(100);
+            const fullscreenRegion = calls.filter(call => call.command === 'set_hit_region').at(-1)?.args;
+            assert.deepEqual(fullscreenRegion.rects, [{ x: 0, y: 0, width: nativeViewport.width, height: nativeViewport.height }]);
+            await page.getByRole('button', { name: 'Quitter le plein écran', exact: true }).click();
+            await page.waitForFunction(() => !document.fullscreenElement);
+            assert.equal(await page.locator('#replay-video').evaluate(video => video === window.__playingVideo), true);
+        }
         await page.screenshot({ path: path.join(shots, 'replay-player-desktop.png') });
         await page.locator('#replay-video').evaluate(video => video.dispatchEvent(new Event('error')));
         await page.getByRole('button', { name: 'Ouvrir dans un autre lecteur', exact: true }).click();

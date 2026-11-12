@@ -17,6 +17,9 @@ pub struct AppState {
     pub media: Mutex<MediaTracker>,
     pub wallpaper: Arc<WallpaperSync>,
     pub layout: Mutex<Layout>,
+    /// Zoom déjà demandé à WebView2 : ne pas repeindre la fenêtre à l'identique.
+    pub window_zoom: Mutex<Option<f64>>,
+    pub window_viewport: Mutex<Option<crate::island::layout::WindowViewport>>,
     /// Emprise ouverte temporaire : ne modifie jamais la position enregistrée.
     pub expanded_bounds: Mutex<Option<crate::island::hit_test::CssRect>>,
     pub hit_region: Mutex<HitRegion>,
@@ -47,6 +50,8 @@ impl AppState {
             data_dir,
             media: Mutex::new(MediaTracker::new()),
             layout: Mutex::new(layout),
+            window_zoom: Mutex::new(None),
+            window_viewport: Mutex::new(None),
             expanded_bounds: Mutex::new(None),
             hit_region: Mutex::new(HitRegion::default()),
             update: Mutex::new(UpdateStatus::default()),

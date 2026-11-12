@@ -68,9 +68,7 @@ export const filesView = {
         if (this._layoutEditMode) return;
         if (this.mode === 'files' && this.isExpanded) return;
         if (this.mode !== 'files') this._filesReturnState = { mode: this.mode, isExpanded: this.isExpanded };
-        ++this._transitionToken;
-        this._transitionInProgress = false; this._isTransitioning = false; this._queuedTransition = null;
-        this.el.classList.remove('animating');
+        this.cancelTransition();
         this.transitionState(() => { this.mode = 'files'; this.isExpanded = true; this.renderContent(); });
     },
     renderFiles() {

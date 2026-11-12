@@ -16,18 +16,21 @@ let lastExtent = '';
 export function targetExtent(element, expanded) {
     if (!expanded) return null;
     const rect = element.getBoundingClientRect();
+    const zoom = parseFloat(getComputedStyle(element).zoom) || 1;
     let width = rect.width, height = rect.height;
     for (const animation of element.getAnimations()) {
         const frames = animation.effect?.getKeyframes?.();
         const last = frames?.at(-1);
-        if (animation.transitionProperty === 'width') width = parseFloat(last?.width) || width;
-        if (animation.transitionProperty === 'height') height = parseFloat(last?.height) || height;
+        if (animation.transitionProperty === 'width') width = (parseFloat(last?.width) * zoom) || width;
+        if (animation.transitionProperty === 'height') height = (parseFloat(last?.height) * zoom) || height;
     }
     return { x: Math.round((rect.x + rect.width / 2 - width / 2) * 10) / 10, y: Math.round(rect.y * 10) / 10,
         width: Math.round(width * 10) / 10, height: Math.round(height * 10) / 10 };
 }
 
 function collectRects() {
+    // Le lecteur plein écran quitte la coque : toute sa surface doit recevoir la souris.
+    if (document.fullscreenElement) return [{ x: 0, y: 0, width: innerWidth, height: innerHeight }];
     const rects = [];
     for (const selector of TRACKED_SELECTORS) {
         document.querySelectorAll(selector).forEach((element) => {
@@ -43,10 +46,21 @@ function collectRects() {
 function flush() {
     frameRequested = false;
     const island = document.getElementById('dynamic-island');
-    const expanded = island?.matches('.island-expanded,.island-large,.island-mode-files,.island-notifying');
+    const expanded = !document.body.classList.contains('layout-edit-mode')
+        && island?.matches('.island-expanded,.island-large,.island-mode-files,.island-notifying');
     const bounds = island ? targetExtent(island, expanded) : null;
+    if (bounds && window.__NOLYS_VIEWPORT__) {
+        const viewport = window.__NOLYS_VIEWPORT__;
+        const zoom = parseFloat(getComputedStyle(island).zoom) || 1;
+        bounds.x = 540 + (bounds.x - viewport.offsetX - 540) / zoom;
+        bounds.y = 192 + (bounds.y - viewport.offsetY - 192) / zoom;
+        bounds.width /= zoom;
+        bounds.height /= zoom;
+        for (const key of ['x', 'y', 'width', 'height']) bounds[key] = Math.round(bounds[key] * 10) / 10;
+    }
     const extent = JSON.stringify(bounds);
-    if (extent !== lastExtent) {
+    // Le plein écran ne doit ni déplacer la pilule enregistrée, ni recadrer sa fenêtre.
+    if (!document.fullscreenElement && extent !== lastExtent) {
         lastExtent = extent;
         native.invoke('set_island_extent', { bounds }).catch(() => { lastExtent = ''; });
     }
@@ -86,6 +100,7 @@ export function trackHitRegion() {
     island.addEventListener('transitionend', schedule);
     island.addEventListener('animationend', schedule);
     window.addEventListener('resize', schedule);
+    document.addEventListener('fullscreenchange', schedule);
     window.addEventListener('nolys-hit-region-changed', schedule);
     schedule();
 }

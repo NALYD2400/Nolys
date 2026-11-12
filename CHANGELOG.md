@@ -1,5 +1,23 @@
 # Historique
 
+## Non publié
+
+- Icônes : modules nacrés rétablis dans les menus, les Réglages et le retour micro ; symboles sans contour au clic droit. Déplacer, Quitter et Personnaliser gardent des pictogrammes simples.
+- Activités compactes : mêmes symboles nacrés pour Replay, REC, minuteur et bulles Replay/micro ; en-tête du mélangeur harmonisé, sans cadre autour des petits symboles.
+- Replay : menus déroulants alignés aux différents zooms, défilement limité aux options et sélection préservée lors des réponses asynchrones de maintenance et de sources.
+- Clips : commandes de lecture intégrées, barre de progression au même zoom que la vidéo, navigation au clavier, son et plein écran. Le logo Nolys utilisé comme pochette occupe son emplacement sans encart noir.
+- Guide : accès directs aux pages Position, Menus et Raccourcis, avec focus transféré vers la page ouverte. Descriptions et aides des Réglages plus lisibles.
+
+- Menu clic droit : la pilule reste immobile à l’ouverture et à la fermeture. La surface transparente couvre la zone utile du moniteur ; seul le menu se place selon sa taille réelle et les bords de l’écran, avec défilement si nécessaire.
+- Retour micro : nouveau symbole nacré violet dans l’en-tête et la tuile du centre de contrôle, sur fond transparent.
+- Halo : recalage immédiat après validation du placement et lors des changements du conteneur ; son zoom, ses dimensions et son rayon suivent ceux de la pilule.
+- Placement : la barre suit immédiatement l’ouverture et le repli de l’aperçu, dans le même mouvement.
+- Taille en mode placement : interpolation locale de la pilule, avec un zoom et une taille de WebView fixes pour éviter les rafraîchissements successifs de la fenêtre. Les boutons et la molette restent sous la souris.
+- Déplacement : surface native stable sur le moniteur, suivi absolu du curseur et enregistrement au relâchement sans recadrage. Suppression des grandes marges de placement et d’un verrou réentrant pouvant figer l’application.
+- Entrée/sortie du placement : zoom natif constant, sans petite copie décalée ; seule la bordure apparaît à l’entrée. « Terminer » replie l’aperçu avant de quitter le mode.
+- Placement interrompu : Échap, perte de capture ou de focus arrêtent le glisser ; les commandes tardives ne déplacent plus la capsule après validation.
+- Navigation : Fichiers retrouve l’état compact après une ouverture depuis le clic droit ou un raccourci ; un module demandé pendant le repli s’ouvre correctement. Le menu des modules conserve sa hauteur près du bord inférieur de l’écran.
+
 ## 2.6.6 — 5 novembre 2026
 
 - Nouvelle identité Orbite nacrée pour Nolys, y compris l’icône Windows et l’installateur. Les modules et raccourcis Windows partagent des symboles sur fond transparent, colorés en CSS ; Replay adopte un rouge plus franc.

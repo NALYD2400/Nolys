@@ -50,17 +50,18 @@
     font-size: 12px;
     cursor: pointer;
 }
-.compact-activity > i { display: grid; place-items: center; width: 28px; height: 28px; font-size: 16px; line-height: 1; flex: none; color: var(--neon-primary); }
-/* Correction optique du dessin de caméra dans la police d'icônes. */
-.compact-activity > .ph-video-camera::before { transform: translateY(1px); }
+.compact-activity > .module-art { --module-size: 28px; }
+.compact-activity > .module-art::before { display: none; }
 .compact-activity-label { min-width: 0; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
 .compact-activity-value { flex: none; font-size: 12px; font-variant-numeric: tabular-nums; }
-.compact-activity.is-recording > i { color: #ff6961; }
-.compact-activity.is-urgent > i,
+.compact-activity.is-recording .compact-activity-value::before {
+    content: ''; display: inline-block; width: 6px; height: 6px;
+    margin-right: 5px; border-radius: 50%; background: #ff453a; vertical-align: 1px;
+}
 .compact-activity.is-urgent .compact-activity-value { color: #ffd081; }
 .compact-activity:focus-visible { outline: 2px solid #fff; outline-offset: -4px; }
 #dynamic-island.island-game-compact .compact-activity { padding: 0 3px; gap: 4px; }
-#dynamic-island.island-game-compact .compact-activity > i { width: 16px; height: 16px; }
+#dynamic-island.island-game-compact .compact-activity > .module-art { --module-size: 16px; }
 #dynamic-island.island-game-compact .compact-activity-label { display: none; }
 
 .music-info {

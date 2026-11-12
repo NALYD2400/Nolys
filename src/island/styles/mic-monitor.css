@@ -33,7 +33,7 @@
     gap: 10px;
 }
 
-/* Pastille : 30 px pour que le micro plein (16 px) tienne net, centré sur des pixels entiers. */
+/* Symbole nacré du module ; le fond de la capsule reste visible. */
 .mic-badge {
     position: relative;
     width: 30px;
@@ -42,21 +42,19 @@
     border-radius: 50%;
     display: grid;
     place-items: center;
-    background: rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 16px;
-    transition: background 0.3s ease, color 0.3s ease;
+    background: transparent;
 }
 
-.mic-badge i {
-    display: block;
-    line-height: 1;
+.mic-badge > .module-art {
+    --module-size: 30px;
 }
 
-.mic-view.is-running .mic-badge {
-    background: color-mix(in srgb, var(--mic-accent) 85%, transparent);
-    color: #fff;
+.mic-badge > .module-art::before,
+.ic-mic-toggle > .module-art::before {
+    content: none;
 }
+
+.ic-mic-toggle > .module-art { --module-size: 24px; }
 
 /* Anneau qui respire avec la voix. */
 .mic-badge-ring {
@@ -777,10 +775,11 @@ body:not(.motion-sober):not(.no-glow-breath) .island-satellite.is-glowing {
 }
 
 .satellite-icon {
-    font-size: 15px;
-    color: rgba(255, 255, 255, 0.92);
-    filter: drop-shadow(0 0 6px rgba(var(--island-glow-rgb, 212, 148, 96), 0.55));
+    display: grid;
+    place-items: center;
 }
+.satellite-icon .module-art { --module-size: 22px; }
+.satellite-icon .module-art::before { display: none; }
 
 .satellite-bars {
     display: flex;

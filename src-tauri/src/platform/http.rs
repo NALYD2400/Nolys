@@ -110,6 +110,9 @@ mod tests {
                     if Instant::now() >= until { return; }
                     std::thread::sleep(Duration::from_millis(5));
                 };
+                // Winsock peut transmettre le mode non bloquant du listener.
+                // Les lectures ci-dessous attendent les en-têtes avec un délai borné.
+                stream.set_nonblocking(false).unwrap();
                 let _ = stream.set_read_timeout(Some(Duration::from_secs(1)));
                 // TCP peut fragmenter les en-têtes. Fermer avec des octets de
                 // requête non lus peut produire un RST et tronquer la réponse.

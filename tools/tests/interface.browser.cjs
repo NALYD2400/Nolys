@@ -57,6 +57,14 @@ const path = require('node:path');
         await page.evaluate(() => { window.island._islandConfig.playerCoverBg = 0; window.island.renderMusic(); });
         assert.equal(await page.evaluate(() => Number(window.island.el.style.getPropertyValue('--music-readability-shade'))), 0);
 
+        // Le visuel Nolys remplit la pochette locale, sans l'encart noir réservé aux services.
+        media = { title: 'Sans pochette', artist: 'Nolys', appId: 'nolys-local', source: 'local', cover: '', isPlaying: false, progress: 0, duration: 30000, trackKey: 'local:art' };
+        await page.evaluate(data => window.island.updateMusic(data), media);
+        const logo = page.locator('.album-art');
+        assert.equal(await logo.getAttribute('src'), '/assets/app-logo.png');
+        assert.deepEqual(await logo.evaluate(el => { const s = getComputedStyle(el); return { padding: s.padding, background: s.backgroundColor }; }), { padding: '0px', background: 'rgba(0, 0, 0, 0)' });
+        await page.screenshot({ path: path.join(shots, 'local-logo-full.png') });
+
         // Les compteurs gardent leurs nœuds et le focus ; seule la priorité change la vue.
         await page.evaluate(async () => {
             const { replay } = await import('/replay/store.js');

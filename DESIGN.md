@@ -12,9 +12,13 @@ Les illustrations des modules partagent cette matière : note musicale bleue, fl
 
 Cette évolution porte sur la marque et les illustrations du menu. La capsule transparente, Inter, les composants, la navigation, les dimensions et les thèmes existants sont conservés. Les thèmes cuivre/champagne restent disponibles et les choix enregistrés priment.
 
-Les petits contrôles et satellites utilisent Phosphor ; les illustrations en verre sont réservées aux emplacements où leurs détails restent lisibles. La lumière CSS est limitée au symbole et au liseré, sans halo extérieur ni animation. Au clic droit et dans le lanceur du centre de contrôle, le liseré est masqué à la demande de l’utilisateur. Les libellés restent du texte accessible ; les images sont décoratives.
+Les modules utilisent les illustrations nacrées dans le grand menu (42 px), le clic droit et les listes des Réglages (24 px). La lumière CSS est limitée au symbole et au liseré, sans halo extérieur ni animation. Au clic droit et dans les petits raccourcis du centre de contrôle, le liseré est masqué : le symbole seul reste sur fond transparent. Les libellés restent du texte accessible ; les images sont décoratives.
 
-Les actions Déplacer, Quitter, Personnaliser et Recherche ainsi que les huit raccourcis Windows prédéfinis utilisent aussi la famille nacrée. Leur commande existante détermine l’icône, sans migration des préférences. Un raccourci personnel dont la commande n’est pas connue conserve son pictogramme. Ces illustrations identifient une destination ou une action ; les petites commandes lecture/pause, les coches et les flèches de navigation restent simples.
+Choix confirmé le 6 novembre 2026 : retour aux icônes nacrées pour les modules. Les actions utilitaires Déplacer, Quitter et Personnaliser restent des pictogrammes Phosphor réguliers dans les menus et leurs éditeurs. Les raccourcis Windows connus conservent leur illustration, les raccourcis personnels inconnus leur icône choisie. Aucune migration des préférences n’est nécessaire.
+
+Le micro retrouve son symbole nacré violet dans l’en-tête (30 px) et la tuile du centre de contrôle (24 px), sans fond ni liseré. L’anneau fonctionnel indiquant la voix reste présent quand le retour est actif. Lecture/pause, coches, flèches et petits contrôles restent simples. Le logo Orbite de l’application reste inchangé.
+
+Les états compacts Replay, REC et minuteur reprennent aussi les symboles nacrés des modules (28 px, 16 px en mode jeu), ainsi que les bulles Replay et micro (22 px) et l’en-tête du mélangeur (24 px). Aucun cadre autour de ces symboles. REC conserve un point rouge distinct ; les barres de voix, la confirmation de coupure micro et le compteur satellite du minuteur gardent leur fonction.
 
 ## Vérification
 

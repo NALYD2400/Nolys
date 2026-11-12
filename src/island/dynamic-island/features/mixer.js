@@ -2,6 +2,7 @@
 import { ipcRenderer } from '../../../shared/ipc.js';
 import { escapeHtml } from '../helpers/format.js';
 import { getInputDeviceIcon, getMixerIcon, getMuteIcon, getOutputDeviceIcon } from '../helpers/mixer-icons.js';
+import { renderModuleArtwork } from '../../../shared/module-art.js';
 
 /** Nom lisible d'une application (« audiodg » = sons de Windows). */
 export function sessionName(name = '') {
@@ -474,7 +475,7 @@ export const mixerMethods = {
             <div class="mixer-container">
                 <div class="mixer-header">
                     <div class="mixer-heading">
-                        <span class="mixer-title"><i class="ph ph-sliders"></i> Mélangeur</span>
+                        <span class="mixer-title">${renderModuleArtwork('mixer')} Mélangeur</span>
                         <button type="button" class="mixer-output-btn device-select-btn ${activeOutBtnClass}" data-island-action="toggleAudioDeviceDropdown" title="Changer la sortie audio">
                             <i class="ph ${headerIcon}"></i><span>${escapeHtml(activeDevice?.name || 'Sortie par défaut')}</span><i class="ph-bold ph-caret-down"></i>
                         </button>

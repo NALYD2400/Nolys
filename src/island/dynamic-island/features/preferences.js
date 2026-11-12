@@ -1,11 +1,36 @@
 /** Préférences d’affichage : position, animations, mode éco, persistance. */
-import { ipcRenderer } from '../../../shared/ipc.js';
+import { ipcRenderer, native } from '../../../shared/ipc.js';
 import { visualizerService } from '../../../services/AudioVisualizerService.js';
 import { MOTION_LEVELS } from '../helpers/constants.js';
 
 export const preferenceMethods = {
-    /** Configuration appliquée par le cœur natif (taille = zoom réel de la fenêtre). */
+    applyWindowViewport(viewport) {
+        if (!viewport) return;
+        this._windowViewport = viewport;
+        this.syncWindowViewport();
+    },
+
+    syncWindowViewport() {
+        const viewport = this._windowViewport;
+        if (!viewport) return;
+        const zoom = (window.devicePixelRatio || 1) / (viewport.monitorScale || 1);
+        const offsetX = (viewport.offsetX + 540) * viewport.scale / zoom - 540;
+        const offsetY = (viewport.offsetY + 192) * viewport.scale / zoom - 192;
+        window.__NOLYS_VIEWPORT__ = { ...viewport, scale: zoom, offsetX, offsetY };
+        const container = document.getElementById('dynamic-island-container');
+        container?.style.setProperty('--island-frame-width', '1080px');
+        container?.style.setProperty('--island-viewport-x', `${offsetX}px`);
+        container?.style.setProperty('--island-viewport-y', `${offsetY}px`);
+        const scale = this._layoutEditMode ? (this._paintLayoutScale ?? this._layoutConfig.scale ?? 1) : viewport.scale;
+        container?.style.setProperty('--island-placement-scale', String(scale / zoom));
+        this.anchorLayoutToolbar();
+        this.syncGlowHalo?.();
+        window.dispatchEvent(new Event('nolys-hit-region-changed'));
+    },
+
+    /** Configuration native ; le placement prévisualise l’échelle dans le contenu. */
     applyLayoutConfig(layout) {
+        if (!this._windowViewport && window.__NOLYS_VIEWPORT__) this.applyWindowViewport(window.__NOLYS_VIEWPORT__);
         this._layoutConfig = {
             ...this._layoutConfig,
             ...(layout || {})
@@ -18,8 +43,9 @@ export const preferenceMethods = {
         const safeScale = Number.isFinite(scale) ? Math.min(1.5, Math.max(0.65, scale)) : 1;
         // Taille demandée atteinte : les clics suivants repartent de la valeur réelle.
         if (this._pendingLayoutScale === safeScale) this._pendingLayoutScale = null;
-        // Zoom réel de la fenêtre : la barre de placement s'en sert pour garder sa taille à l'écran.
+        // Les vues normales gardent également l'échelle enregistrée dans le contenu.
         container.style.setProperty('--island-layout-scale', safeScale.toString());
+        this.paintLayoutScale(this._pendingLayoutScale ?? safeScale, this._layoutEditMode);
         this.updateLayoutScaleLabel();
         this.anchorLayoutToolbar();
     },
@@ -41,7 +67,49 @@ export const preferenceMethods = {
         if (next === current) return;
         this._pendingLayoutScale = next;
         this.updateLayoutScaleLabel(); // pourcentage à jour sans attendre le cœur natif
+        if (this._layoutEditMode) this.paintLayoutScale(next, true);
         ipcRenderer.send('layout-config-changed', { scale: next });
+    },
+
+    /** Le zoom de la WebView reste fixe en placement ; seule la pilule évolue. */
+    paintLayoutScale(scale, animate = false) {
+        if (animate && this._layoutScaleTarget === scale && this._layoutScaleFrame) return;
+        cancelAnimationFrame(this._layoutScaleFrame);
+        this._layoutScaleFrame = 0;
+        this._layoutScaleTarget = scale;
+        const container = document.getElementById('dynamic-island-container');
+        if (!container) return;
+        const from = this._paintLayoutScale ?? scale;
+        const paint = value => {
+            this._paintLayoutScale = value;
+            const zoom = this._windowViewport ? (window.devicePixelRatio || 1) / (this._windowViewport.monitorScale || 1) : 1;
+            const shown = this._layoutEditMode ? value : (this._windowViewport?.scale ?? zoom);
+            container.style.setProperty('--island-placement-scale', String(shown / zoom));
+            this.anchorLayoutToolbar();
+            this.syncGlowHalo?.();
+        };
+        if (!animate || this.getMotionLevel() === 'sober' || Math.abs(scale - from) < 0.0001) {
+            paint(scale);
+            document.body.classList.remove('layout-scaling');
+            return;
+        }
+        document.body.classList.add('layout-scaling');
+        const started = performance.now();
+        const frame = now => {
+            const progress = Math.min(1, (now - started) / 140);
+            paint(from + (scale - from) * (1 - Math.pow(1 - progress, 3)));
+            this._layoutScaleFrame = progress < 1 ? requestAnimationFrame(frame) : 0;
+            if (progress === 1) document.body.classList.remove('layout-scaling');
+        };
+        this._layoutScaleFrame = requestAnimationFrame(frame);
+    },
+
+    layoutViewport() {
+        if (this._windowViewport) return window.__NOLYS_VIEWPORT__ || this._windowViewport;
+        const { x = 0, y = 0, scale = 1 } = this._layoutConfig;
+        return this._layoutEditMode
+            ? { x: x + 1080 * (scale - 1) / 2, y: y + 192 * (scale - 1), scale: 1 }
+            : { x, y, scale };
     },
 
     /**
@@ -52,14 +120,13 @@ export const preferenceMethods = {
     freezeLayoutToolbar() {
         const toolbar = document.getElementById('layout-edit-toolbar');
         if (!toolbar) return;
-        const scale = Number(this._layoutConfig.scale) || 1;
+        const { x, y, scale } = this.layoutViewport();
         if (!this._toolbarAnchor) {
             const rect = toolbar.getBoundingClientRect();
-            // Position à l'écran en DIP : le coin de la fenêtre se déplace aussi
-            // pour garder la pilule en place lorsque Rust change le zoom.
+            // Position à l'écran en DIP, indépendante de l'échelle de la pilule.
             this._toolbarAnchor = {
-                x: (Number(this._layoutConfig.x) || 0) + rect.left * scale,
-                y: (Number(this._layoutConfig.y) || 0) + rect.top * scale,
+                x: x + rect.left * scale,
+                y: y + rect.top * scale,
             };
             toolbar.classList.remove('is-settling');
         }
@@ -88,12 +155,10 @@ export const preferenceMethods = {
         const toolbar = document.getElementById('layout-edit-toolbar');
         if (!toolbar) return;
         const anchor = this._toolbarAnchor;
-        const scale = Number(this._layoutConfig.scale) || 1;
+        const { x: originX, y: originY, scale } = this.layoutViewport();
         const previous = this._toolbarShift || { x: 0, y: 0 };
         const rect = toolbar.getBoundingClientRect();
-        const originX = Number(this._layoutConfig.x) || 0;
-        const originY = Number(this._layoutConfig.y) || 0;
-        // Le transform est exprimé en DIP grâce au zoom inverse de la barre.
+        // La barre conserve le zoom fixe de la fenêtre pendant le placement.
         const x = anchor ? anchor.x - (originX + rect.left * scale - previous.x) : 0;
         const y = anchor ? anchor.y - (originY + rect.top * scale - previous.y) : 0;
         this._toolbarShift = { x, y };
@@ -110,29 +175,41 @@ export const preferenceMethods = {
             if (!target || target.dataset.layoutDrag) continue; // une seule fois, même après plusieurs activations
             target.dataset.layoutDrag = 'true';
             target.addEventListener('pointerdown', (e) => {
-                if (!this._layoutEditMode || e.button !== 0) return;
+                if (!this._layoutEditMode || this._layoutFinishing || e.button !== 0) return;
                 e.preventDefault();
+                this._stopLayoutDrag?.();
+                this.releaseLayoutToolbar(true);
                 target.setPointerCapture(e.pointerId);
                 ipcRenderer.send('layout-drag-begin');
 
-                let frame = 0;
+                let frame = 0, stopped = false;
                 const onMove = () => {
-                    if (frame) return;
+                    if (frame || !this._layoutEditMode || this._layoutFinishing) return;
                     frame = requestAnimationFrame(() => {
                         frame = 0;
-                        ipcRenderer.send('layout-drag-move');
+                        if (this._layoutEditMode && !this._layoutFinishing) ipcRenderer.send('layout-drag-move');
                     });
                 };
                 const onUp = () => {
+                    if (stopped) return;
+                    stopped = true;
                     target.removeEventListener('pointermove', onMove);
                     target.removeEventListener('pointerup', onUp);
                     target.removeEventListener('pointercancel', onUp);
+                    target.removeEventListener('lostpointercapture', onUp);
+                    window.removeEventListener('blur', onUp);
                     if (frame) cancelAnimationFrame(frame);
+                    if (target.hasPointerCapture(e.pointerId)) target.releasePointerCapture(e.pointerId);
+                    this._stopLayoutDrag = null;
+                    document.body.classList.remove('layout-edit-dragging');
                     ipcRenderer.send('layout-drag-end');
                 };
+                this._stopLayoutDrag = onUp;
                 target.addEventListener('pointermove', onMove);
                 target.addEventListener('pointerup', onUp);
                 target.addEventListener('pointercancel', onUp);
+                target.addEventListener('lostpointercapture', onUp);
+                window.addEventListener('blur', onUp);
             });
         }
     },
@@ -146,25 +223,25 @@ export const preferenceMethods = {
 
         toolbar.addEventListener('click', (e) => {
             const action = e.target.closest('[data-layout]')?.dataset.layout;
-            if (!action) return;
+            if (!action || this._layoutFinishing) return;
             e.stopPropagation();
             if (action === 'smaller' || action === 'bigger') {
                 this.freezeLayoutToolbar();
                 this.stepLayoutScale(action === 'bigger' ? 1 : -1);
             }
             else if (action === 'center') { this.releaseLayoutToolbar(true); ipcRenderer.send('layout-reset'); }
-            else if (action === 'preview') { this.freezeLayoutToolbar(); this.toggleLayoutPreview(); }
-            else if (action === 'done') ipcRenderer.send('set-layout-edit-mode', false);
+            else if (action === 'preview') this.toggleLayoutPreview();
+            else if (action === 'done') this.finishLayoutEdit();
         });
         toolbar.addEventListener('pointerleave', () => this.releaseLayoutToolbar());
         const resize = new ResizeObserver(() => this.anchorLayoutToolbar());
         resize.observe(toolbar);
         resize.observe(this.el);
-        window.addEventListener('resize', () => this.anchorLayoutToolbar());
+        window.addEventListener('resize', () => { this.syncWindowViewport(); this.anchorLayoutToolbar(); });
 
         // Molette au-dessus de l'Island ou de la barre : taille.
         const onWheel = (e) => {
-            if (!this._layoutEditMode) return;
+            if (!this._layoutEditMode || this._layoutFinishing) return;
             e.preventDefault();
             e.stopPropagation();
             if (toolbar.contains(e.target)) this.freezeLayoutToolbar();
@@ -173,10 +250,10 @@ export const preferenceMethods = {
         document.getElementById('dynamic-island-container')?.addEventListener('wheel', onWheel, { passive: false, capture: true });
 
         document.addEventListener('keydown', (e) => {
-            if (!this._layoutEditMode) return;
+            if (!this._layoutEditMode || this._layoutFinishing) return;
             if (e.key === 'Escape' || e.key === 'Enter') {
                 e.preventDefault();
-                ipcRenderer.send('set-layout-edit-mode', false);
+                this.finishLayoutEdit();
             } else if (e.key === '+' || e.key === '=' || e.key === '-') {
                 e.preventDefault();
                 this.stepLayoutScale(e.key === '-' ? -1 : 1);
@@ -188,6 +265,29 @@ export const preferenceMethods = {
                 if (moves[e.key]) ipcRenderer.send('layout-nudge', ...moves[e.key]);
             }
         });
+    },
+
+    /** Refermer l'aperçu au même endroit avant de quitter le placement. */
+    async finishLayoutEdit() {
+        if (!this._layoutEditMode || this._layoutFinishing) return;
+        this._layoutFinishing = true;
+        this._stopLayoutDrag?.();
+        const toolbar = document.getElementById('layout-edit-toolbar');
+        toolbar.inert = true;
+        try {
+            if (this._layoutPreview) {
+                this.toggleLayoutPreview(false);
+                void this.el.offsetHeight;
+                await Promise.all(this.el.getAnimations().filter(a => ['width', 'height'].includes(a.transitionProperty))
+                    .map(a => a.finished.catch(() => {})));
+            }
+            if (this._layoutEditMode) await native.invoke('set_layout_edit_mode', { enabled: false });
+        } catch (error) {
+            console.warn('[Placement] Fin du placement impossible :', error);
+        } finally {
+            toolbar.inert = false;
+            this._layoutFinishing = false;
+        }
     },
 
     getMotionLevel() {
@@ -220,8 +320,10 @@ export const preferenceMethods = {
         // Le cœur natif renvoie l'état du mode à chaque changement de taille ou de position :
         // seul un vrai changement compte (sinon − / + repliait l'aperçu de l'Island ouverte).
         if (this._layoutEditMode === Boolean(enabled)) return;
+        if (!enabled) this._stopLayoutDrag?.();
         this._layoutEditMode = Boolean(enabled);
         document.body.classList.toggle('layout-edit-mode', this._layoutEditMode);
+        this.paintLayoutScale(Number(this._layoutConfig.scale) || 1);
 
         if (this._layoutEditMode) {
             // Placement lancé depuis les Réglages : ils se referment (la pilule doit être repliée)
@@ -233,11 +335,7 @@ export const preferenceMethods = {
             // (elle finissait sinon après coup), et renderContent retire les classes de taille
             // de la vue ouverte : avec renderIdle seul, la pilule gardait la hauteur du lecteur
             // ou du centre de contrôle (grand carré avec le titre au milieu).
-            this._transitionToken = (this._transitionToken || 0) + 1;
-            this._queuedTransition = null;
-            this._transitionInProgress = false;
-            this._isTransitioning = false;
-            this.el.classList.remove('animating');
+            this.cancelTransition();
             this.mode = 'music';
             this.isExpanded = false;
             this.setLayoutPreviewButton(false);
@@ -270,15 +368,18 @@ export const preferenceMethods = {
                 this.openSettings('position');
             }
         }
+        this.syncGlowHalo?.();
     },
 
     /**
-     * Aperçu pendant le placement : l'Island s'affiche ouverte (lecteur), sans animation,
+     * Aperçu pendant le placement : l'Island et sa barre changent de forme ensemble,
      * pour vérifier qu'à cet endroit elle ne cache rien d'important. Rien n'y est cliquable
      * (le placement coupe les clics du contenu) et elle se replie en quittant le mode.
      */
     toggleLayoutPreview(force) {
         if (!this._layoutEditMode) return;
+        this.paintLayoutScale(this._pendingLayoutScale ?? this._layoutConfig.scale);
+        this.releaseLayoutToolbar(true);
         const on = typeof force === 'boolean' ? force : !this._layoutPreview;
         this.setLayoutPreviewButton(on);
         this.mode = 'music';

@@ -120,6 +120,7 @@ pub fn run() {
             commands::system::set_auto_start,
             commands::layout::get_layout_state,
             commands::layout::set_island_extent,
+            commands::layout::context_menu_viewport,
             commands::layout::get_displays,
             commands::layout::set_layout_config,
             commands::layout::reset_layout,

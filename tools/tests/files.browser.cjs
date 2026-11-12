@@ -137,6 +137,16 @@ const path = require('node:path');
             await page.getByRole('button', { name: 'Fermer les fichiers', exact: true }).click();
             await settled();
         }
+        // Les deux lanceurs doivent laisser Fichiers mémoriser l'état compact d'origine.
+        for (const launcher of ['context', 'shortcut']) {
+            await page.evaluate(launcher => launcher === 'context'
+                ? window.island.activateMenuEntry({ id: 'files' })
+                : window.island.runInternalShortcut('liquid:files'), launcher);
+            await settled();
+            await page.getByRole('button', { name: 'Fermer les fichiers', exact: true }).click();
+            await settled();
+            assert.equal(await page.evaluate(() => window.island.isExpanded), false, `${launcher} retrouve la capsule compacte`);
+        }
         await page.evaluate(() => { localStorage.setItem('liquid_motion_level', 'system'); window.island.syncMotionPreference(); window.island.openFiles(); }); await settled();
         await page.getByRole('heading', { name: 'Déposez vos fichiers' }).waitFor();
         await shot('files-clean-empty.png');

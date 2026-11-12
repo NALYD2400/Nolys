@@ -7,6 +7,7 @@
  */
 import { ipcRenderer } from '../../../shared/ipc.js';
 import { SoundService } from '../../../services/SoundService.js';
+import { renderModuleArtwork } from '../../../shared/module-art.js';
 
 /** Échelle du vumètre : -80 dBFS à gauche, 0 dBFS à droite. */
 export const METER_FLOOR_DB = -80;
@@ -20,6 +21,8 @@ export const micMonitorMethods = {
     initMicMonitor() {
         this.micStatus = null;
         this._micSatellite = document.getElementById('island-satellite');
+        const symbol = this._micSatellite?.querySelector('.satellite-icon');
+        if (symbol) symbol.innerHTML = renderModuleArtwork('mic');
         this._micSatellite?.addEventListener('click', (e) => {
             e.stopPropagation();
             this.disarmMicSatellite();

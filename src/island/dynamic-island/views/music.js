@@ -41,7 +41,7 @@ export const musicView = {
         let coverHtml;
         const appIcon = getFallbackIcon(data.appId, data.title, data.artist, data.windowTitle);
         const preferServiceIcon = shouldPreferServiceIcon(data.appId, data.title, data.artist);
-        const isDisplayServiceArt = appIcon && displayArt === appIcon;
+        const isDisplayServiceArt = appIcon && appIcon !== APP_LOGO_ART && displayArt === appIcon;
         const displayArtStyle = isDisplayServiceArt ? getServiceArtStyle('large') : '';
         const previousDisplayArt = shouldAnimateCover && data.previousDisplayCover && data.previousDisplayCover !== displayArt ? data.previousDisplayCover : '';
 
@@ -55,7 +55,9 @@ export const musicView = {
                 : `<img src="${escapeHtml(displayArt)}" class="album-art ${flipClass}" style="${displayArtStyle}" alt="Album">`;
         } else {
             if (appIcon) {
-                coverHtml = `<img src="${escapeHtml(appIcon)}" class="album-art ${flipClass}" style="object-fit: contain; background: #000; padding: 5px;" alt="App Icon">`;
+                coverHtml = appIcon === APP_LOGO_ART
+                    ? `<img src="${APP_LOGO_ART}" class="album-art app-logo-art ${flipClass}" alt="Nolys">`
+                    : `<img src="${escapeHtml(appIcon)}" class="album-art ${flipClass}" style="object-fit: contain; background: #000; padding: 5px;" alt="App Icon">`;
             } else {
                 coverHtml = `<img src="${APP_LOGO_ART}" class="album-art app-logo-art ${flipClass}" alt="Nolys">`;
             }

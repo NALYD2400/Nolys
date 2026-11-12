@@ -225,7 +225,7 @@ export const controlCenterView = {
                             </button>
                             <div class="ic-tile ${this.micConfig.enabled ? 'active' : ''}" id="ic-mic" role="group" aria-label="Retour micro" title="Écouter ta voix dans le casque. Ce bouton ne coupe pas ton microphone dans les autres applications.">
                                 <button type="button" class="ic-mic-toggle" aria-label="Retour micro" aria-pressed="${Boolean(this.micConfig.enabled)}" style="display:flex;align-items:center;gap:inherit;flex:1;padding:0;border:0;background:transparent;color:inherit;text-align:left">
-                                <i class="ph ph-microphone"></i>
+                                ${renderModuleArtwork('mic')}
                                 <div class="ic-tile-text">
                                     <span class="ic-tile-label">Retour micro</span>
                                     <span class="ic-tile-status">${this.micConfig.enabled ? 'Activé' : 'Désactivé'}</span>

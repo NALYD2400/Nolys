@@ -73,6 +73,27 @@ export default function App({ host, initialPage, pageRequest, onBack, onClose })
     // Page défilée : l'en-tête prend son voile (sinon il reste transparent).
     const [scrolled, setScrolled] = useState(false);
     const pageRef = useRef(null);
+    const headingRef = useRef(null);
+    const focusHeading = useRef(false);
+
+    function navigateFromGuide(id) {
+        if (!knownPage(id)) return;
+        playClick();
+        setScrolled(false);
+        if (id === pageId) {
+            pageRef.current?.scrollTo({ top: 0 });
+            headingRef.current?.focus({ preventScroll: true });
+        } else {
+            focusHeading.current = true;
+            setPageId(id);
+        }
+    }
+    useEffect(() => {
+        if (focusHeading.current) {
+            focusHeading.current = false;
+            headingRef.current?.focus({ preventScroll: true });
+        }
+    }, [pageId]);
 
     async function resetCurrentPage() {
         if (resetting || !window.confirm(`Réinitialiser les réglages de la page « ${page.label} » ? Une sauvegarde de récupération sera conservée.`)) return;
@@ -154,7 +175,7 @@ export default function App({ host, initialPage, pageRequest, onBack, onClose })
                     </div>
                 </div>
                 <header className="content-header">
-                    <h1>{page.label}</h1>
+                    <h1 ref={headingRef} tabIndex={-1}>{page.label}</h1>
                     <div className="header-actions">
                         {persistence.status === 'error' && <button type="button" className="round-btn" title="Réglages non enregistrés : réessayer" aria-label="Réessayer l’enregistrement des réglages" onClick={retrySettingsPersistence}><Icon name="ph-warning" /></button>}
                         {page.id !== 'about' && (
@@ -182,7 +203,7 @@ export default function App({ host, initialPage, pageRequest, onBack, onClose })
                 </header>
                 <div className="page" key={page.id} ref={pageRef} onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 2)}>
                     {persistence.status === 'error' && <p className="hotkey-error" role="alert">Les réglages n’ont pas pu être enregistrés. <button type="button" className="button" onClick={retrySettingsPersistence}>Réessayer</button></p>}
-                    <page.Page store={store} />
+                    <page.Page store={store} onNavigate={navigateFromGuide} />
                     {actionError && <p className="card-footer" role="alert">{actionError}</p>}
                 </div>
                 {/* Les surfaces en verre sont peintes dans le fond de la scène : ce voile

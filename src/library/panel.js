@@ -5,6 +5,7 @@
 import styles from './styles.css?inline';
 import { icon } from './view.js';
 import { showFeedback, clearFeedback } from '../shared/feedback.js';
+import { menuGeometry } from '../shared/menu-geometry.js';
 
 // Feuille analysée une seule fois et partagée par chaque ouverture (un <style> par vue
 // était réanalysé à chaque fois, au moment où la capsule finit de s'agrandir).
@@ -40,15 +41,16 @@ export function createPanel(host, markup) {
         menu.hidden = false;
         menuAnchor = anchor;
         anchor?.setAttribute('aria-expanded', 'true');
-        const box = $('.lib').getBoundingClientRect();
-        const rect = point ? { left: point.x, right: point.x, top: point.y, bottom: point.y } : anchor.getBoundingClientRect();
+        const area = menuGeometry($('.lib'));
+        const rect = area.rect(point ? { left: point.x, right: point.x, top: point.y, bottom: point.y } : anchor.getBoundingClientRect());
+        menu.style.maxHeight = `${Math.max(1, area.height - 16)}px`;
         const width = menu.offsetWidth;
         const height = menu.offsetHeight;
-        const below = rect.bottom - box.top + 6;
-        const top = below + height > box.height - 8 ? rect.top - box.top - height - 6 : below;
-        const left = (point ? rect.left : rect.right - width) - box.left;
-        menu.style.left = `${Math.max(8, Math.min(left, box.width - width - 8))}px`;
-        menu.style.top = `${Math.max(8, top)}px`;
+        const below = rect.bottom + 6;
+        const top = below + height > area.height - 8 ? rect.top - height - 6 : below;
+        const left = point ? rect.left : rect.right - width;
+        menu.style.left = `${Math.max(8, Math.min(left, area.width - width - 8))}px`;
+        menu.style.top = `${Math.max(8, Math.min(top, area.height - height - 8))}px`;
         menu.style.transformOrigin = `${point ? 'left' : 'right'} ${top < below ? 'bottom' : 'top'}`;
         menu.querySelector('button:not(:disabled)')?.focus({ preventScroll: true });
     }

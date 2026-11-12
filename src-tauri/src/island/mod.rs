@@ -24,6 +24,10 @@ pub fn window(app: &AppHandle) -> Option<WebviewWindow> {
 /// `legacy_settings` : script optionnel qui réinjecte les réglages de la version Electron.
 pub fn create(app: &AppHandle, legacy_settings: Option<String>) -> tauri::Result<WebviewWindow> {
     let layout = app.state::<AppState>().layout.lock().clone();
+    let mut viewport = layout::window_viewport(&layout, layout::target_monitor(app, &layout.display_id)
+        .as_ref().map(layout::work_area).unwrap_or(layout::WorkArea { x: layout.x, y: layout.y, width: BASE_WIDTH * layout.scale, height: BASE_HEIGHT * layout.scale }));
+    viewport.monitor_scale = layout::target_monitor(app, &layout.display_id).map(|m| m.scale_factor()).unwrap_or(1.0);
+    *app.state::<AppState>().window_viewport.lock() = Some(viewport);
     let mut builder = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("island/index.html".into()));
     if cfg!(debug_assertions) && std::env::var_os("NOLYS_DEV_DATA_DIR").is_some() {
         builder = builder.data_directory(app.state::<AppState>().data_dir.join("webview"));
@@ -39,6 +43,7 @@ pub fn create(app: &AppHandle, legacy_settings: Option<String>) -> tauri::Result
     }
     // Réglages de l'interface, lus avant le premier script de la page (src/shared/settings-store.js).
     builder = builder.initialization_script(app.state::<crate::ui_settings::Store>().init_script());
+    builder = builder.initialization_script(format!("window.__NOLYS_VIEWPORT__={};", serde_json::to_string(&viewport).unwrap()));
     if let Some(script) = legacy_settings {
         builder = builder.initialization_script(script);
     }
@@ -47,8 +52,8 @@ pub fn create(app: &AppHandle, legacy_settings: Option<String>) -> tauri::Result
     // cette fenêtre seule empêche les autres WebViews de partager leur profil.
     let window = builder
         .title(if crate::isolated_dev() { "Nolys · Fichiers (dev)" } else { "Nolys" })
-        .inner_size(BASE_WIDTH * layout.scale, BASE_HEIGHT * layout.scale)
-        .position(layout.x, layout.y)
+        .inner_size(viewport.width, viewport.height)
+        .position(viewport.x, viewport.y)
         .decorations(false)
         .transparent(true)
         .shadow(false)
@@ -84,6 +89,15 @@ pub fn create(app: &AppHandle, legacy_settings: Option<String>) -> tauri::Result
 
 /// Applique taille, zoom et position de la configuration courante.
 pub fn apply_layout(app: &AppHandle) {
+    apply_layout_inner(app, true);
+}
+
+/// Le glisser ne persiste et ne diffuse sa configuration qu'au relâchement.
+pub fn apply_drag_layout(app: &AppHandle) {
+    apply_layout_inner(app, false);
+}
+
+fn apply_layout_inner(app: &AppHandle, notify: bool) {
     let state = app.state::<AppState>();
     let layout = {
         let mut current = state.layout.lock();
@@ -93,17 +107,36 @@ pub fn apply_layout(app: &AppHandle) {
     let bounds = *state.expanded_bounds.lock();
     let layout = if !state.layout_edit_mode.load(Ordering::SeqCst) {
         bounds.and_then(|rect| layout::target_monitor(app, &layout.display_id).map(|monitor| layout::expanded_placement(&layout, layout::work_area(&monitor), rect))).unwrap_or(layout)
-    } else { layout };
+    } else { layout::editing_viewport(&layout) };
+    let area = layout::target_monitor(app, &layout.display_id).as_ref().map(layout::work_area)
+        .unwrap_or(layout::WorkArea { x: layout.x, y: layout.y, width: BASE_WIDTH * layout.scale, height: BASE_HEIGHT * layout.scale });
+    let mut viewport = layout::window_viewport(&layout, area);
+    viewport.monitor_scale = layout::target_monitor(app, &layout.display_id).map(|m| m.scale_factor()).unwrap_or(1.0);
+    *state.window_viewport.lock() = Some(viewport);
     if let Some(window) = window(app) {
         state.suppress_move_sync.store(true, Ordering::SeqCst);
         let monitor_scale = layout::target_monitor(app, &layout.display_id).map(|m| m.scale_factor()).unwrap_or(1.0);
-        let _ = window.set_zoom(layout.scale);
-        let _ = window.set_size(LogicalSize::new((BASE_WIDTH * layout.scale).round(), (BASE_HEIGHT * layout.scale).round()));
+        let mut zoom = state.window_zoom.lock();
+        // Un seul zoom natif pour toute la session : WebView2 applique son zoom
+        // avant les événements JS, ce qui dessinait une image décalée à l'entrée/sortie.
+        // La capsule et ses satellites gardent leur échelle dans le contenu.
+        if *zoom != Some(1.0) && window.set_zoom(1.0).is_ok() {
+            *zoom = Some(1.0);
+        }
+        drop(zoom);
+        let size = LogicalSize::new(viewport.width.ceil(), viewport.height.ceil());
+        let physical_size: tauri::PhysicalSize<u32> = size.to_physical(monitor_scale);
+        if window.outer_size().ok() != Some(physical_size) {
+            let _ = window.set_size(size);
+        }
         // Position convertie avec l'échelle de l'écran cible (fiable en multi-écran à DPI mixte).
-        let _ = window.set_position(tauri::PhysicalPosition::new(
-            (layout.x * monitor_scale).round() as i32,
-            (layout.y * monitor_scale).round() as i32,
-        ));
+        let position = tauri::PhysicalPosition::new(
+            (viewport.x * monitor_scale).round() as i32,
+            (viewport.y * monitor_scale).round() as i32,
+        );
+        if window.outer_position().ok() != Some(position) {
+            let _ = window.set_position(position);
+        }
         let handle = app.clone();
         tauri::async_runtime::spawn(async move {
             tokio::time::sleep(Duration::from_millis(50)).await;
@@ -111,7 +144,8 @@ pub fn apply_layout(app: &AppHandle) {
         });
     }
     sync_native_state(app);
-    broadcast_layout(app);
+    let _ = app.emit("island-viewport-changed", viewport);
+    if notify { broadcast_layout(app); }
 }
 
 /// Change et enregistre la configuration, puis l'applique.
@@ -125,7 +159,7 @@ pub fn update_layout(app: &AppHandle, next: Layout) {
 
 fn on_moved(app: &AppHandle) {
     let state = app.state::<AppState>();
-    if state.suppress_move_sync.load(Ordering::SeqCst) || (state.expanded_bounds.lock().is_some() && !state.layout_edit_mode.load(Ordering::SeqCst)) {
+    if state.suppress_move_sync.load(Ordering::SeqCst) || state.layout_edit_mode.load(Ordering::SeqCst) || state.expanded_bounds.lock().is_some() {
         return;
     }
     let Some(window) = window(app) else { return };
@@ -134,9 +168,12 @@ fn on_moved(app: &AppHandle) {
     // L'écran sous la fenêtre devient l'écran cible (déplacement d'un écran à l'autre).
     let monitor = window.current_monitor().ok().flatten();
     let scale = monitor.as_ref().map(|m| m.scale_factor()).unwrap_or(1.0);
+    // Copier une seule fois : deux gardes temporaires dans le même littéral
+    // garderaient le premier verrou vivant pendant l'acquisition du second.
+    let viewport = *state.window_viewport.lock();
     let moved = Layout {
-        x: position.x as f64 / scale,
-        y: position.y as f64 / scale,
+        x: position.x as f64 / scale + viewport.map(|v| v.offset_x * v.scale).unwrap_or(0.0),
+        y: position.y as f64 / scale + viewport.map(|v| v.offset_y * v.scale).unwrap_or(0.0),
         display_id: monitor.as_ref().map(layout::monitor_id).unwrap_or(current.display_id.clone()),
         ..current
     };
@@ -269,6 +306,19 @@ pub fn start_watchdog(app: AppHandle) {
                 || state.hidden_by_fullscreen.load(Ordering::SeqCst);
             if !paused {
                 enforce_topmost(&app, "watchdog");
+                // Un jeu sans bordure peut lui aussi être topmost et passer devant
+                // l'Island sans lui retirer son style WS_EX_TOPMOST.
+                if let Some(window) = window(&app) {
+                    if let Ok(hwnd) = window.hwnd() {
+                        if process::foreground_window().is_some_and(|front| {
+                            front.pid != std::process::id()
+                                && front.is_fullscreen
+                                && front.monitor == win::monitor_of(hwnd)
+                        }) && win::foreground_is_above(hwnd) {
+                            win::raise_topmost(hwnd);
+                        }
+                    }
+                }
             }
         }
     });
@@ -357,7 +407,9 @@ pub fn open_settings(app: &AppHandle, toggle: bool) {
 
 pub fn set_layout_edit_mode(app: &AppHandle, enabled: bool) {
     let state = app.state::<AppState>();
+    if !enabled { drag::end(app); }
     state.layout_edit_mode.store(enabled, Ordering::SeqCst);
+    if enabled { *state.expanded_bounds.lock() = None; }
     state.click_through.store(!enabled, Ordering::SeqCst);
     if let Some(window) = window(app) {
         if enabled {
@@ -371,7 +423,7 @@ pub fn set_layout_edit_mode(app: &AppHandle, enabled: bool) {
         }
         sync_native_state(app);
     }
-    broadcast_layout(app);
+    apply_layout(app);
 }
 
 /// Réagit aux changements d'écrans (branchement, résolution, mise à l'échelle).

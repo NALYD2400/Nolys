@@ -34,7 +34,13 @@ export const glowHaloMethods = {
         new ResizeObserver(sync).observe(this.el);
         new MutationObserver(sync).observe(this.el, { attributes: true, attributeFilter: ['style', 'class'] });
         // Mode sobre, animations vives ou « Halo qui respire » changés dans les réglages.
-        new MutationObserver(() => this.updateGlowBreath()).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+        new MutationObserver(sync).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+        const container = document.getElementById('dynamic-island-container');
+        if (container) {
+            new ResizeObserver(sync).observe(container);
+            new MutationObserver(sync).observe(container, { attributes: true, attributeFilter: ['style'] });
+        }
+        window.addEventListener('resize', sync);
         // Une bulle qui apparaît ou disparaît (micro, minuteur).
         const satelliteObserver = new MutationObserver(() => this.updateGlowBreath());
         for (const satellite of this._glowSatellites) {
@@ -63,6 +69,7 @@ export const glowHaloMethods = {
         const el = this.el;
         const style = getComputedStyle(el);
         const box = this._glowHaloBox(style);
+        halo.style.zoom = style.zoom;
         halo.style.left = `${box.left}px`;
         halo.style.top = `${box.top}px`;
         halo.style.width = `${box.width}px`;
@@ -91,12 +98,13 @@ export const glowHaloMethods = {
         }
         const rect = el.getBoundingClientRect();
         const origin = parent.getBoundingClientRect();
+        const zoom = parseFloat(style.zoom) || 1;
         const [originX, originY] = style.transformOrigin.split(' ').map(parseFloat);
         return {
-            left: rect.left - origin.left - parent.clientLeft - originX * (1 - matrix.a) - matrix.e,
-            top: rect.top - origin.top - parent.clientTop - originY * (1 - matrix.d) - matrix.f,
-            width: rect.width / matrix.a,
-            height: rect.height / matrix.d,
+            left: (rect.left - origin.left - parent.clientLeft) / zoom - originX * (1 - matrix.a) - matrix.e,
+            top: (rect.top - origin.top - parent.clientTop) / zoom - originY * (1 - matrix.d) - matrix.f,
+            width: rect.width / (matrix.a * zoom),
+            height: rect.height / (matrix.d * zoom),
         };
     },
 

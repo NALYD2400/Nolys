@@ -1,5 +1,5 @@
 /** Écouteurs d’événements, menu contextuel et barre de progression. */
-import { ipcRenderer } from '../../../shared/ipc.js';
+import { ipcRenderer, native } from '../../../shared/ipc.js';
 import { escapeHtml, formatTime } from '../helpers/format.js';
 import { getDisplayMediaArt } from '../helpers/media-art.js';
 import { isHistoryTrack } from '../helpers/music-search.js';
@@ -469,15 +469,39 @@ export const eventMethods = {
 
         // Placement : on mesure le vrai menu et on le garde dans la fenêtre ;
         // l'animation part du coin le plus proche du curseur.
-        const margin = parseFloat(getComputedStyle(menu).getPropertyValue('--menu-shadow-margin')) || 80;
-        // Dimensions de mise en page : l'animation d'ouverture applique encore une échelle.
-        const width = menu.offsetWidth;
-        const height = menu.offsetHeight;
-        const openLeft = x + width + margin > window.innerWidth;
-        const openUp = y + height + margin > window.innerHeight;
-        menu.style.left = `${Math.max(margin, Math.min(window.innerWidth - width - margin, openLeft ? x - width : x))}px`;
-        menu.style.top = `${Math.max(margin, Math.min(window.innerHeight - height - margin, openUp ? y - height : y))}px`;
-        menu.style.transformOrigin = `${openLeft ? 'right' : 'left'} ${openUp ? 'bottom' : 'top'}`;
+        const position = (area) => {
+            // Petite marge au bord du moniteur. Sans information native, garder
+            // la réserve d'ombre de la fixture limitée à sa seule WebView.
+            const inset = area ? 8 : 80;
+            const left = Math.max(inset, (area?.x ?? -80) + 8);
+            const top = Math.max(inset, (area?.y ?? -80) + 8);
+            const right = Math.min(innerWidth - inset, area ? area.x + area.width - 8 : innerWidth);
+            const bottom = Math.min(innerHeight - inset, area ? area.y + area.height - 8 : innerHeight);
+            const availableWidth = Math.max(1, right - left), availableHeight = Math.max(1, bottom - top);
+            menu.style.minWidth = `${Math.min(196, availableWidth)}px`;
+            menu.style.maxWidth = `${availableWidth}px`;
+            menu.style.maxHeight = `${availableHeight}px`;
+            const width = menu.offsetWidth, height = menu.offsetHeight;
+            const openLeft = x + width > right, openUp = y + height > bottom;
+            menu.style.left = `${Math.max(left, Math.min(right - width, openLeft ? x - width : x))}px`;
+            menu.style.top = `${Math.max(top, Math.min(bottom - height, openUp ? y - height : y))}px`;
+            menu.style.transformOrigin = `${openLeft ? 'right' : 'left'} ${openUp ? 'bottom' : 'top'}`;
+            window.dispatchEvent(new Event('nolys-hit-region-changed'));
+        };
+        position();
+        // Attendre la zone réelle du moniteur avant le premier affichage : la
+        // fenêtre transparente peut dépasser du bureau, notamment près du bas.
+        menu.style.opacity = '0';
+        menu.style.animation = 'none';
+        native.invoke('context_menu_viewport', { size: [menu.offsetWidth, menu.offsetHeight] }).then(area => {
+            if (menu.id !== 'island-context-menu' || !menu.isConnected) return;
+            position(area || undefined);
+        }).catch(() => {}).finally(() => {
+            if (menu.id === 'island-context-menu' && menu.isConnected) {
+                menu.style.opacity = '';
+                menu.style.animation = '';
+            }
+        });
 
         const runAction = (action) => {
             this.closeContextMenu();
@@ -563,7 +587,10 @@ export const eventMethods = {
             menu.inert = true;
             menu.removeAttribute('id');
             menu.classList.add('is-closing');
-            setTimeout(() => menu.remove(), 140);
+            setTimeout(() => {
+                menu.remove();
+                if (!document.getElementById('island-context-menu')) native.invoke('context_menu_viewport', { size: null }).catch(() => {});
+            }, 140);
         }
         this._contextMenuReturnFocus = null;
         if (!this.isExpanded && !this._layoutEditMode && ipcRenderer) {

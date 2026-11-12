@@ -27,6 +27,7 @@ const colors = {
 };
 
 const reusedSymbols = { explorer: 'files', 'windows-settings': 'settings' };
+const simpleActions = new Set(['layout', 'exit', 'customize-menu']);
 const commandIcons = new Map([
     ['explorer.exe', 'explorer'], ['ms-settings:', 'windows-settings'],
     ['taskmgr.exe', 'taskmgr'], ['calc.exe', 'calc'], ['cmd.exe', 'terminal'],
@@ -44,7 +45,7 @@ export function moduleArtworkId(id, command = '') {
 
 export function moduleArtwork(id, command) {
     const key = moduleArtworkId(id, command);
-    if (!key) return null;
+    if (!key || simpleActions.has(key)) return null;
     const symbol = Object.hasOwn(reusedSymbols, key) ? reusedSymbols[key] : key;
     return { src: `/assets/modules/neutral/${symbol}.png`, color: colors[key] };
 }

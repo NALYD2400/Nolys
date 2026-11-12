@@ -11,9 +11,11 @@ const fs = require('node:fs');
         const context = await browser.newContext({ viewport: nativeViewport });
         const calls = [];
         const errors = [];
+        let screenArea = null;
         await context.exposeBinding('__invoke', async ({ page }, command, args = {}) => {
             calls.push({ command, args });
             switch (command) {
+                case 'context_menu_viewport': return args.size ? screenArea : null;
                 case 'config_changed': setTimeout(() => page.evaluate(config => window.__dispatch('config-changed', config), args.config).catch(() => {}), 0); return;
                 case 'get_layout_state': return { layout: { scale: 1 }, editMode: false };
                 case 'get_update_status': return { state: 'idle', currentVersion: '2.4.0', canCheck: false };
@@ -47,6 +49,11 @@ const fs = require('node:fs');
             await page.waitForFunction(() => !window.island._transitionInProgress);
             await page.waitForTimeout(800);
         };
+        await page.evaluate(() => window.island.openExpandedMode('music'));
+        await settled();
+        await page.evaluate(() => { window.island.collapseIsland(); window.island.activateMenuEntry({ id: 'control' }); });
+        await settled();
+        assert.equal(await page.evaluate(() => window.island.mode === 'control' && window.island.isExpanded), true, 'un module demandé pendant le repli reste ouvert');
         const openMenu = async () => { await page.evaluate(() => window.island.openExpandedMode('menu')); await settled(); };
         const openSettings = async () => {
             await page.evaluate(() => window.island.openSettings('menus'));
@@ -260,6 +267,66 @@ const fs = require('node:fs');
         await page.getByRole('menuitem', { name: 'Réglages', exact: true }).scrollIntoViewIfNeeded();
         await page.getByRole('menuitem', { name: 'Réglages', exact: true }).click();
         await page.waitForFunction(() => window.island.isExpanded && window.island.mode === 'settings');
+        // La WebView peut dépasser de l'écran : sa zone visible est plus petite.
+        for (const area of [
+            { x: 360, y: 120, width: 500, height: 600 },
+            { x: -300, y: 90, width: 800, height: 450 },
+            { x: 120, y: -240, width: 600, height: 750 },
+        ]) {
+            screenArea = area;
+            for (const [x, y] of [[0, 0], [1080, 0], [0, 960], [1080, 960]]) {
+                await page.evaluate(([x, y]) => window.island.showContextMenu(x, y), [x, y]);
+                await page.waitForTimeout(250);
+                const box = await page.locator('#island-context-menu').boundingBox();
+                assert.ok(box.x >= Math.max(0, area.x) && box.y >= Math.max(0, area.y)
+                    && box.x + box.width <= Math.min(1080, area.x + area.width) + 1
+                    && box.y + box.height <= Math.min(960, area.y + area.height) + 1, JSON.stringify({ area, box }));
+                await page.locator('#island-context-menu').press('End');
+                assert.ok(await page.getByRole('menuitem', { name: 'Personnaliser ce menu…', exact: true }).evaluate(el => {
+                    const r = el.getBoundingClientRect(), menu = el.closest('[role="menu"]').getBoundingClientRect();
+                    return r.top >= menu.top && r.bottom <= menu.bottom;
+                }));
+            }
+        }
+        await page.evaluate(() => window.island.closeContextMenu());
+        await page.waitForTimeout(180);
+        assert.ok(calls.some(c => c.command === 'context_menu_viewport' && c.args.size === null), 'restaure la fenêtre après fermeture');
+        // La réservation native suit les lignes visibles et les commandes musicales.
+        screenArea = null;
+        const menuHeight = async (count, media) => {
+            await page.evaluate(({ count, media }) => {
+                const entries = Array.from({ length: count }, (_, i) => ({ id: `custom-height-${i}`, name: `Outil ${i}`, cmd: 'explorer.exe' }));
+                localStorage.setItem('liquid_menus', JSON.stringify({ contextVersion: 1, replayVersion: 1, showMedia: media, context: entries }));
+                window.island.musicData = { title: 'Morceau de test', artist: 'Nolys', trackKey: 'height-test', isPlaying: true };
+                window.island.showContextMenu(600, 200);
+            }, { count, media });
+            await page.waitForTimeout(250);
+            const requested = calls.filter(c => c.command === 'context_menu_viewport' && c.args.size).at(-1).args.size[1];
+            const actual = await page.locator('#island-context-menu').evaluate(el => el.offsetHeight);
+            assert.equal(requested, actual, 'réserve exactement la hauteur du contenu courant');
+            return actual;
+        };
+        const small = await menuHeight(0, false);
+        const withMusic = await menuHeight(0, true);
+        const large = await menuHeight(12, false);
+        const smallAgain = await menuHeight(0, false);
+        assert.ok(small < withMusic && withMusic < large, JSON.stringify({ small, withMusic, large }));
+        assert.equal(smallAgain, small, 'le petit menu ne garde pas la hauteur du grand');
+        screenArea = { x: -420, y: -808, width: 1920, height: 1040 };
+        const shortAtBottom = await menuHeight(0, false);
+        assert.equal(shortAtBottom, small, 'petit menu près du bas : pas de hauteur vide ajoutée');
+        await page.evaluate(() => window.island.closeContextMenu());
+        const moduleHeights = await page.evaluate(() => {
+            const island = window.island, heights = [];
+            island.applyLayoutConfig({ scale: 1.5 });
+            for (const offsetY of [-192, 780]) {
+                island.applyWindowViewport({ x: 0, y: 0, width: 1920, height: 1040, scale: 1.5, offsetX: 0, offsetY });
+                island.sizeModuleMenu();
+                heights.push(parseFloat(island.el.style.height));
+            }
+            return heights;
+        });
+        assert.ok(moduleHeights[0] > 100 && moduleHeights[0] === moduleHeights[1], `menu des modules au bord bas : ${moduleHeights}`);
         assert.deepEqual(errors, []);
         console.log('OK — menus : clic droit dans les vues, menus locaux, saisie, clavier, curseurs, personnalisation, persistance et défilement');
     } finally { await browser.close(); }

@@ -9,7 +9,13 @@ export const menuView = {
     sizeModuleMenu() {
         const count = visibleMenuEntries('modules').length;
         const top = document.getElementById('dynamic-island-container')?.getBoundingClientRect().top || 50;
-        const size = moduleMenuSize(count, Math.min(328, window.innerWidth - 32), Math.min(496, window.innerHeight - top - 24));
+        const viewport = this._windowViewport;
+        const scale = Number(this._layoutConfig.scale) || 1;
+        // Le cœur natif replace la vue ouverte dans l'écran. Sa hauteur ne doit
+        // donc pas être limitée au petit espace sous la capsule repliée.
+        const width = viewport ? (viewport.width - 16) / scale : window.innerWidth - 32;
+        const height = viewport ? (viewport.height - 16) / scale : window.innerHeight - top - 24;
+        const size = moduleMenuSize(count, Math.min(328, width), Math.min(496, height));
         this.el.style.width = `${size.width}px`;
         this.el.style.height = `${size.height}px`;
         this.el.style.setProperty('--menu-columns', size.columns);
@@ -25,9 +31,11 @@ export const menuView = {
             ipcRenderer.send('set-layout-edit-mode', true);
         } else if (entry.id === 'exit') {
             ipcRenderer.send('exit-app');
+        } else if (entry.id === 'files') {
+            // Fichiers mémorise la vue d'origine avant de la déplier.
+            this.openFiles();
         } else {
-            this.isExpanded = true;
-            this.setMode(entry.id);
+            this.setMode(entry.id, { expand: true });
         }
     },
 

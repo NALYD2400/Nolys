@@ -5,6 +5,7 @@
 import { ipcRenderer } from '../../../shared/ipc.js';
 import { escapeHtml } from '../helpers/format.js';
 import { dbToPct, pctToDb } from '../features/mic-monitor.js';
+import { renderModuleArtwork } from '../../../shared/module-art.js';
 
 /** « Microphone (2- Logitech PRO X) » → « Logitech PRO X » : le nom utile, sans le type ni le numéro. */
 export const cleanDeviceName = (name = '') => {
@@ -53,7 +54,7 @@ export const micMonitorView = {
             <div class="mic-view di-stagger ${enabled ? 'is-on' : ''} ${running ? 'is-running' : ''} ${error ? 'has-error' : ''} ${config.gateEnabled ? 'gate-enabled' : ''}"
                  style="--gate: ${dbToPct(threshold).toFixed(1)}%">
                 <header class="mic-header">
-                    <div class="mic-badge"><i class="ph-fill ph-microphone"></i><span class="mic-badge-ring"></span></div>
+                    <div class="mic-badge" aria-hidden="true">${renderModuleArtwork('mic')}<span class="mic-badge-ring"></span></div>
                     <div class="mic-title">
                         <span class="mic-title-main">Retour micro</span>
                         <span class="mic-title-state"><span class="mic-state-dot"></span>${escapeHtml(state)}</span>

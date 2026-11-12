@@ -16,7 +16,9 @@ pub fn set_island_extent(app: AppHandle, bounds: Option<island::hit_test::CssRec
         }
     }
     *app.state::<AppState>().expanded_bounds.lock() = bounds;
-    island::apply_layout(&app);
+    if !app.state::<AppState>().layout_edit_mode.load(Ordering::SeqCst) {
+        island::apply_layout(&app);
+    }
     Ok(())
 }
 
@@ -29,7 +31,29 @@ pub fn get_layout_state(app: AppHandle) -> Value {
         "layout": current,
         "editMode": state.layout_edit_mode.load(Ordering::SeqCst),
         "display": area,
+        "viewport": *state.window_viewport.lock(),
     })
+}
+
+/// Zone utile de l'écran exprimée dans les coordonnées CSS de la WebView.
+#[tauri::command]
+pub fn context_menu_viewport(app: AppHandle, size: Option<(f64, f64)>) -> Result<Option<Value>, String> {
+    if size.is_some_and(|(w, h)| !w.is_finite() || !h.is_finite() || w < 1.0 || h < 1.0 || w > 4096.0 || h > 4096.0) {
+        return Err("Dimensions de menu invalides.".into());
+    }
+    let state = app.state::<AppState>();
+    // Le menu ne modifie jamais taille, zoom ou position de la fenêtre.
+    if size.is_none() { return Ok(None); }
+    let window = island::window(&app).ok_or("Fenêtre absente")?;
+    let saved = state.layout.lock().clone();
+    let monitor = layout::target_monitor(&app, &saved.display_id).ok_or("Écran absent")?;
+    let dpi = monitor.scale_factor();
+    let origin = window.outer_position().map_err(|e| e.to_string())?;
+    let area = layout::work_area(&monitor);
+    let zoom = (*state.window_zoom.lock()).unwrap_or(saved.scale);
+    Ok(Some(json!({ "x": (area.x - origin.x as f64 / dpi) / zoom,
+        "y": (area.y - origin.y as f64 / dpi) / zoom,
+        "width": area.width / zoom, "height": area.height / zoom })))
 }
 
 #[tauri::command]
@@ -45,10 +69,10 @@ pub fn set_layout_config(app: AppHandle, layout: Option<layout::LayoutPatch>) {
     // Changer la taille sans position explicite : on garde le centre de l'Island en place
     // (sinon la fenêtre grandit depuis son coin gauche et l'Island glisse vers la droite).
     if patch.x.is_none() && next.scale != current.scale {
-        next.x = (current.x + layout::BASE_WIDTH * (current.scale - next.scale) / 2.0).round();
+        next.x = current.x + layout::BASE_WIDTH * (current.scale - next.scale) / 2.0;
     }
     if patch.y.is_none() && next.scale != current.scale {
-        next.y = (current.y + layout::PILL_TOP_OFFSET * (current.scale - next.scale)).round();
+        next.y = current.y + layout::PILL_TOP_OFFSET * (current.scale - next.scale);
     }
     island::update_layout(&app, next);
 }

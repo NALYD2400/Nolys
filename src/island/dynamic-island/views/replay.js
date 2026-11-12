@@ -2,6 +2,7 @@ import { mountReplay } from '../../../replay/controller.js';
 import { replay, initReplay } from '../../../replay/store.js';
 import { duration, activeCapture } from '../../../replay/model.js';
 import { capsuleSettled, afterIntro } from './library.js';
+import { renderModuleArtwork } from '../../../shared/module-art.js';
 
 export const replayView = {
     replayFitKey() {
@@ -12,7 +13,7 @@ export const replayView = {
         indicator.type = 'button'; indicator.id = 'island-replay-satellite';
         indicator.className = 'island-satellite island-satellite-replay';
         indicator.tabIndex = -1; indicator.setAttribute('aria-hidden', 'true');
-        indicator.innerHTML = '<span class="satellite-bg" aria-hidden="true"></span><i class="ph ph-video-camera satellite-icon" aria-hidden="true"></i>';
+        indicator.innerHTML = `<span class="satellite-bg" aria-hidden="true"></span><span class="satellite-icon">${renderModuleArtwork('replay')}</span>`;
         this.el.before(indicator); this._replaySatellite = indicator;
         indicator.addEventListener('click', event => { event.stopPropagation(); this.openReplay(); });
         replay.subscribe(({ snapshot }) => {
@@ -51,6 +52,7 @@ export const replayView = {
         // Capture et Clips (et clip en lecture) : la capsule suit le contenu. Réglages, long et
         // défilant, garde la taille du module.
         const refit = () => {
+            if (document.fullscreenElement) return;
             const tab = host.shadowRoot?.querySelector('[role="tab"][aria-selected="true"]')?.dataset.tab;
             this.fitToContent(host, 'replay', Boolean(tab) && tab !== 'settings', 536);
         };

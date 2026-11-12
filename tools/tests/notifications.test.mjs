@@ -160,6 +160,20 @@ test('un retour au repos annule une notification encore en attente', async t => 
     assert.equal(island.notificationData, null);
 });
 
+test('un retour immédiat au repos annule aussi les ouvertures en cours et en attente', async t => {
+    const island = islandFor(t);
+    island.openExpandedMode('mixer');
+    await advance(t, 30);
+    island.openExpandedMode('control');
+    island.returnToMusicIdle();
+    await advance(t, 1200);
+    assert.equal(island.mode, 'music');
+    assert.equal(island.isExpanded, false);
+    assert.equal(island._queuedTransition, null);
+    assert.equal(island._transitionInProgress, false);
+    assert.equal(island.content.classList.contains('di-intro'), false);
+});
+
 test('Focus, notifications désactivées et placement restent silencieux', t => {
     const island = islandFor(t);
     for (const [key, value] of [['liquid_focus_mode', 'true'], ['liquid_notifications_enabled', 'false']]) {

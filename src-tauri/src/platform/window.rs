@@ -4,9 +4,9 @@ use windows::Win32::Foundation::{HWND, POINT, RECT};
 use windows::Win32::Graphics::Gdi::{MonitorFromWindow, MONITOR_DEFAULTTONEAREST};
 use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON, VK_MBUTTON, VK_RBUTTON};
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetCursorPos, GetWindowLongPtrW, GetWindowRect, IsIconic, IsWindowVisible, SetWindowLongPtrW, SetWindowPos,
+    GetCursorPos, GetForegroundWindow, GetWindow, GetWindowLongPtrW, GetWindowRect, IsIconic, IsWindowVisible, SetWindowLongPtrW, SetWindowPos,
     ShowWindow, GWL_EXSTYLE, HWND_TOPMOST, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_RESTORE,
-    SW_SHOWNOACTIVATE, WS_EX_LAYERED, WS_EX_TOPMOST, WS_EX_TRANSPARENT,
+    SW_SHOWNOACTIVATE, WS_EX_LAYERED, WS_EX_TOPMOST, WS_EX_TRANSPARENT, GW_HWNDPREV,
 };
 
 pub fn cursor_position() -> Option<(i32, i32)> {
@@ -71,6 +71,27 @@ pub fn set_click_through(hwnd: HWND, enabled: bool) {
 
 pub fn is_topmost(hwnd: HWND) -> bool {
     unsafe { GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32 & WS_EX_TOPMOST.0 != 0 }
+}
+
+/// Le style topmost ne garantit pas l'ordre entre deux fenêtres topmost.
+pub fn foreground_is_above(hwnd: HWND) -> bool {
+    unsafe {
+        let foreground = GetForegroundWindow();
+        if foreground.0.is_null() || foreground == hwnd {
+            return false;
+        }
+        let mut current = hwnd;
+        while let Ok(previous) = GetWindow(current, GW_HWNDPREV) {
+            if previous.0.is_null() || previous == current {
+                break;
+            }
+            if previous == foreground {
+                return true;
+            }
+            current = previous;
+        }
+        false
+    }
 }
 
 /// Replace la fenêtre tout en haut de la bande « topmost », sans voler le focus.

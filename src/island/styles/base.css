@@ -14,9 +14,9 @@
 /* --- Dynamic Island --- */
 #dynamic-island-container {
     position: fixed;
-    top: var(--island-top-offset);
-    left: 0;
-    width: 100%;
+    top: calc(var(--island-top-offset) + var(--island-viewport-y, 0px));
+    left: var(--island-viewport-x, 0px);
+    width: var(--island-frame-width, 100%);
     display: flex;
     justify-content: center;
     z-index: 1000;
@@ -179,7 +179,16 @@ body.layout-edit-mode #dynamic-island-container {
     gap: 14px;
     padding: 0 28px 16px;
     box-sizing: border-box;
-    position: relative;
+    position: fixed;
+}
+
+#dynamic-island {
+    /* Même rendu avant, pendant et après le placement, sans changer le zoom natif. */
+    zoom: var(--island-placement-scale, 1);
+}
+
+.island-satellite {
+    zoom: var(--island-placement-scale, 1);
 }
 
 body.layout-edit-mode #dynamic-island {
@@ -187,7 +196,10 @@ body.layout-edit-mode #dynamic-island {
     cursor: grab;
     outline: 1.5px dashed rgba(255, 255, 255, 0.5);
     outline-offset: 6px;
-    transition: box-shadow 0.22s ease, outline-color 0.22s ease;
+    transition: width 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+        height 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+        border-radius 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+        box-shadow 0.22s ease, outline-color 0.22s ease;
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.15),
         0 8px 24px rgba(0, 0, 0, 0.35),
@@ -226,12 +238,10 @@ body.layout-edit-mode.layout-edit-dragging #dynamic-island {
 
 @keyframes layoutPlacementIntro {
     from {
-        opacity: 0.4;
-        transform: translateY(-6px);
+        outline-color: transparent;
     }
     to {
-        opacity: 1;
-        transform: translateY(0);
+        outline-color: rgba(255, 255, 255, 0.5);
     }
 }
 
@@ -264,9 +274,8 @@ body.layout-edit-mode #layout-edit-toolbar {
     color: #fff;
     font-size: 12px;
     animation: layoutToolbarIn 0.2s ease-out;
-    /* Zoom inverse de celui de la fenêtre : la barre garde la même taille à l'écran quelle que
-     * soit la taille de l'Island (ses boutons ne grossissent plus sous la souris). */
-    zoom: calc(1 / var(--island-layout-scale, 1));
+    /* La WebView garde un zoom fixe pendant le placement. */
+    zoom: 1;
 }
 
 /* Retour en douceur sous la pilule après une série de clics sur − / +. */
@@ -404,6 +413,16 @@ body.motion-sober #dynamic-island {
         corner-shape 0.1s linear calc(var(--corner-delay) * 0.26s),
         background-color 0.2s ease,
         box-shadow 0.2s ease;
+}
+
+body.motion-sober.layout-edit-mode #dynamic-island {
+    transition-duration: 0.12s;
+}
+
+/* Le zoom CSS fournit déjà les images intermédiaires ; ne pas relancer
+ * en parallèle une transition de largeur à chaque image. */
+body.layout-edit-mode.layout-scaling #dynamic-island {
+    transition: none;
 }
 
 body.motion-sober .island-settings-container,

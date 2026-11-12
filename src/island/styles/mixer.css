@@ -74,11 +74,8 @@
     font-size: 9px;
 }
 
-.mixer-title i {
-    font-size: 16px;
-    color: var(--neon-primary);
-    filter: drop-shadow(0 0 6px rgba(var(--neon-primary-rgb), 0.5));
-}
+.mixer-title > .module-art { --module-size: 24px; }
+.mixer-title > .module-art::before { display: none; }
 
 .mixer-sessions-list {
     flex: 1;
