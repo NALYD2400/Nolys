@@ -2,6 +2,14 @@
 
 ## Non publié
 
+- Capsule : les ouvertures, les replis et le placement passent par les mêmes états. Un module demandé pendant le ressort arrive déplié ; le placement refuse la navigation et ne déplie que son aperçu.
+- Raccourcis : un chemin Windows n'est lancé que s'il existe, sans arguments, et que c'est un dossier, une application, un raccourci ou un lien. Les scripts et les commandes ajoutées après le chemin sont refusés. Un chemin collé avec les guillemets de l'Explorateur s'affiche et s'ouvre sans eux.
+- Placement : brancher, débrancher ou changer l'échelle d'un écran recentre la capsule en haut de son écran. Windows ne lui rend pas sa place exacte.
+- Verre : les flous et les durées encore écrits en dur dans la musique, le micro et les réglages viennent de la même feuille.
+- Code mort : retrait de la recherche Spotlight, des modes Liquid AI, du miroir de fenêtre et des anciens styles de dépôt, qu'aucun geste n'appelait. La recherche musicale et le dépôt Fichiers restent en place.
+- Produit : Nolys est un îlot de contrôle Windows. Fichiers et Replay sont des modules livrés.
+- Replay : une capture réelle d'une minute, son du PC et microphone, a exporté 58,27 s avec deux pistes AAC décodées.
+
 - Icônes : modules nacrés rétablis dans les menus, les Réglages et le retour micro ; symboles sans contour au clic droit. Déplacer, Quitter et Personnaliser gardent des pictogrammes simples.
 - Activités compactes : mêmes symboles nacrés pour Replay, REC, minuteur et bulles Replay/micro ; en-tête du mélangeur harmonisé, sans cadre autour des petits symboles.
 - Replay : menus déroulants alignés aux différents zooms, défilement limité aux options et sélection préservée lors des réponses asynchrones de maintenance et de sources.

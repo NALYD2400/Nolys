@@ -2,6 +2,7 @@
 import { ipcRenderer, native } from '../../../shared/ipc.js';
 import { visualizerService } from '../../../services/AudioVisualizerService.js';
 import { MOTION_LEVELS } from '../helpers/constants.js';
+import { decide } from '../../../shared/capsule-state.js';
 
 export const preferenceMethods = {
     applyWindowViewport(viewport) {
@@ -319,7 +320,8 @@ export const preferenceMethods = {
         this.initLayoutEditToolbar();
         // Le cœur natif renvoie l'état du mode à chaque changement de taille ou de position :
         // seul un vrai changement compte (sinon − / + repliait l'aperçu de l'Island ouverte).
-        if (this._layoutEditMode === Boolean(enabled)) return;
+        const beforePlacement = this.capsuleSnapshot();
+        if (beforePlacement.placement === Boolean(enabled)) return;
         if (!enabled) this._stopLayoutDrag?.();
         this._layoutEditMode = Boolean(enabled);
         document.body.classList.toggle('layout-edit-mode', this._layoutEditMode);
@@ -335,9 +337,9 @@ export const preferenceMethods = {
             // (elle finissait sinon après coup), et renderContent retire les classes de taille
             // de la vue ouverte : avec renderIdle seul, la pilule gardait la hauteur du lecteur
             // ou du centre de contrôle (grand carré avec le titre au milieu).
+            const entered = decide(beforePlacement, { type: 'enter-placement' });
             this.cancelTransition();
-            this.mode = 'music';
-            this.isExpanded = false;
+            this.commitCapsule(entered.next);
             this.setLayoutPreviewButton(false);
             this.renderContent();
             if (ipcRenderer) {
@@ -358,9 +360,10 @@ export const preferenceMethods = {
             document.body.classList.remove('layout-edit-armed');
             clearTimeout(this._layoutEditArmTimeout);
             // Fin du placement : l'aperçu ouvert se referme.
-            if (this._layoutPreview) {
+            const left = decide(beforePlacement, { type: 'leave-placement' });
+            if (beforePlacement.preview) {
                 this.setLayoutPreviewButton(false);
-                this.isExpanded = false;
+                this.commitCapsule(left.next);
                 this.renderContent();
             }
             if (this._settingsAfterLayout) {
@@ -377,13 +380,15 @@ export const preferenceMethods = {
      * (le placement coupe les clics du contenu) et elle se replie en quittant le mode.
      */
     toggleLayoutPreview(force) {
-        if (!this._layoutEditMode) return;
+        const decision = decide(this.capsuleSnapshot(), {
+            type: 'toggle-preview',
+            on: typeof force === 'boolean' ? force : undefined,
+        });
+        if (decision.effect !== 'apply') return;
         this.paintLayoutScale(this._pendingLayoutScale ?? this._layoutConfig.scale);
         this.releaseLayoutToolbar(true);
-        const on = typeof force === 'boolean' ? force : !this._layoutPreview;
-        this.setLayoutPreviewButton(on);
-        this.mode = 'music';
-        this.isExpanded = on;
+        this.setLayoutPreviewButton(decision.next.preview);
+        this.commitCapsule(decision.next);
         this.renderContent();
         this.anchorLayoutToolbar();
     },

@@ -323,8 +323,8 @@ body.motion-sober .context-menu {
     right: 0;
     bottom: 0;
     background: rgba(10, 10, 15, 0.4);
-    backdrop-filter: blur(16px) saturate(120%);
-    -webkit-backdrop-filter: blur(16px) saturate(120%);
+    backdrop-filter: blur(var(--island-blur)) saturate(120%);
+    -webkit-backdrop-filter: blur(var(--island-blur)) saturate(120%);
     border-radius: calc(20px * var(--corner-k, 1));
     corner-shape: squircle;
     display: flex;
@@ -343,7 +343,7 @@ body.motion-sober .context-menu {
     }
     to {
         opacity: 1;
-        backdrop-filter: blur(16px);
+        backdrop-filter: blur(var(--island-blur));
     }
 }
 

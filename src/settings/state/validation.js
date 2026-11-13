@@ -1,6 +1,6 @@
 import { DEFAULT_SHORTCUTS } from './presets.js';
 import { sanitizeHotkeys } from '../../shared/hotkeys.js';
-import { sanitizeMenus } from '../../shared/menu-config.js';
+import { cleanShortcutCommand, sanitizeMenus } from '../../shared/menu-config.js';
 import { isRecord } from '../../shared/safe-storage.js';
 import { validateTimerState } from '../../island/dynamic-island/features/timer-state.js';
 import { validMicProfiles } from '../../shared/mic-profiles.js';
@@ -23,7 +23,7 @@ export function sanitizeShortcuts(value) {
     return DEFAULT_SHORTCUTS.map((fallback, index) => {
         const entry = Array.isArray(value) && isRecord(value[index]) ? value[index] : fallback;
         return { ...fallback, name: typeof entry.name === 'string' ? entry.name.trim().slice(0, 40) : fallback.name,
-            cmd: typeof entry.cmd === 'string' && !/[\r\n\0]/.test(entry.cmd) ? entry.cmd.trim().slice(0, 2048) : fallback.cmd,
+            cmd: typeof entry.cmd === 'string' && !/[\r\n\0]/.test(entry.cmd) ? cleanShortcutCommand(entry.cmd) : fallback.cmd,
             icon: typeof entry.icon === 'string' && /^ph(?: ph)?[\w -]*$/.test(entry.icon) ? entry.icon.slice(0, 80) : fallback.icon,
             preset: typeof entry.preset === 'string' ? entry.preset.slice(0, 60) : 'custom' };
     });

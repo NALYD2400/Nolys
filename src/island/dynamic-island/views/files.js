@@ -3,6 +3,7 @@ import { files, initFiles, select, start, message, notify } from '../../../files
 import { native } from '../../../shared/ipc.js';
 import { themeLook } from '../../../shared/theme-look.js';
 import { capsuleSettled, afterIntro } from './library.js';
+import { decide } from '../../../shared/capsule-state.js';
 
 export const filesView = {
     initFiles() {
@@ -65,11 +66,12 @@ export const filesView = {
         document.addEventListener('drop', event => event.preventDefault());
     },
     openFiles() {
-        if (this._layoutEditMode) return;
         if (this.mode === 'files' && this.isExpanded) return;
+        const decision = decide(this.capsuleSnapshot(), { type: 'open', mode: 'files', expand: true });
+        if (decision.effect === 'refuse') return;
         if (this.mode !== 'files') this._filesReturnState = { mode: this.mode, isExpanded: this.isExpanded };
         this.cancelTransition();
-        this.transitionState(() => { this.mode = 'files'; this.isExpanded = true; this.renderContent(); });
+        this.transitionState(() => { this.commitCapsule(decision.next); this.renderContent(); });
     },
     renderFiles() {
         this.el.classList.remove(...this.getIslandSizeClasses());

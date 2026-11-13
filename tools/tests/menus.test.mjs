@@ -6,6 +6,7 @@ import { loadSettings, saveSettings, toSnapshot, fromSnapshot } from '../../src/
 const data = new Map();
 globalThis.localStorage = { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, String(value)) };
 const custom = { id: 'custom-test', enabled: true, name: 'Dossier', cmd: 'C:\\Documents', icon: 'ph-folder' };
+const quoted = { id: 'custom-helium', enabled: true, name: 'Helium', cmd: '"C:\\Users\\dylan\\Desktop\\Helium (Antigravity).lnk"', icon: 'ph-app-window' };
 
 test('defaults keep existing modules, and corrupt data falls back without losing settings access', () => {
     assert.equal(sanitizeMenus().modules.length, 10);
@@ -37,6 +38,13 @@ test('Replay joins saved menus once without re-enabling a hidden module', () => 
     assert.equal(next.modules.find(item => item.id === 'mic').enabled, false);
     next.modules.find(item => item.id === 'replay').enabled = false;
     assert.deepEqual(sanitizeMenus(next), next);
+});
+
+test('a copied Windows path loses its surrounding quotes and keeps its spaces', () => {
+    const value = sanitizeMenus({ modules: [quoted] });
+    const helium = value.modules.find(entry => entry.id === 'custom-helium');
+    assert.equal(helium.cmd, 'C:\\Users\\dylan\\Desktop\\Helium (Antigravity).lnk');
+    assert.equal(sanitizeMenus({ modules: [{ ...quoted, cmd: '"C:\\app.exe" /c whoami' }] }).modules.find(entry => entry.id === 'custom-helium').cmd, '"C:\\app.exe" /c whoami');
 });
 
 test('sanitizing rejects duplicate actions, unknown actions and injected icons; preserves order and visibility', () => {

@@ -41,12 +41,7 @@ export const eventMethods = {
             if (this.mode === 'files' || this._fileReceiving) return;
             if (this._layoutEditMode) return;
             if (this.mode === 'library' || this.mode === 'settings' || this.mode === 'replay') return;
-            if (this.isExpanded && (this.mode === 'search' || this.mode === 'music-search' || this.mode === 'music-history' || this.mode === 'control' || this.mode === 'mixer' || this.mode === 'mic')) return; // Don't toggle expansion on interactive screens
-
-            if (this.mode === 'ai-thinking' || this.mode === 'ai-action') {
-                window.dispatchEvent(new CustomEvent('liquid-open-widget', { detail: 'ai' }));
-                return;
-            }
+            if (this.isExpanded && (this.mode === 'music-search' || this.mode === 'music-history' || this.mode === 'control' || this.mode === 'mixer' || this.mode === 'mic')) return; // Don't toggle expansion on interactive screens
 
             if (this.mode === 'notification') {
                 if (!this.isExpanded) this.expandNotification();
@@ -188,7 +183,6 @@ export const eventMethods = {
             e.stopImmediatePropagation();
             const { islandAction: action, arg } = button.dataset;
             if (action === 'media') window.spotifyControl?.(arg);
-            else if (action === 'closeSearch') window.dispatchEvent(new CustomEvent('liquid-search-close'));
             else if (action === 'setTimerPreset') this.setTimerPreset(Number(arg));
             else if (ISLAND_ACTIONS.has(action)) arg === undefined ? this[action]() : this[action](arg);
         });
@@ -268,101 +262,11 @@ export const eventMethods = {
             this.collapseIsland();
         });
 
-        window.addEventListener('liquid-ai-status', (e) => {
-            if (e.detail === 'search') {
-                this.setMode('search');
-                // Force expand for search
-                if (!this.isExpanded) {
-                    this.isExpanded = true;
-                    this.el.classList.remove('island-idle');
-                    this.el.classList.add('island-expanded');
-                }
-                this.renderContent();
-                // Focus search input after expansion animation
-                setTimeout(() => {
-                    const input = this.el.querySelector('#island-search-input');
-                    if (input) input.focus();
-                }, 400);
-            } else if (e.detail === 'idle' && this.mode === 'search') {
-                this.setMode('music');
-                if (this.isExpanded) this.toggleExpand();
-            }
-        });
-
-        window.addEventListener('liquid-search-hide', () => {
-            if (this.mode === 'search') {
-                this.setMode('music');
-                if (this.isExpanded) this.toggleExpand();
-            }
-        });
-
-        // Listen for keyboard specifically for search when expanded
-        window.addEventListener('keydown', (e) => {
-            if (this.mode !== 'search' || !this.isExpanded) return;
-
-            if (e.key === 'Escape') {
-                window.dispatchEvent(new CustomEvent('liquid-search-close'));
-            }
-            if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                window.dispatchEvent(new CustomEvent('liquid-search-navigate', { detail: 1 }));
-            }
-            if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                window.dispatchEvent(new CustomEvent('liquid-search-navigate', { detail: -1 }));
-            }
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                window.dispatchEvent(new CustomEvent('liquid-search-execute'));
-            }
-        });
-
-        window.addEventListener('liquid-window-opened', () => {
-            if (this.isExpanded) {
-                this.mode = 'music';
-                this.isExpanded = false;
-                this.renderContent();
-            }
-        });
-
         window.addEventListener('liquid-island-config-changed', (e) => {
             this._islandConfig = e.detail;
             this._updateVizCanvas();
         });
-        // --- Persistent Mode Logic ---
         if (ipcRenderer) {
-            
-
-            ipcRenderer.on('app-go-background', () => {
-                this.isBackgroundMode = true;
-                document.body.classList.add('liquid-background-mode');
-                // Ensure island is active if it's supposed to be
-                this.renderContent();
-            });
-
-            ipcRenderer.on('app-go-foreground', () => {
-                this.isBackgroundMode = false;
-                document.body.classList.remove('liquid-background-mode');
-                this.renderContent();
-            });
-
-            ipcRenderer.on('open-search', () => {
-                this.openSpotlightSearch();
-            });
-
-            // Hit testing for click-through
-            this.el.addEventListener('mouseenter', () => {
-                if (this.isBackgroundMode && (ipcRenderer)) {
-                    ipcRenderer.send('set-ignore-mouse', false);
-                }
-            });
-
-            this.el.addEventListener('mouseleave', () => {
-                if (this.isBackgroundMode && (ipcRenderer)) {
-                    ipcRenderer.send('set-ignore-mouse', true, { forward: true });
-                }
-            });
-
             window.addEventListener('liquid-island-persistent-changed', () => {
                 this.syncPersistentSetting();
             });

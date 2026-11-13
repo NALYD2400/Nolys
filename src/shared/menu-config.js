@@ -25,6 +25,13 @@ const defaults = {
 export const MAX_MENU_ITEMS = 40;
 const cleanText = (value, max) => typeof value === 'string' ? value.trim().slice(0, max) : '';
 
+/** « Copier en tant que chemin » entoure le chemin de guillemets. On les retire une fois, pas ceux du milieu. */
+export function cleanShortcutCommand(value) {
+    const text = cleanText(value, 2048);
+    if (text.length >= 2 && text.startsWith('"') && text.endsWith('"')) return text.slice(1, -1).trim();
+    return text;
+}
+
 /** Les anciens réglages reçoivent aussi les modules ajoutés au clic droit. */
 export function sanitizeMenus(value) {
     const source = value && typeof value === 'object' ? value : {};
@@ -40,7 +47,7 @@ export function sanitizeMenus(value) {
                 result[surface].push({ id: action.id, enabled: action.id === 'settings' || entry.enabled !== false });
             } else if (/^custom-[\w-]{1,80}$/.test(entry.id)) {
                 const name = cleanText(entry.name, 40);
-                const cmd = cleanText(entry.cmd, 2048);
+                const cmd = cleanShortcutCommand(entry.cmd);
                 if (!name || !cmd) continue;
                 result[surface].push({ id: entry.id, enabled: entry.enabled !== false, name, cmd,
                     icon: SHORTCUT_ICONS.includes(entry.icon) ? entry.icon : SHORTCUT_ICONS[0] });

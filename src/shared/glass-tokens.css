@@ -1,0 +1,23 @@
+/*
+ * Verre partagé : une seule source pour le rayon de coque, le flou et les durées.
+ * L'Island, la musique, le micro et les Réglages (shadow DOM) héritent de :root.
+ * Le flou réel peut ensuite être remplacé sur #dynamic-island par le thème.
+ */
+:root {
+    --shell-radius: 40px;
+    --shell-radius-compact: 28px;
+    --sheet-radius: 32px;
+    --island-blur: 16px;
+    --sheet-blur: 18px;
+    --cover-blur: 24px;
+    --backdrop-blur: 48px;
+    --chip-blur: 8px;
+    --panel-blur: 12px;
+    --glass-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --motion-press: 0.2s;
+    --motion-settle: 0.25s;
+    --motion-page: 0.28s;
+    --motion-morph: 0.42s;
+    --motion-vivid: 0.56s;
+    --motion-fallback: 0.6s;
+}

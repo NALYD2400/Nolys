@@ -14,7 +14,7 @@
     --separator: rgba(255, 255, 255, 0.08);
     --fill: rgba(255, 255, 255, 0.07);
     --fill-hover: rgba(255, 255, 255, 0.12);
-    --radius-window: 40px;
+    --radius-window: var(--shell-radius, 40px);
     --sidebar-width: 184px;
     --lg-foreground: var(--text);
     color-scheme: dark;
@@ -57,8 +57,11 @@ button {
 
 .window {
     height: 100%;
+    width: 100%;
+    min-width: 0;
     display: grid;
-    grid-template-columns: var(--sidebar-width) 1fr;
+    /* minmax(0, 1fr) : un chemin long ne peut pas élargir la colonne et pousser les boutons hors de la capsule. */
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
 }
 
 .backdrop {
@@ -73,9 +76,9 @@ button {
     width: calc(100% + 120px);
     height: calc(100% + 120px);
     object-fit: cover;
-    filter: blur(48px) saturate(1.5);
+    filter: blur(var(--backdrop-blur)) saturate(1.5);
     opacity: 0.55;
-    transition: opacity 0.6s ease;
+    transition: opacity var(--motion-fallback, 0.6s) ease;
 }
 
 .backdrop-default {
@@ -186,7 +189,7 @@ button {
     place-items: center;
     font-size: 17px;
     color: var(--text-secondary);
-    transition: color 0.2s ease;
+    transition: color var(--motion-press) ease;
 }
 
 .nav-item.is-active .nav-icon {
@@ -222,6 +225,7 @@ button {
 .content {
     display: flex;
     flex-direction: column;
+    min-width: 0;
     min-height: 0;
     position: relative;
 }
@@ -255,7 +259,7 @@ button {
     -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent 100%);
     mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent 100%);
     opacity: 0;
-    transition: opacity 0.2s ease;
+    transition: opacity var(--motion-press) ease;
 }
 
 .header-backdrop-inner,
@@ -348,11 +352,13 @@ button {
 
 .page {
     flex: 1;
+    min-width: 0;
+    overflow-x: hidden;
     overflow-y: auto;
     margin: 0 12px 16px 0;
     padding: 8px 8px 22px 18px;
     overscroll-behavior: contain;
-    animation: page-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+    animation: page-in var(--motion-page) var(--glass-ease);
     -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
     mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
 }
@@ -398,6 +404,8 @@ button {
 
 .card {
     margin-bottom: 18px;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .card-title {
@@ -410,6 +418,8 @@ button {
 .card-surface {
     display: flex;
     flex-direction: column;
+    min-width: 0;
+    max-width: 100%;
     padding: 2px 0;
 }
 
@@ -486,7 +496,7 @@ button {
 }
 
 .reveal.is-open > * {
-    animation: reveal-in 0.25s ease;
+    animation: reveal-in var(--motion-settle) ease;
 }
 
 @keyframes reveal-in {
@@ -664,12 +674,16 @@ button {
     list-style: none;
     margin: 0;
     padding: 0;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .menu-editor-row {
     display: flex;
     align-items: center;
     gap: 10px;
+    min-width: 0;
+    max-width: 100%;
     min-height: 52px;
     padding: 10px 14px;
 }
@@ -695,6 +709,9 @@ button {
 }
 
 .menu-editor-name small {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -756,6 +773,8 @@ button {
 .menu-editor-fields {
     display: grid;
     gap: 14px;
+    min-width: 0;
+    max-width: 100%;
     padding: 14px;
 }
 
@@ -767,6 +786,8 @@ button {
 
 .menu-editor-fields .text-input {
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .menu-editor-icons {
@@ -1260,7 +1281,7 @@ div.profile {
     inset: -30px;
     background-size: cover;
     background-position: center;
-    filter: blur(var(--pv-blur, 24px)) saturate(180%);
+    filter: blur(var(--pv-blur, var(--cover-blur, 24px))) saturate(180%);
     opacity: 0.55;
 }
 
@@ -1338,7 +1359,7 @@ div.profile {
 }
 
 .sidebar.glass {
-    border-radius: 28px;
+    border-radius: var(--shell-radius-compact, 28px);
     background: rgba(24, 24, 28, 0.66);
 }
 
@@ -1372,7 +1393,7 @@ div.profile {
     border-radius: 13px;
     background: rgba(120, 120, 128, 0.36);
     cursor: pointer;
-    transition: background 0.2s ease;
+    transition: background var(--motion-press) ease;
 }
 
 .switch.is-on {
@@ -1388,7 +1409,7 @@ div.profile {
     border-radius: 50%;
     background: #fff;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    transition: transform 0.2s ease;
+    transition: transform var(--motion-press) ease;
 }
 
 .switch.is-on .switch-knob {

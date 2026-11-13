@@ -140,7 +140,7 @@ pub fn register_all(app: &AppHandle, bindings: &[Binding]) -> Vec<Conflict> {
                     .map_err(|error| error.to_string())
             });
         match result {
-            Ok(()) => crate::logger::log(&format!("[Shortcut] Registered {}: {accelerator}", binding.action)),
+            Ok(()) => {}
             Err(error) => {
                 crate::logger::log(&format!("[Shortcut] Failed to register {} ({accelerator}): {error}", binding.action));
                 conflicts.push(conflict(binding, "déjà utilisée par Windows, une autre application ou une autre action"));

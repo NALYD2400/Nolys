@@ -70,8 +70,6 @@ const EVENT_CHANNELS = new Set([
     'config-changed', 'trigger-notif', 'layout-config-changed',
     'layout-edit-mode-changed', 'island-viewport-changed', 'update-status-changed', 'open-settings',
     'mic-monitor-changed', 'shortcut-open-mode', 'island-visibility-changed', 'media-changed',
-    // Canaux historiques sans émetteur natif, conservés pour compatibilité.
-    'app-go-background', 'app-go-foreground', 'open-search',
 ]);
 
 const currentWindow = tauri.webviewWindow.getCurrentWebviewWindow();

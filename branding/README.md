@@ -19,7 +19,7 @@ Les thèmes, les préférences enregistrées et les couleurs des pochettes sont 
 
 ## Exports et intégration
 
-Le logo est partagé par les réglages, À propos, le lecteur sans pochette, le favicon et les icônes natives Windows. La zone de notification utilise la même icône native.
+Le logo est partagé par les réglages, À propos, le lecteur sans pochette, le favicon et les icônes natives Windows. L'icône Windows est recadrée pour réduire sa marge transparente et mieux remplir les raccourcis du bureau.
 
 Les dix modules et le choix « Menu des modules » ont des symboles nacrés neutres, sans tuile ni couleur dans le PNG. Les exports actifs sont dans `src/public/assets/modules/neutral/` (128 px). Le relief vient du PNG et la lumière colorée de `src/shared/module-art.css`, avec une couleur fixe par module dans `src/shared/module-art.js`. À la demande de l’utilisateur, le fond reste entièrement transparent avec un contour arrondi fin portant un petit dégradé coloré. Ce liseré est évidé par un masque CSS : aucun carré sombre ni ombre ne masque le matériau de l’app. La même image alpha sert de masque au reflet inférieur : elle est mise en cache, sans seconde variante colorée à télécharger.
 

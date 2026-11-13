@@ -25,7 +25,6 @@ import { micMonitorMethods } from './features/mic-monitor.js';
 import { idleView } from './views/idle.js';
 import { musicView } from './views/music.js';
 import { musicSearchView } from './views/music-search.js';
-import { searchView } from './views/search.js';
 import { controlCenterView } from './views/control-center.js';
 import { menuView } from './views/menu.js';
 import { notificationView } from './views/notification.js';
@@ -51,7 +50,6 @@ export class DynamicIsland {
         this.fps = 60;
         this.lastTime = performance.now();
         this.frameCount = 0;
-        this.isBackgroundMode = false;
         this.lastMediaUpdate = Date.now();
 
         // Audio visualizer state
@@ -153,7 +151,6 @@ const METHOD_GROUPS = [
     idleView,
     musicView,
     musicSearchView,
-    searchView,
     controlCenterView,
     menuView,
     notificationView,

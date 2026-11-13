@@ -47,33 +47,6 @@ export const idleView = {
             }
         }
 
-        if (this.mode === 'ai-thinking') {
-            this.el.classList.add('island-active-music');
-            this.content.innerHTML = `
-                <div class="island-idle-content" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 100%; padding: 0 16px; color: var(--neon-primary); font-weight: 600; font-size: 13px;">
-                    <i class="ph ph-robot" style="font-size: 16px; animation: pulseGlow 1.5s infinite;"></i>
-                    <span style="font-family: inherit; font-size: 12px; letter-spacing: 0.5px;">Liquid AI réfléchit...</span>
-                </div>
-            `;
-            this._vizCanvas = null;
-            this.syncVisualizerActivity();
-            return;
-        }
-
-        if (this.mode === 'ai-action') {
-            this.el.classList.add('island-active-music');
-            const label = this.aiActionLabel || 'Action';
-            this.content.innerHTML = `
-                <div class="island-idle-content" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 100%; padding: 0 16px; color: var(--neon-secondary); font-weight: 600; font-size: 13px;">
-                    <i class="ph ph-sparkle" style="font-size: 16px; animation: pulseGlow 1.5s infinite;"></i>
-                    <span style="font-family: inherit; font-size: 12px; letter-spacing: 0.5px;">Exécute : ${label}...</span>
-                </div>
-            `;
-            this._vizCanvas = null;
-            this.syncVisualizerActivity();
-            return;
-        }
-
         if (activity) {
             this.el.classList.toggle('island-active-music', Boolean(musicEnabled && this.musicData?.isPlaying));
             this.el.classList.remove('island-active-network');
@@ -182,7 +155,7 @@ export const idleView = {
     },
 
     getCompactActivity() {
-        if (this._layoutEditMode || ['ai-thinking', 'ai-action', 'notification'].includes(this.mode)) return null;
+        if (this._layoutEditMode || this.mode === 'notification') return null;
         return compactActivity(this._timers?.satellite, replay.state.snapshot,
             this.musicData?.isPlaying && localStorage.getItem('liquid_music_enabled') !== 'false');
     },
@@ -201,7 +174,7 @@ export const idleView = {
 
     syncCompactActivity() {
         if (this.isExpanded || this._isTransitioning || this._layoutEditMode || this._fileReceiving
-            || ['ai-thinking', 'ai-action', 'notification'].includes(this.mode)) return;
+            || this.mode === 'notification') return;
         const activity = this.getCompactActivity();
         if ((activity?.kind || null) !== (this._compactActivityKind || null)) this.renderIdle();
         else if (activity) this.updateCompactActivity(activity);

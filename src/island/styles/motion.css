@@ -15,10 +15,10 @@
 
 body:not(.motion-sober) #dynamic-island {
     transition:
-        width 0.42s var(--spring-soft),
-        height 0.42s var(--spring-soft),
+        width var(--motion-morph) var(--spring-soft),
+        height var(--motion-morph) var(--spring-soft),
         border-radius 0.36s var(--spring-soft),
-        corner-shape 0.1s linear calc(var(--corner-delay) * 0.42s),
+        corner-shape 0.1s linear calc(var(--corner-delay) * var(--motion-morph)),
         transform 0.32s var(--spring-soft),
         background-color 0.3s ease,
         box-shadow 0.25s ease;
@@ -26,10 +26,10 @@ body:not(.motion-sober) #dynamic-island {
 
 body.motion-vivid #dynamic-island {
     transition:
-        width 0.56s var(--spring-bouncy),
-        height 0.56s var(--spring-bouncy),
-        border-radius 0.42s var(--spring-bouncy),
-        corner-shape 0.1s linear calc(var(--corner-delay) * 0.56s),
+        width var(--motion-vivid) var(--spring-bouncy),
+        height var(--motion-vivid) var(--spring-bouncy),
+        border-radius var(--motion-morph) var(--spring-bouncy),
+        corner-shape 0.1s linear calc(var(--corner-delay) * var(--motion-vivid)),
         transform 0.5s var(--spring-bouncy),
         background-color 0.28s ease,
         box-shadow 0.28s ease;
@@ -105,7 +105,7 @@ body:not(.motion-sober) .island-content.di-intro .island-menu-grid > * {
 
 /* La feuille de périphériques a sa propre animation. */
 body .di-stagger > .mic-sheet {
-    animation: micSheetIn 0.42s var(--spring-soft) both;
+    animation: micSheetIn var(--motion-morph) var(--spring-soft) both;
 }
 
 body .di-stagger > .mic-sheet.leaving {

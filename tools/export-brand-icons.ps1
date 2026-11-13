@@ -12,6 +12,26 @@ if (!$ModulesOnly) {
     foreach ($name in @('32x32.png', '128x128.png', '128x128@2x.png', 'icon.png', 'icon.ico')) {
         Copy-Item -LiteralPath (Join-Path $staging $name) -Destination (Join-Path $AppRoot "src-tauri/icons/$name")
     }
+    # Supprimer la marge transparente autour de la tuile pour le raccourci Windows.
+    $sourceImage = [System.Drawing.Image]::FromFile((Join-Path $AppRoot 'branding/icon-source.png'))
+    try {
+        $crop = [int]($sourceImage.Width * 0.925)
+        $offset = [int](($sourceImage.Width - $crop) / 2)
+        $cropped = [System.Drawing.Bitmap]::new($crop, $crop, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+        try {
+            $graphics = [System.Drawing.Graphics]::FromImage($cropped)
+            try {
+                $graphics.CompositingMode = [System.Drawing.Drawing2D.CompositingMode]::SourceCopy
+                $graphics.DrawImage($sourceImage, [System.Drawing.Rectangle]::new(0, 0, $crop, $crop), $offset, $offset, $crop, $crop, [System.Drawing.GraphicsUnit]::Pixel)
+            } finally { $graphics.Dispose() }
+            $croppedSource = Join-Path $staging 'desktop-source.png'
+            $cropped.Save($croppedSource, [System.Drawing.Imaging.ImageFormat]::Png)
+        } finally { $cropped.Dispose() }
+    } finally { $sourceImage.Dispose() }
+    $desktopStaging = Join-Path $staging 'desktop'
+    & node (Join-Path $AppRoot 'node_modules/@tauri-apps/cli/tauri.js') icon $croppedSource --output $desktopStaging
+    if ($LASTEXITCODE -ne 0) { throw "Export de l'icône Windows impossible." }
+    Copy-Item -LiteralPath (Join-Path $desktopStaging 'icon.ico') -Destination (Join-Path $AppRoot 'src-tauri/icons/icon.ico')
 }
 
 function Export-Png([string]$Source, [string]$Destination, [int]$Size) {
@@ -36,6 +56,7 @@ if (!$ModulesOnly) {
     $source = Join-Path $AppRoot 'branding/icon-source.png'
     Export-Png $source (Join-Path $AppRoot 'src-tauri/icons/64x64.png') 64
     Copy-Item -LiteralPath (Join-Path $AppRoot 'src-tauri/icons/128x128@2x.png') -Destination (Join-Path $AppRoot 'src/public/assets/app-logo.png')
+
 }
 foreach ($name in @('music', 'replay', 'files', 'timer', 'mic')) {
     Export-Png (Join-Path $AppRoot "branding/module-sources/$name.png") (Join-Path $AppRoot "src/public/assets/modules/$name.png") 128

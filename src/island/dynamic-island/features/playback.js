@@ -1,5 +1,4 @@
 /** État de lecture, progression et synchronisation du lecteur. */
-import { ipcRenderer } from '../../../shared/ipc.js';
 import { visualizerService } from '../../../services/AudioVisualizerService.js';
 import { formatTime } from '../helpers/format.js';
 import { APP_LOGO_ART, getDisplayMediaArt } from '../helpers/media-art.js';
@@ -265,49 +264,6 @@ export const playbackMethods = {
             if ((trackChanged || playbackChanged) && this.mode !== 'notification') {
                 this.renderIdle();
             }
-        }
-    },
-
-    async mirrorCurrentMedia() {
-        if (!this.musicData) return;
-        
-        if (!ipcRenderer) return;
-
-        const sources = await ipcRenderer.invoke('get-desktop-sources');
-
-        // Logic de matching intelligente
-        const appId = (this.musicData.appId || "").toLowerCase();
-        const artist = (this.musicData.artist || "").toLowerCase();
-        const title = (this.musicData.title || "").toLowerCase();
-
-        // 1. Essayer de matcher par l'ID de l'application (Spotify.exe -> "Spotify")
-        let target = sources.find(s => {
-            const sName = s.name.toLowerCase();
-            const cleanAppId = appId.split('.')[0].replace('microsoft.', '');
-            if (cleanAppId && sName.includes(cleanAppId)) return true;
-            return false;
-        });
-
-        // 2. Si pas de match, essayer par titre ou artiste (Utile pour YouTube/Chrome)
-        if (!target) {
-            target = sources.find(s => {
-                const sName = s.name.toLowerCase();
-                const cleanTitle = title.split(' - ')[0].split(' | ')[0].trim().toLowerCase();
-                if (cleanTitle.length > 3 && sName.includes(cleanTitle)) return true;
-                if (artist.length > 3 && sName.includes(artist)) return true;
-                return false;
-            });
-        }
-
-        if (target) {
-            window.dispatchEvent(new CustomEvent('liquid-open-widget', { detail: 'mirror' }));
-            setTimeout(() => {
-                window.dispatchEvent(new CustomEvent('liquid-mirror-start', { detail: target }));
-            }, 500);
-            this.showNotification('Miroir', `Projection de ${target.name}`, 'ph-screencast');
-        } else {
-            console.warn("Mirror target not found for media:", this.musicData);
-            this.showNotification('Miroir', 'Fenêtre source introuvable', 'ph-warning-circle');
         }
     },
 };

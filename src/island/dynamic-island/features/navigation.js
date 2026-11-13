@@ -1,5 +1,6 @@
 /** Navigation entre les modes et rendu principal. */
 import { ipcRenderer } from '../../../shared/ipc.js';
+import { decide } from '../../../shared/capsule-state.js';
 
 export const navigationMethods = {
     /** Invalide ensemble l'animation courante, son rendu tardif et la demande suivante. */
@@ -77,55 +78,70 @@ export const navigationMethods = {
         return Math.round(Math.min(140, Math.max(50, seconds * 1000 / 4)));
     },
 
-    toggleExpand() {
+    capsuleSnapshot() {
+        const busy = this.mode === 'replay' && this._replayController?.busy ? 'replay'
+            : this.mode === 'library' && this._libraryController?.busy ? 'library'
+            : this.mode === 'settings' && this._settingsController?.busy ? 'settings'
+            : this.mode === 'files' && this._filesController?.busy ? 'files'
+            : null;
+        return {
+            mode: this.mode,
+            expanded: this.isExpanded,
+            transitioning: this._transitionInProgress,
+            placement: this._layoutEditMode,
+            preview: this._layoutPreview,
+            busy,
+        };
+    },
+
+    commitCapsule(next) {
+        this.mode = next.mode;
+        this.isExpanded = next.expanded;
+    },
+
+    /** Applique un événement autorisé, ou le reporte s'il arrive pendant le ressort. */
+    followCapsule(intent) {
+        const decision = decide(this.capsuleSnapshot(), intent);
+        if (decision.effect === 'refuse' || decision.effect === 'noop') return decision;
         this.transitionState(() => {
-            this.isExpanded = !this.isExpanded;
+            this.commitCapsule(decision.next);
             this.renderContent();
         });
+        return decision;
+    },
+
+    toggleExpand() {
+        this.followCapsule({ type: 'toggle' });
     },
 
     /** `force` : fermeture demandée par l'utilisateur (Échap, ✕), même avec un dialogue ouvert. */
     collapseIsland({ force = false } = {}) {
-        if (this.mode === 'files') { this.closeFiles(); return; }
-        if (this.mode === 'replay' && this._replayController?.busy && !force) return;
-        if (!this.isExpanded) return;
-        // Sélecteur de fichiers Windows ouvert : la perte de focus ne doit pas fermer la vue.
-        if (this.mode === 'library' && this._libraryController?.busy) return;
-        if (this.mode === 'settings' && this._settingsController?.busy && !force) return;
-        if (this.mode === 'notification') {
-            this.dismissNotification();
-            return;
-        }
+        const decision = decide(this.capsuleSnapshot(), { type: 'collapse', force });
+        if (decision.effect === 'refuse' || decision.effect === 'noop') return;
+        if (decision.reason === 'close-files') { this.closeFiles(); return; }
+        if (decision.reason === 'dismiss-notification') { this.dismissNotification(); return; }
 
         try { window.speechSynthesis.cancel(); } catch (e) {}
 
-        if (this.mode === 'search') {
-            window.dispatchEvent(new CustomEvent('liquid-search-close'));
-        }
-
         this.transitionState(() => {
-            this.mode = 'music';
-            this.isExpanded = false;
+            this.commitCapsule(decision.next);
             this.renderContent();
         });
     },
 
     returnToMusicIdle() {
+        const decision = decide(this.capsuleSnapshot(), { type: 'reset' });
+        if (decision.effect !== 'apply') return;
         this.cancelTransition();
         this.clearNotification();
-        this.mode = 'music';
-        this.isExpanded = false;
+        this.commitCapsule(decision.next);
         this.el.classList.remove(...this.getIslandSizeClasses());
         this.el.classList.remove('animating');
         this.renderContent();
     },
 
     openExpandedMode(mode) {
-        this.transitionState(() => {
-            this.mode = mode;
-            this.isExpanded = true;
-            this.renderContent();
-        });
+        this.followCapsule({ type: 'open', mode, expand: true });
     },
 
     async launchShortcut(command) {
@@ -178,11 +194,7 @@ export const navigationMethods = {
         this.isMicDeviceDropdownOpen = false;
 
         if (mode === 'menu') {
-            this.transitionState(() => {
-                this.mode = mode;
-                if (expand) this.isExpanded = true;
-                this.renderContent();
-            });
+            this.followCapsule({ type: 'open', mode, expand });
             return;
         }
 
@@ -191,11 +203,7 @@ export const navigationMethods = {
         if (mode === 'stats' && localStorage.getItem('liquid_island_stats_enabled') === 'false') return;
         if (mode === 'network' && localStorage.getItem('liquid_island_network_enabled') === 'false') return;
 
-        this.transitionState(() => {
-            this.mode = mode;
-            if (expand) this.isExpanded = true;
-            this.renderContent();
-        });
+        this.followCapsule({ type: 'open', mode, expand });
     },
 
     getIslandSizeClasses() {
@@ -209,7 +217,6 @@ export const navigationMethods = {
             'island-mode-timer',
             'island-mode-network',
             'island-mode-menu',
-            'island-mode-search',
             'island-mode-music-search',
             'island-mode-music-history',
             'island-mode-control',
@@ -229,7 +236,6 @@ export const navigationMethods = {
             timer: 'island-mode-timer',
             network: 'island-mode-network',
             menu: 'island-mode-menu',
-            search: 'island-mode-search',
             'music-search': 'island-mode-music-search',
             'music-history': 'island-mode-music-history',
             control: 'island-mode-control',
@@ -329,7 +335,6 @@ export const navigationMethods = {
             else if (this.mode === 'timer') this.renderTimer();
             else if (this.mode === 'network') this.renderNetwork();
             else if (this.mode === 'menu') this.renderMenu();
-            else if (this.mode === 'search') this.renderSearch();
             else if (this.mode === 'music-search') this.renderMusicSearch();
             else if (this.mode === 'music-history') this.renderMusicHistory();
             else if (this.mode === 'control') this.renderControl();

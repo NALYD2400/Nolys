@@ -64,7 +64,7 @@
     border: 1.5px solid var(--mic-accent);
     opacity: 0;
     transform: scale(calc(0.9 + var(--mic-out) / 400));
-    transition: transform 0.08s linear, opacity 0.2s ease;
+    transition: transform 0.08s linear, opacity var(--motion-press) ease;
 }
 
 .mic-view.is-running.gate-open .mic-badge-ring {
@@ -152,7 +152,7 @@
     place-items: center;
     font-size: 16px;
     cursor: pointer;
-    transition: background 0.2s ease, transform 0.2s ease;
+    transition: background var(--motion-press) ease, transform var(--motion-press) ease;
 }
 
 .mic-icon-btn i {
@@ -317,7 +317,7 @@
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3), 0 0 8px rgba(255, 255, 255, 0.5);
     opacity: 0;
     transform: scaleY(0.4);
-    transition: opacity 0.25s ease, transform 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
+    transition: opacity var(--motion-settle) ease, transform 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
 }
 
 .mic-view.gate-enabled .mic-gate-handle {
@@ -400,7 +400,7 @@
     width: var(--val);
     border-radius: 999px;
     background: linear-gradient(90deg, rgba(255, 255, 255, 0.85), #fff);
-    transition: height 0.2s ease, margin 0.2s ease;
+    transition: height var(--motion-press) ease, margin var(--motion-press) ease;
 }
 
 /* Au-delà de 100 % (gain), la partie amplifiée prend la couleur d'accent. */
@@ -415,7 +415,7 @@
     border-radius: 0 999px 999px 0;
     background: var(--mic-accent);
     pointer-events: none;
-    transition: height 0.2s ease, margin 0.2s ease;
+    transition: height var(--motion-press) ease, margin var(--motion-press) ease;
 }
 
 .mic-slider:hover::after,
@@ -445,7 +445,7 @@
     border-radius: 50%;
     background: #fff;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
-    transition: transform 0.25s cubic-bezier(0.2, 1.5, 0.4, 1);
+    transition: transform var(--motion-settle) cubic-bezier(0.2, 1.5, 0.4, 1);
 }
 
 .mic-slider:hover .mic-slider-fill,
@@ -479,7 +479,7 @@
     color: rgba(255, 255, 255, 0.75);
     font: 600 11px 'Inter', sans-serif;
     cursor: pointer;
-    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+    transition: background var(--motion-press) ease, color var(--motion-press) ease, transform var(--motion-press) ease, border-color var(--motion-press) ease;
 }
 
 /* Icônes de la vue : graisse « bold » et taille commune, pour rester lisibles à 11 px.
@@ -549,7 +549,7 @@
     font: 500 11px 'Inter', sans-serif;
     text-align: left;
     cursor: pointer;
-    transition: background 0.2s ease;
+    transition: background var(--motion-press) ease;
 }
 
 .mic-device:hover {
@@ -595,16 +595,16 @@
     display: flex;
     flex-direction: column;
     padding: 12px 12px 10px;
-    border-radius: 32px;
+    border-radius: var(--sheet-radius, 32px);
     background: rgba(18, 18, 24, 0.94);
-    backdrop-filter: blur(18px);
+    backdrop-filter: blur(var(--sheet-blur));
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-    animation: micSheetIn 0.42s linear(0, 0.0369, 0.1276, 0.2473, 0.3779, 0.5066, 0.6252, 0.729, 0.8159, 0.8857, 0.9394, 0.9789, 1.0063, 1.0239, 1.0338, 1.0379, 1.0381, 1.0355, 1.0314, 1.0265, 1.0215, 1.0167, 1.0124, 1.0087, 1.0057, 1.0033, 1.0015, 1.0003, 0.9994, 0.9989, 0.9986, 0.9985, 0.9986, 0.9987, 0.9989, 0.9991, 1) both;
+    animation: micSheetIn var(--motion-morph) var(--spring-soft) both;
 }
 
 .mic-sheet.leaving {
-    animation: micSheetOut 0.2s ease-in both;
+    animation: micSheetOut var(--motion-press) ease-in both;
 }
 
 @keyframes micSheetIn {
@@ -771,7 +771,7 @@ body:not(.motion-sober):not(.no-glow-breath) .island-satellite.is-glowing {
 .satellite-bars {
     position: relative;
     grid-area: 1 / 1;
-    transition: opacity 0.18s ease, transform 0.25s linear(0, 0.0541, 0.1852, 0.3533, 0.5286, 0.6908, 0.8282, 0.9353, 1.012, 1.0608, 1.0866, 1.0947, 1.0905, 1.0785, 1.0628, 1.0461, 1.0306, 1.0173, 1.0069, 0.9994, 0.9945, 0.9919, 0.991, 0.9914, 0.9924, 0.9939, 0.9955, 0.997, 0.9983, 0.9993, 1);
+    transition: opacity 0.18s ease, transform var(--motion-settle) linear(0, 0.0541, 0.1852, 0.3533, 0.5286, 0.6908, 0.8282, 0.9353, 1.012, 1.0608, 1.0866, 1.0947, 1.0905, 1.0785, 1.0628, 1.0461, 1.0306, 1.0173, 1.0069, 0.9994, 0.9945, 0.9919, 0.991, 0.9914, 0.9924, 0.9939, 0.9955, 0.997, 0.9983, 0.9993, 1);
 }
 
 .satellite-icon {
@@ -836,7 +836,7 @@ body:not(.motion-sober):not(.no-glow-breath) .island-satellite.is-glowing {
     color: #fff;
     opacity: 0;
     transform: scale(0.6);
-    transition: opacity 0.18s ease, transform 0.25s ease;
+    transition: opacity 0.18s ease, transform var(--motion-settle) ease;
 }
 
 .island-satellite.is-confirming {
@@ -902,7 +902,7 @@ body.layout-edit-mode .island-satellite {
 
 /* Au-delà d'une minute : bulle élargie (m:ss tient à côté), sans anneau (un rond ne convient plus). */
 #island-timer-satellite {
-    transition: opacity 0.18s ease, transform 0.7s linear(0, 0.0541, 0.1852, 0.3533, 0.5286, 0.6908, 0.8282, 0.9353, 1.012, 1.0608, 1.0866, 1.0947, 1.0905, 1.0785, 1.0628, 1.0461, 1.0306, 1.0173, 1.0069, 0.9994, 0.9945, 0.9919, 0.991, 0.9914, 0.9924, 0.9939, 0.9955, 0.997, 0.9983, 0.9993, 1), width 0.25s ease, border-radius 0.25s ease;
+    transition: opacity 0.18s ease, transform 0.7s linear(0, 0.0541, 0.1852, 0.3533, 0.5286, 0.6908, 0.8282, 0.9353, 1.012, 1.0608, 1.0866, 1.0947, 1.0905, 1.0785, 1.0628, 1.0461, 1.0306, 1.0173, 1.0069, 0.9994, 0.9945, 0.9919, 0.991, 0.9914, 0.9924, 0.9939, 0.9955, 0.997, 0.9983, 0.9993, 1), width var(--motion-settle) ease, border-radius var(--motion-settle) ease;
 }
 
 #island-timer-satellite.is-wide {
@@ -947,7 +947,7 @@ body.layout-edit-mode .island-satellite {
     font-size: 11px;
     opacity: 0.7;
     background: rgba(255, 255, 255, 0.08);
-    transition: background 0.2s ease, transform 0.2s ease;
+    transition: background var(--motion-press) ease, transform var(--motion-press) ease;
 }
 
 #ic-mic .ic-tile-more:hover {

@@ -42,12 +42,9 @@
 #dynamic-island {
     /* Custom fluid dark crystal settings */
     --island-bg: rgba(10, 10, 15, 0.92);
-    --island-blur: 16px;
     --island-glow-size: 20px;
     --island-glow-rgb: 0, 243, 255;
     --island-glow-opacity: 1;
-    /* Rayon de la coque dépliée, en rayon « Lisse » (celui du verre du SDK). */
-    --shell-radius: 40px;
     /* Bascule arc ↔ squircle, en fraction du ressort (voir le bloc squircle en fin de fichier). */
     --corner-delay: 0;
 
@@ -56,10 +53,10 @@
     -webkit-backdrop-filter: blur(var(--island-blur));
     border-radius: 50px;
     /* Spring-like bezier for a more organic, adaptive feel */
-    transition: width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1),
-        height 0.6s cubic-bezier(0.2, 0.8, 0.2, 1),
-        border-radius 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
-        corner-shape 0.1s linear calc(var(--corner-delay) * 0.6s),
+    transition: width var(--motion-fallback) var(--glass-ease),
+        height var(--motion-fallback) var(--glass-ease),
+        border-radius 0.4s var(--glass-ease),
+        corner-shape 0.1s linear calc(var(--corner-delay) * var(--motion-fallback)),
         background-color 0.3s ease,
         box-shadow 0.25s ease;
     pointer-events: auto;
@@ -476,7 +473,7 @@ body.motion-vivid .inner-action-btn:hover {
 }
 
 #dynamic-island.island-mode-notification {
-    --shell-radius: 28px;
+    --shell-radius: var(--shell-radius-compact);
     width: 380px;
     height: 148px;
     border-radius: calc(var(--shell-radius) * var(--corner-k));
@@ -505,12 +502,6 @@ body.motion-vivid .inner-action-btn:hover {
 .island-mode-menu {
     width: 328px;
     height: 198px;
-    border-radius: calc(var(--shell-radius) * var(--corner-k));
-}
-
-.island-mode-search {
-    width: 390px;
-    height: 230px;
     border-radius: calc(var(--shell-radius) * var(--corner-k));
 }
 

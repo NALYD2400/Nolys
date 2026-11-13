@@ -5,8 +5,8 @@ pub mod drag;
 pub mod hit_test;
 pub mod layout;
 
-use std::sync::atomic::Ordering;
-use std::time::Duration;
+use std::sync::{atomic::Ordering, Mutex};
+use std::time::{Duration, Instant};
 
 use tauri::{AppHandle, Emitter, LogicalSize, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
@@ -137,11 +137,8 @@ fn apply_layout_inner(app: &AppHandle, notify: bool) {
         if window.outer_position().ok() != Some(position) {
             let _ = window.set_position(position);
         }
-        let handle = app.clone();
-        tauri::async_runtime::spawn(async move {
-            tokio::time::sleep(Duration::from_millis(50)).await;
-            handle.state::<AppState>().suppress_move_sync.store(false, Ordering::SeqCst);
-        });
+        // Windows renvoie le déplacement : on l'ignore le temps que la position voulue soit posée.
+        hold_move_sync(app, 50);
     }
     sync_native_state(app);
     let _ = app.emit("island-viewport-changed", viewport);
@@ -426,8 +423,36 @@ pub fn set_layout_edit_mode(app: &AppHandle, enabled: bool) {
     apply_layout(app);
 }
 
+/// Ignore les déplacements renvoyés par Windows. Un appel plus long annule le délai plus court.
+fn hold_move_sync(app: &AppHandle, millis: u64) {
+    static UNTIL: Mutex<Option<Instant>> = Mutex::new(None);
+    let deadline = Instant::now() + Duration::from_millis(millis);
+    let mut until = UNTIL.lock().unwrap();
+    *until = Some(until.map_or(deadline, |previous| previous.max(deadline)));
+    app.state::<AppState>().suppress_move_sync.store(true, Ordering::SeqCst);
+    drop(until);
+    let handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(millis)).await;
+        let mut until = UNTIL.lock().unwrap();
+        if until.is_some_and(|deadline| Instant::now() >= deadline) {
+            handle.state::<AppState>().suppress_move_sync.store(false, Ordering::SeqCst);
+            *until = None;
+        }
+    });
+}
+
 /// Réagit aux changements d'écrans (branchement, résolution, mise à l'échelle).
+/// La position exacte ne survit pas : Windows déplace la fenêtre. On la recentre en haut de son écran.
 pub fn on_displays_changed(app: &AppHandle) {
-    apply_layout(app);
+    let state = app.state::<AppState>();
+    if state.layout_edit_mode.load(Ordering::SeqCst) {
+        apply_layout(app);
+    } else {
+        let current = state.layout.lock().clone();
+        update_layout(app, layout::centered_on(app, &current));
+    }
+    // Plus long que le délai d'application : le déplacement que Windows envoie ensuite ne réécrit pas la place.
+    hold_move_sync(app, 800);
     enforce_topmost(app, "screen-change");
 }
