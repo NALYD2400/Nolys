@@ -2,6 +2,10 @@
 
 ## Non publié
 
+## 2.6.7
+
+- Icône Windows : le logo occupe davantage de place sur le bureau.
+
 - Capsule : les ouvertures, les replis et le placement passent par les mêmes états. Un module demandé pendant le ressort arrive déplié ; le placement refuse la navigation et ne déplie que son aperçu.
 - Raccourcis : un chemin Windows n'est lancé que s'il existe, sans arguments, et que c'est un dossier, une application, un raccourci ou un lien. Les scripts et les commandes ajoutées après le chemin sont refusés. Un chemin collé avec les guillemets de l'Explorateur s'affiche et s'ouvre sans eux.
 - Placement : brancher, débrancher ou changer l'échelle d'un écran recentre la capsule en haut de son écran. Windows ne lui rend pas sa place exacte.
