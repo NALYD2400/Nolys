@@ -310,9 +310,9 @@ export const eventMethods = {
         const hasMedia = menus.showMedia && isHistoryTrack(this.musicData || {});
         const micOn = Boolean(this.micConfig?.enabled);
         const isCurrent = (mode) => this.isExpanded && this.mode === mode;
-        const item = (action, icon, label, { extraClass = '', badge = '', command } = {}) => `
+        const item = (action, icon, label, { extraClass = '', badge = '', command, preferIcon } = {}) => `
             <button type="button" class="context-menu-item ${extraClass}" role="menuitem" data-action="${action}">
-                ${renderModuleArtwork(action, command) || `<i class="ph ${icon}" aria-hidden="true"></i>`}
+                ${renderModuleArtwork(action, command, icon, preferIcon) || `<i class="ph ${icon}" aria-hidden="true"></i>`}
                 <span>${escapeHtml(label)}</span>
                 ${isCurrent(action) ? '<i class="ph-bold ph-check context-menu-check" aria-hidden="true"></i>' : badge}
             </button>`;
@@ -354,7 +354,7 @@ export const eventMethods = {
             ${mediaSection}
             <div class="context-menu-entries">
                 ${menuEntries.map(entry => item(entry.id, entry.icon, entry.label, {
-                    command: entry.cmd,
+                    command: entry.cmd, preferIcon: entry.preferIcon,
                     extraClass: entry.id === 'exit' ? 'danger' : '',
                     badge: entry.id === 'mic' && micOn ? '<span class="context-menu-badge">Activé</span>' : '',
                 })).join('')}

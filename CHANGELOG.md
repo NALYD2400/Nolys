@@ -2,6 +2,11 @@
 
 ## Non publié
 
+## 2.6.8
+
+- Nouvelles icônes nacrées pour les modules, le menu du clic droit et les raccourcis Windows et personnels.
+- Le choix d’icône d’un raccourci personnel est enregistré et repris dans les deux menus.
+
 ## 2.6.7
 
 - Icône Windows : le logo occupe davantage de place sur le bureau.

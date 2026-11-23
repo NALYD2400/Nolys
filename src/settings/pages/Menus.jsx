@@ -35,7 +35,7 @@ export default function Menus({ store }) {
             !(surface === 'modules' && action.contextOnly) && !entries.some(entry => entry.id === action.id))
             .map(action => ({ value: action.id, label: action.label, icon: action.icon, moduleId: action.id })) },
         { label: 'Windows', options: WINDOWS_SHORTCUTS.map(([id, preset]) => ({ value: `windows:${id}`, label: preset.name, icon: preset.icon, moduleId: id === 'settings' ? 'windows-settings' : id })) },
-        { label: 'Personnel', options: [{ value: 'custom', label: 'Application, dossier ou lien…', icon: 'ph-arrow-square-out' }] },
+        { label: 'Personnel', options: [{ value: 'custom', label: 'Application, dossier ou lien…', icon: 'ph-arrow-square-out', moduleId: 'link' }] },
     ].filter(group => group.options.length);
 
     const choose = kind => {
@@ -43,7 +43,7 @@ export default function Menus({ store }) {
         if (kind.startsWith('windows:')) {
             const preset = SHORTCUT_PRESETS[kind.slice(8)];
             setDraft({ kind, name: preset.name, cmd: preset.cmd, icon: 'ph-app-window' });
-        } else setDraft({ ...EMPTY_DRAFT, kind });
+        } else setDraft({ ...EMPTY_DRAFT, kind, preferIcon: kind === 'custom' });
     };
     const save = event => {
         event.preventDefault();
@@ -55,6 +55,7 @@ export default function Menus({ store }) {
         const entry = builtin ? { id: builtin.id, enabled: true } : {
             id: editing || `custom-${crypto.randomUUID()}`, enabled: entries.find(item => item.id === editing)?.enabled !== false,
             name: draft.name.trim(), cmd: draft.cmd.trim(), icon: draft.icon,
+            ...(draft.preferIcon ? { preferIcon: true } : {}),
         };
         setEntries(editing ? entries.map(item => item.id === editing ? entry : item) : [...entries, entry]);
         clearDraft();
@@ -80,8 +81,8 @@ export default function Menus({ store }) {
                         const unavailable = action.flag && localStorage.getItem(action.flag) === 'false';
                         return (
                             <li key={entry.id} className={`menu-editor-row${entry.enabled === false ? ' is-hidden' : ''}`}>
-                                {moduleArtwork(action.id, action.cmd)
-                                    ? <ModuleArtwork id={action.id} command={action.cmd} className="menu-editor-artwork" />
+                                {moduleArtwork(action.id, action.cmd, action.icon, action.preferIcon)
+                                    ? <ModuleArtwork id={action.id} command={action.cmd} selectedIcon={action.icon} preferIcon={action.preferIcon} className="menu-editor-artwork" />
                                     : <Icon name={action.icon} className="menu-editor-icon" />}
                                 <div className="menu-editor-name">
                                     <span>{action.label}</span>
@@ -90,7 +91,7 @@ export default function Menus({ store }) {
                                 </div>
                                 <div className="menu-editor-actions">
                                     {custom && <button type="button" className="menu-editor-button" title={`Modifier ${action.label}`} aria-label={`Modifier ${action.label}`}
-                                        onClick={() => { setEditing(entry.id); setDraft({ kind: 'custom', name: entry.name, cmd: entry.cmd, icon: entry.icon }); setError(''); }}><Icon name="ph-pencil-simple" /></button>}
+                                        onClick={() => { setEditing(entry.id); setDraft({ kind: 'custom', name: entry.name, cmd: entry.cmd, icon: entry.icon, preferIcon: entry.preferIcon }); setError(''); }}><Icon name="ph-pencil-simple" /></button>}
                                     <button type="button" className="menu-editor-button" disabled={index === 0} title={`Monter ${action.label}`} aria-label={`Monter ${action.label}`} onClick={() => move(index, -1)}><Icon name="ph-arrow-up" /></button>
                                     <button type="button" className="menu-editor-button" disabled={index === entries.length - 1} title={`Descendre ${action.label}`} aria-label={`Descendre ${action.label}`} onClick={() => move(index, 1)}><Icon name="ph-arrow-down" /></button>
                                     {entry.id === 'settings' ? <Icon name="ph-lock-simple" className="menu-editor-lock" /> :
@@ -115,7 +116,7 @@ export default function Menus({ store }) {
                                 onChange={event => setDraft({ ...draft, cmd: event.target.value })} /></label>
                             <div className="menu-editor-icons" role="group" aria-label="Icône du raccourci">
                                 {SHORTCUT_ICONS.map((icon, index) => <button type="button" key={icon} className="menu-editor-button" aria-label={['Lien', 'Dossier', 'Site web', 'Application', 'Favori', 'Jeu', 'Code', 'Musique'][index]}
-                                    aria-pressed={draft.icon === icon} onClick={() => setDraft({ ...draft, icon })}><Icon name={icon} /></button>)}
+                                    aria-pressed={draft.icon === icon} onClick={() => setDraft({ ...draft, icon, preferIcon: true })}><ModuleArtwork id="custom-choice" selectedIcon={icon} /></button>)}
                             </div>
                             <p className="card-footer">Chemin complet vers un programme, un fichier ou un dossier, adresse https:// ou protocole d’application (spotify:, ms-settings:…).</p>
                         </div>

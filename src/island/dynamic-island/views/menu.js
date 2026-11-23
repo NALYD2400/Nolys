@@ -44,7 +44,7 @@ export const menuView = {
         const entries = visibleMenuEntries('modules');
         this.content.innerHTML = `<div class="island-menu-grid" role="group" aria-label="Modules">
             ${entries.map(entry => `<button type="button" class="island-menu-item" data-menu-id="${escapeHtml(entry.id)}" title="${escapeHtml(entry.label)}">
-                ${renderModuleArtwork(entry.id, entry.cmd) || `<div class="menu-icon"><i class="ph ${entry.icon}" aria-hidden="true"></i></div>`}
+                ${renderModuleArtwork(entry.id, entry.cmd, entry.icon, entry.preferIcon) || `<div class="menu-icon"><i class="ph ${entry.icon}" aria-hidden="true"></i></div>`}
                 <span>${escapeHtml(entry.shortLabel || entry.label)}</span>
             </button>`).join('')}
         </div>`;

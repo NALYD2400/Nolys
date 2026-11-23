@@ -1,46 +1,36 @@
-/* Symbole sur fond entièrement transparent : le matériau de l'app reste visible.
- * Le PNG alpha conserve le relief ; un masque ne teinte que son bord inférieur.
- * Pas de boucle JS, animation, flou ou filtre par icône. */
+/* Pictogrammes neutres : le verre appartient aux surfaces interactives. */
 .module-art {
     --module-size: 42px;
-    position: relative;
-    display: inline-grid;
+    display: inline-flex;
     flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
     width: var(--module-size);
     height: var(--module-size);
-    overflow: hidden;
+    color: inherit;
     border-radius: calc(var(--module-size) * .29);
-    background: transparent;
+    font-size: calc(var(--module-size) * .62);
+    line-height: 1;
 }
 
-/* Uniquement le liseré : le masque évide tout le centre, sans fond opaque. */
-.module-art::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    padding: 1px;
-    border-radius: inherit;
-    pointer-events: none;
-    background: linear-gradient(155deg, #dae2ff55, #dae2ff0a 42%, rgb(var(--module-color) / .9) 100%);
-    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    mask-composite: exclude;
-}
-
-.module-art img {
+.module-art > i { display: block; }
+.module-art > img {
     display: block;
-    width: 100%;
+    width: 150%;
+    max-width: none;
     height: 100%;
     object-fit: contain;
+    pointer-events: none;
 }
 
-.module-art::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: linear-gradient(180deg, transparent 35%, rgb(var(--module-color) / .82) 100%);
-    mask-image: var(--module-mask);
-    mask-size: contain;
-    mask-position: center;
-    mask-repeat: no-repeat;
+.island-menu-item .module-art {
+    transition: background-color .2s, box-shadow .2s;
+}
+.island-menu-item:hover .module-art,
+.island-menu-item:focus-visible .module-art {
+    background: rgba(255, 255, 255, .10);
+    box-shadow: inset 0 1px rgba(255, 255, 255, .12);
+}
+.island-menu-item:active .module-art {
+    background: rgba(255, 255, 255, .16);
 }

@@ -218,14 +218,14 @@
     height: 42px;
     border-radius: calc(14px * var(--corner-k, 1));
     corner-shape: squircle;
-    background: rgba(255, 255, 255, 0.1);
+    background: transparent;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 22px;
     color: #fff;
-    transition: all 0.2s;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: background-color 0.2s, box-shadow 0.2s;
+    border: 0;
 }
 
 /* Tailles optiques : le trait de chaque dessin n'occupe pas la même place dans sa case. */
@@ -242,9 +242,8 @@
 }
 
 .island-menu-item:hover .menu-icon {
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.2);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.12);
 }
 
 .island-menu-item span {

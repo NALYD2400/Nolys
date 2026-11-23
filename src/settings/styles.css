@@ -621,6 +621,12 @@ button {
     --module-size: 24px;
 }
 
+.menu-item .module-art > i {
+    width: auto;
+    font-size: inherit;
+    opacity: 1;
+}
+
 .menu-check {
     margin-left: auto;
     font-size: 13px;
@@ -792,6 +798,10 @@ button {
 
 .menu-editor-icons {
     flex-wrap: wrap;
+}
+
+.menu-editor-icons .module-art {
+    --module-size: 24px;
 }
 
 .menu-editor-fields .card-footer {

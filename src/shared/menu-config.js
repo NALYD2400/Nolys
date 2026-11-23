@@ -50,7 +50,8 @@ export function sanitizeMenus(value) {
                 const cmd = cleanShortcutCommand(entry.cmd);
                 if (!name || !cmd) continue;
                 result[surface].push({ id: entry.id, enabled: entry.enabled !== false, name, cmd,
-                    icon: SHORTCUT_ICONS.includes(entry.icon) ? entry.icon : SHORTCUT_ICONS[0] });
+                    icon: SHORTCUT_ICONS.includes(entry.icon) ? entry.icon : SHORTCUT_ICONS[0],
+                    ...(entry.preferIcon === true ? { preferIcon: true } : {}) });
             } else continue;
             seen.add(entry.id);
         }

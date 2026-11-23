@@ -4,7 +4,7 @@
  */
 import { startTransition, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { playClick } from '../state/sound.js';
-import { moduleArtwork, moduleArtworkStyle } from '../../shared/module-art.js';
+import { moduleArtwork } from '../../shared/module-art.js';
 
 /** Vert « activé » façon iOS : l'état reste lisible quelle que soit la pochette. */
 export const SWITCH_TINT = '#30d158';
@@ -14,10 +14,10 @@ export const Icon = ({ name, weight = 'regular', className = '' }) => (
     <i className={`${weight === 'regular' ? 'ph' : `ph-${weight}`} ${name} ${className}`} aria-hidden="true" />
 );
 
-export function ModuleArtwork({ id, command, className = '' }) {
-    const art = moduleArtwork(id, command);
-    return art ? <span className={`module-art ${className}`} style={moduleArtworkStyle(id, command)} aria-hidden="true">
-        <img src={art.src} width="128" height="128" alt="" draggable="false" />
+export function ModuleArtwork({ id, command, selectedIcon, preferIcon, className = '' }) {
+    const art = moduleArtwork(id, command, selectedIcon, preferIcon);
+    return art ? <span className={`module-art ${className}`} aria-hidden="true">
+        {art.src ? <img src={art.src} alt="" draggable="false" /> : <i className={`ph ${art.icon}`} />}
     </span> : null;
 }
 
