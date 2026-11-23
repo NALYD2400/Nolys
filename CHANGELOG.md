@@ -6,6 +6,7 @@
 
 - Nouvelles icônes nacrées pour les modules, le menu du clic droit et les raccourcis Windows et personnels.
 - Le choix d’icône d’un raccourci personnel est enregistré et repris dans les deux menus.
+- Mise à jour des dépendances Rust `cookie` et `url` pour corriger deux avis RustSec.
 
 ## 2.6.7
 
